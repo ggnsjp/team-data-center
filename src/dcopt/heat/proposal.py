@@ -520,12 +520,13 @@ def price_svg(pr: dict, lang: str, w_mm: float = 84, h_mm: float = 24) -> str:
         parts.append(f'<path d="M{x:.1f},{y - 7}V{y + 7}" stroke="{INK}" stroke-width="1.6"/>'
                      f'<text x="{x:.1f}" y="{y + dy}" font-size="9.5" fill="{INK2}" text-anchor="{anchor}">'
                      f'{_esc(text)} {_num(v_)}</text>')
+    fuel_text = (f"灯油の熱：{_num(fuel)}{unit}", f"kerosene heat: {_num(fuel)} {unit}")[L]
+    x2 = 29 + sum(9.5 if CJK.search(ch) else 5.3 for ch in fuel_text) + 18      # legend items side by side
     parts.append(f'<path d="M{X(fuel):.1f},{y - 12}V{y + 12}" stroke="{ACCENT}" stroke-width="1.4" stroke-dasharray="3 2"/>'
                  f'<path d="M10,{H - 6}h14" stroke="{ACCENT}" stroke-width="1.4" stroke-dasharray="3 2"/>'
-                 f'<text x="29" y="{H - 2.5}" font-size="9.5" fill="{ACCENT}">'
-                 f'{_esc(("灯油でつくる熱（156.8円/L）", "heat from kerosene (156.8 yen/L)")[L])} {_num(fuel)} {_esc(unit)}</text>'
-                 + (f'<path d="M{W - 112},{H - 9}l4,4l-4,4l-4,-4Z" fill="{INK}"/><text x="{W - 104}" y="{H - 2.5}" font-size="9.5" '
-                    f'fill="{INK2}">{_esc(("利益を半分ずつ", "equal split")[L])}</text>' if hi > lo else "")
+                 f'<text x="29" y="{H - 2.5}" font-size="9.5" fill="{ACCENT}">{_esc(fuel_text)}</text>'
+                 + (f'<path d="M{x2 + 4:.1f},{H - 10}l4,4l-4,4l-4,-4Z" fill="{INK}"/><text x="{x2 + 12:.1f}" y="{H - 2.5}" '
+                    f'font-size="9.5" fill="{INK2}">{_esc(("折半の価格", "equal split")[L])}</text>' if hi > lo else "")
                  + "</svg>")
     return "".join(parts)
 
