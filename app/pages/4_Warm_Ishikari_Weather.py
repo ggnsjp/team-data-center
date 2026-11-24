@@ -53,18 +53,13 @@ def latest_results() -> dict | None:
     return json.loads(runs[-1].read_text(encoding="utf-8")) if runs else None
 
 
-with st.sidebar:
-    lang = st.radio("表示言語 / Language", ["日本語", "English"], horizontal=True, key="weather_lang")
-    ja = lang == "日本語"
-    st.subheader("シナリオ / Scenario")
-    year = st.select_slider("気象年 / Weather year", options=[w.year for w in weather_years()], value=1984)
-    it_level = st.radio("データセンターのIT負荷 / IT load", ["high", "low"], horizontal=True)
-    price = st.slider("灯油価格（円/L） / Kerosene (yen/L)", 70.0, 170.0, 156.8, 0.2)
-
-
 def pick(a, b):
     return a if ja else b
 
+
+with st.sidebar:
+    lang = st.radio("表示言語 / Language", ["日本語", "English"], horizontal=True, key="weather_lang")
+    ja = lang == "日本語"
 
 res = latest_results()
 st.title("Warm Ishikari Weather · " + pick("50年の気象で試す導管網", "The heat network against 50 years of weather"))
@@ -73,6 +68,24 @@ st.caption(pick("平年値だけの計画を、1976〜2025年の実際の毎日�
                 "The plan built on climate normals, tested against the actual daily weather of 1976-2025 "
                 "(JMA, Sapporo). The top section shows the experiment's results; the bottom re-optimizes "
                 "the network for one chosen year."))
+
+if not W.year_csv(W.YEARS[0]).exists():
+    st.error(pick("気象データ（1976〜2025年）がまだダウンロードされていません。まず一度だけ実行してください（約10分）：",
+                  "The weather years (1976-2025) are not downloaded yet. Run this once first (about 10 minutes):"))
+    st.code("uv run python -m dcopt.heat.weather 1976 2025")
+    st.stop()
+missing = [f"{w.year}年 {w.n_missing_t}日" if ja else f"{w.year} ({w.n_missing_t} d)"
+           for w in weather_years() if w.n_missing_t]
+if missing:
+    st.warning(pick("観測のない日は、同じ月の他の日の平均で補いました：",
+                    "Days without a temperature observation were imputed from their month's other days: ")
+               + ("、".join(missing) if ja else ", ".join(missing)))
+
+with st.sidebar:
+    st.subheader("シナリオ / Scenario")
+    year = st.select_slider("気象年 / Weather year", options=[w.year for w in weather_years()], value=1984)
+    it_level = st.radio("データセンターのIT負荷 / IT load", ["high", "low"], horizontal=True)
+    price = st.slider("灯油価格（円/L） / Kerosene (yen/L)", 70.0, 170.0, 156.8, 0.2)
 
 if res is None:
     st.info(pick("実験結果がまだありません: uv run python experiments/weather_years/run.py ambient both --bound",

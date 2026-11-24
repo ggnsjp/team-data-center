@@ -120,3 +120,30 @@ def test_load_years_aggregates_daily_csv(tmp_path):
     assert wy.t_month[0] == pytest.approx(-5.0) and wy.t_month[6] == pytest.approx(25.0)
     assert wy.snow_month[0] == pytest.approx(100.0) and wy.snow_month[6] == pytest.approx(0.0)
     assert wy.snow_index == pytest.approx(100.0 / SNOW_N)
+    assert wy.n_missing_t == 0
+
+
+def test_missing_temperature_day_is_imputed_and_counted(tmp_path):
+    """One blank day must not sink a whole year: it is imputed from its month's other days and
+    counted in n_missing_t; a month with no observation at all fails loudly."""
+    n_days = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+
+    def csv(tmp, blank_days=(), blank_months=()):
+        rows = ["month,day,t_mean_c,snow_cm"]
+        for m in range(1, 13):
+            for d in range(1, n_days[m - 1] + 1):
+                t = "" if (m in blank_months or (m, d) in blank_days) else (
+                    0.1 * d if m == 1 else (25.0 if m == 7 else 10.0))
+                rows.append(f"{m},{d},{t},")
+        p = tmp / "year.csv"
+        p.write_text("\n".join(rows) + "\n", encoding="utf-8")
+        return p
+
+    wy = weather_year_from_csv(2001, csv(tmp_path, blank_days={(1, 15)}))
+    assert wy.n_missing_t == 1
+    # with the day dropped, the month's mean becomes the imputed value
+    assert wy.t_month[0] == pytest.approx(0.1 * (496 - 15) / 30)
+    assert wy.t_month[6] == pytest.approx(25.0)
+
+    with pytest.raises(ValueError, match="no mean-temperature observation"):
+        weather_year_from_csv(2001, csv(tmp_path, blank_months={2}))

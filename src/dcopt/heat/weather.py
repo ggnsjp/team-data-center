@@ -34,7 +34,7 @@ import re
 import time
 import urllib.request
 from calendar import monthrange
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -204,12 +204,17 @@ def fetch_years(start: int, end: int, delay: float = DELAY_S, force: bool = Fals
 
 @dataclass(frozen=True)
 class WeatherYear:
-    """One year of weather at daily resolution, with the monthly aggregates the model runs on."""
+    """One year of weather at daily resolution, with the monthly aggregates the model runs on.
+
+    n_missing_t counts the days whose mean temperature had to be imputed from their month's
+    other days when the year was loaded from a CSV (JMA blanks them for broken instruments
+    and late uploads); 0 for years built directly from daily series."""
     year: int
     t_day: tuple[float, ...]        # daily mean temperature (C), 365 or 366 entries
     snow_day: tuple[float, ...]     # daily snowfall (cm)
     t_month: tuple[float, ...]      # monthly mean temperature (C)
     snow_month: tuple[float, ...]   # monthly snowfall totals (cm)
+    n_missing_t: int = 0
 
     @classmethod
     def from_daily(cls, year: int, t_day, snow_day) -> WeatherYear:
@@ -314,15 +319,25 @@ class WeatherYear:
 
 
 def weather_year_from_csv(year: int, path: Path) -> WeatherYear:
-    """One WeatherYear from a tidy daily CSV: monthly mean temperature, monthly snowfall total."""
-    t_day, snow_day = [], []
+    """One WeatherYear from a tidy daily CSV: monthly mean temperature, monthly snowfall total.
+
+    A missing temperature day is imputed from its month's other days and counted in n_missing_t
+    (one blank day must not sink a whole year); a month with no observation at all fails loudly —
+    that year is not worth loading."""
+    rows: list[tuple[int, float | None]] = []
+    snow_day = []
     for line in path.read_text(encoding="utf-8").splitlines()[1:]:
         month, _day, temp, snow = line.split(",")
-        if not temp:
-            raise ValueError(f"{path}: missing daily mean temperature (row: {line})")
-        t_day.append(float(temp))
-        snow_day.append(float(snow) if snow else 0.0)  # a missing snow day is a snow-free day
-    return WeatherYear.from_daily(year, t_day, snow_day)
+        rows.append((int(month), float(temp) if temp else None))
+        snow_day.append(float(snow) if snow else 0.0)
+    missing = [(m, i) for i, (m, t) in enumerate(rows) if t is None]
+    for m, i in missing:
+        seen = [t for mm, t in rows if mm == m and t is not None]
+        if not seen:
+            raise ValueError(f"{path}: month {m} has no mean-temperature observation at all")
+        rows[i] = (m, sum(seen) / len(seen))
+    wy = WeatherYear.from_daily(year, [t for _, t in rows], snow_day)
+    return replace(wy, n_missing_t=len(missing))
 
 
 def load_years(start: int, end: int) -> list[WeatherYear]:
