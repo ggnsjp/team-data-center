@@ -28,6 +28,10 @@ KNOBS = [
 ]
 BY_ID = {k[0]: k for k in KNOBS}
 
+# the LLM returns place "random" when the user asks for a random data center; the app draws the rest
+RANDOM_PLACES = ("random", "ランダム", "random place", "random location", "random lat long",
+                 "おまかせ", "どこでも")
+
 
 class WhatifError(ValueError):
     """The LLM's answer could not be turned into knob changes; safe to show in the UI."""
@@ -48,7 +52,10 @@ def parse_prompt(current: dict, text: str) -> str:
             "clamps values into each knob's range, so return the value the request implies even when "
             "it is outside the range. A request may also PROPOSE BUILDING A NEW DATA CENTER: then set "
             "new_data_center to {\"mw\": <IT load in MW>, \"place\": <the place as the user wrote it, "
-            "or 'lat,lon'>} and leave changes empty unless the request also names a knob. When a new "
+            "or 'lat,lon'>} and leave changes empty unless the request also names a knob. A request "
+            "may also ask for a RANDOM data center: then return new_data_center {\"mw\": <number or "
+            "null>, \"place\": \"random\"} and do not ask anything — the app samples the actual place "
+            "and MW. When a new "
             "data center is named but its MW or place is missing, leave new_data_center null and ask "
             "ONE short question in clarify, in the language of the request — the same for a request "
             "that could mean several knobs (for example 'the price': kerosene or electricity?). "
@@ -100,13 +107,17 @@ def parse_patch(text: str, current: dict, *, llm_chat) -> dict:
             out[key] = int(v) if kind == "int" else v
     ndc = parsed.get("new_data_center")
     new_dc = None
-    if isinstance(ndc, dict) and ndc.get("place") is not None and ndc.get("mw") is not None:
+    if isinstance(ndc, dict) and ndc.get("place") is not None:
+        place = str(ndc["place"]).strip()
+        mw_raw = ndc.get("mw")
         try:
-            mw = float(ndc["mw"])
+            mw = float(mw_raw) if mw_raw is not None else None
         except (TypeError, ValueError):
             mw = None
-        if mw is not None:
-            new_dc = {"mw": min(max(mw, 0.5), 100.0), "place": str(ndc["place"])}
+        if place.lower() in RANDOM_PLACES:
+            new_dc = {"mw": min(max(mw, 0.5), 100.0) if mw is not None else None, "place": place}
+        elif mw is not None:
+            new_dc = {"mw": min(max(mw, 0.5), 100.0), "place": place}
     clarify = parsed.get("clarify")
     return {"changes": out, "new_dc": new_dc, "clarify": str(clarify) if clarify else None}
 
@@ -132,6 +143,19 @@ def explain_prompt(question: str, changed: dict, before: dict, after: dict, lang
                 "never introduce numbers of your own.")
     return (head + f"\n\nquestion: {question}\n\nchanges:\n{diff}\n\n"
             f"results: {json.dumps(after, ensure_ascii=False)}")
+
+
+def sample_random_dc() -> dict:
+    """A random plausible data center for the panel: MW 2-50, a point inside the study area.
+
+    The box matches the geocoder's Ishikari viewbox (inset); build_instance snaps the point to
+    the nearest road node, so even a draw in the middle of a field lands on the real network.
+    Each call draws fresh values — ask again for another draw.
+    """
+    import random
+    return {"mw": round(random.uniform(2.0, 50.0), 1),
+            "lat": round(random.uniform(43.10, 43.35), 4),
+            "lon": round(random.uniform(141.15, 141.70), 4)}
 
 
 def new_dc_summary(sources, users, mw: float, lat: float, lon: float,

@@ -137,6 +137,28 @@ def test_parse_patch_carries_a_new_data_center():
     assert out["new_dc"] == {"mw": 20.0, "place": "手稲区"} and out["changes"] == {}
 
 
+def test_parse_patch_allows_random_with_or_without_mw():
+    out = whatif.parse_patch("random DC", CURRENT,
+                             llm_chat=fake_chat(json.dumps({"changes": {},
+                                                            "new_data_center": {"mw": None,
+                                                                                "place": "random"},
+                                                            "clarify": ""})))
+    assert out["new_dc"] == {"mw": None, "place": "random"} and out["clarify"] is None
+    out = whatif.parse_patch("random DC", CURRENT,
+                             llm_chat=fake_chat(json.dumps({"changes": {},
+                                                            "new_data_center": {"mw": 30,
+                                                                                "place": "ランダム"},
+                                                            "clarify": ""})))
+    assert out["new_dc"] == {"mw": 30.0, "place": "ランダム"}
+
+
+def test_sample_random_dc_stays_in_the_study_area():
+    for _ in range(50):
+        d = whatif.sample_random_dc()
+        assert 2.0 <= d["mw"] <= 50.0
+        assert 43.10 <= d["lat"] <= 43.35 and 141.15 <= d["lon"] <= 141.70
+
+
 def test_parse_patch_drops_an_incomplete_new_data_center():
     canned = json.dumps({"changes": {}, "new_data_center": {"place": "somewhere"}, "clarify": "MW?"})
     out = whatif.parse_patch("a new DC", CURRENT, llm_chat=fake_chat(canned))

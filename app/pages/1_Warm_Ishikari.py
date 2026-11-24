@@ -6,6 +6,7 @@ app-level switch (session key app_lang), not from a control on this page.
 from __future__ import annotations
 
 import math
+import re
 
 import altair as alt
 import folium
@@ -185,27 +186,44 @@ if clarify:
 proposed = st.session_state.pop("pending_newdc", None)
 if proposed:
     st.session_state.pop("clarify_context", None)       # the thread resolves here
-    try:
-        with st.spinner(pick("場所を探しています…", "Finding the place…")):
-            lat, lon, label = geocode(proposed["place"])
-    except (LookupError, OSError) as e:
-        st.error(pick(f"場所を読み取れませんでした（「141.3, 43.2」のように緯度経度でも書けます）：{e}",
-                      f"Could not find that place (lat,lon like '141.3, 43.2' works too): {e}"))
+    place = proposed["place"].strip()
+    if place.lower() in whatif.RANDOM_PLACES:
+        drawn = whatif.sample_random_dc()
+        mw = proposed["mw"] if proposed["mw"] is not None else drawn["mw"]
+        lat, lon = drawn["lat"], drawn["lon"]
+        label = pick("石狩市内にランダムに選んだ地点", "a random point in the study area")
+    elif (m := re.match(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$", place)):
+        lat, lon, label = float(m[1]), float(m[2]), place
+        mw = proposed["mw"] if proposed["mw"] is not None else whatif.sample_random_dc()["mw"]
     else:
+        try:
+            with st.spinner(pick("場所を探しています…", "Finding the place…")):
+                lat, lon, label = geocode(place)
+        except (LookupError, OSError) as e:
+            lat, lon, label = None, None, None
+            st.error(pick(f"場所を読み取れませんでした（「141.3, 43.2」のように緯度経度でも書けます）：{e}",
+                          f"Could not find that place (lat,lon like '141.3, 43.2' works too): {e}"))
+        mw = proposed["mw"] if proposed["mw"] is not None else (
+            whatif.sample_random_dc()["mw"] if "random" in place.lower() else None)
+        if mw is None and lat is not None:
+            lat = None
+            st.error(pick("MW（IT負荷）が読み取れませんでした。例：手稲区に20MWのデータセンター",
+                          "Could not read the MW (IT load). Example: a 20 MW data center in Teine"))
+    if lat is not None and mw is not None:
         with st.spinner(pick("マルチDCモデルで解いています（実験と同じ装置、1〜2分）…",
                              "Solving on the multi-DC engine (the experiments' machinery, 1-2 min)…")):
-            ndc = solve_with_new_dc(proposed["mw"], lat, lon)
-        st.caption(pick(f"仮定のデータセンター：{proposed['mw']:g} MW @ {label}（緯度経度 "
-                        f"{lat:.4f}, {lon:.4f}）。シナリオは実験と同じ（灯油115円と156.8円、IT高低）。",
-                        f"Assumed data center: {proposed['mw']:g} MW at {label} ({lat:.4f}, {lon:.4f}). "
-                        "Scenarios as in the experiments (kerosene 115 and 156.8 yen/L, IT low/high)."))
+            ndc = solve_with_new_dc(mw, lat, lon)
+        st.caption(pick(f"仮定のデータセンター：{mw:g} MW @ {label}（緯度経度 {lat:.4f}, {lon:.4f}）。"
+                        f"シナリオは実験と同じ（灯油115円と156.8円、IT高低）。",
+                        f"Assumed data center: {mw:g} MW at {label} ({lat:.4f}, {lon:.4f}). Scenarios as "
+                        "in the experiments (kerosene 115 and 156.8 yen/L, IT low/high)."))
         rows = [{pick("項目", "metric"): k, pick("新設なし", "without"): v,
                  pick("新設あり", "with"): ndc["after"][k]} for k, v in ndc["before"].items()]
         st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
         try:
             with st.spinner(pick("結果を説明中…", "Explaining the results…")):
                 answer = llm.chat([{"role": "user", "content": whatif.explain_prompt(
-                    pending["question"] if pending else proposed["place"],
+                    pending["question"] if pending else place,
                     {ndc["new_dc"]: pick("新設（仮定）", "built (assumption)")},
                     ndc["before"], ndc["after"], "ja" if ja else "en")}], max_tokens=1600)
         except llm.LLMError as e:
