@@ -134,13 +134,19 @@ def weather_for(year: int, cached: list[W.WeatherYear]) -> tuple[W.WeatherYear |
 def results_panel(res: dict, rule_year: int) -> None:
     """The experiment's tables and its 50-year chart, read-only; parts the run does not have are left out."""
     rep = res["published_replication"]
+    recipe = rep.get("eev_recipe") or {}
+    eev_note = (pick(f"（公表 79.0。種なしの同じ探索では {recipe.get('no_seeds', 0) / M:.1f}："
+                     f"式の違いではなく探索の描画差）",
+                     f"(published 79.0; without the seeded links the same search gives "
+                     f"{recipe.get('no_seeds', 0) / M:.1f} — a search draw, not a formula)")
+                if recipe else pick("（公表 79.0、未解決 / open）", "(published 79.0, open)"))
     st.subheader(pick("実験の結果（読み取り専用）", "Experiment results (read-only)"))
-    st.caption(pick(f"出典 / Source: commit {res.get('git_commit', '?')}、results/weather_years の直近の実行。"
-                    f"公表値の再現 / replication: RP {rep['rp'] / M:.1f}（公表 / published 93.8）、"
-                    f"EEV {rep['eev'] / M:.1f}（公表 / published 79.0、未解決 / open）。",
+    st.caption(pick(f"出典：commit {res.get('git_commit', '?')}、results/weather_years の直近の実行。"
+                    f"公表値の再現：RP {rep['rp'] / M:.1f}（公表 93.8）、"
+                    f"EEV {rep['eev'] / M:.1f}{eev_note}。",
                     f"Source: commit {res.get('git_commit', '?')}, latest run in results/weather_years. "
                     f"Replication of the published numbers: RP {rep['rp'] / M:.1f} (published 93.8), "
-                    f"EEV {rep['eev'] / M:.1f} (published 79.0, open)."))
+                    f"EEV {rep['eev'] / M:.1f}{eev_note}."))
     gaps = [int(y) for y in res.get("missing_years") or {}]
     if gaps:                        # the run went on without the years it could not download
         used = len(res.get("weather_years") or [])
