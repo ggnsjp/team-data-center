@@ -23,7 +23,7 @@ def deliveries(ud, Wc, assign, d, t, w):
     users = sorted((u for u, a in assign.items() if a == d and ud.v[u, w] > 0), key=lambda u: -ud.v[u, w] / ud.r[u])
     left, value = Wc[d, t, w], 0.0
     for u in users:
-        s = min(ud.cap[u, t], left / ud.r[u])
+        s = min(ud.cap[u, t, w], left / ud.r[u])
         value += s * ud.v[u, w]
         left -= s * ud.r[u]
         if left <= 1e-12:

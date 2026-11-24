@@ -162,4 +162,4 @@ def test_user_data_matches_the_page_for_a_direct_user():
     assert ud.q[0] == pytest.approx(ud.peak[0] * 1.0 * (1 + AMB.loss))      # sigma = 1 for direct use
     assert ud.co2[0] == pytest.approx(0.302, abs=5e-4)                       # no electricity, no grid term
     assert ud.hp[0] == 0.0
-    assert ud.cap[0].sum() == pytest.approx(5000, abs=1e-6)                   # alpha = 1 covers the flat demand
+    assert ud.cap[0].sum(axis=0) == pytest.approx(5000, abs=1e-6)             # alpha = 1 covers the flat demand

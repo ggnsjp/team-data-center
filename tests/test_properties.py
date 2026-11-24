@@ -119,7 +119,7 @@ def check_plan(plan):
             for dd in range(inst.D):                                                    # one data center
                 if dd != d:
                     assert plan.s[u, dd].sum() <= 1e-6
-            assert np.all(plan.s[u, d] <= ud.cap[u][:, None] + 1e-6)                    # delivery caps
+            assert np.all(plan.s[u, d] <= ud.cap[u] + 1e-6)                             # delivery caps
         else:
             assert plan.s[u].sum() <= 1e-6
         assert np.allclose(bal, expect, atol=1e-6)                                      # flow balance

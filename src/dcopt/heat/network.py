@@ -12,7 +12,9 @@ and adds:
                own heat pump, or uses it directly when it needs 27 C or less. "central": one heat pump
                per data center sends about 60 C water; small temperature drop, so larger pipe flows.
   Scenarios    Pipes and connections are decided once; heat deliveries adapt to each scenario of IT load
-               and kerosene price. Objectives (OBJECTIVES): the expected net benefit (two-stage stochastic),
+               and kerosene price, and (when the scenario carries a weather year, dcopt.heat.weather)
+               of the year's own temperature and snowfall, which reshape and scale each user's months.
+               Objectives (OBJECTIVES): the expected net benefit (two-stage stochastic),
                the worst scenario's net benefit (max-min), or the largest regret (min-max regret), the last
                two through one epigraph variable. `ccg` adds the two-stage adjustable robust plan over a
                budgeted interval set of IT loads by column-and-constraint generation.
@@ -46,11 +48,15 @@ from __future__ import annotations
 import math
 import time
 from dataclasses import dataclass, field, replace
+from typing import TYPE_CHECKING
 
 import numpy as np
 import scipy.sparse as sp
 
 from dcopt.heat.v1 import DAYS, KEROSENE_KG_CO2_PER_L, KEROSENE_KWH_PER_L, KINDS, Site, _offset
+
+if TYPE_CHECKING:
+    from dcopt.heat.weather import WeatherYear
 
 AREA = "ishikari"
 T = 12
@@ -284,6 +290,7 @@ class Scenario:
     kerosene_yen_l: float
     it_level: str | None = "high"                 # "low" or "high" IT load at every data center
     it_mw: tuple | None = None                    # explicit ((source key, MW), ...) instead
+    weather: WeatherYear | None = None            # a weather.WeatherYear (None: climate normals)
 
     def it_load(self, src: Source) -> float:
         return dict(self.it_mw)[src.key] if self.it_mw is not None else src.it_mw[self.it_level]
@@ -400,9 +407,10 @@ def duration_energy(mean_mw: float, hours: float, f: float, c_mw: float) -> floa
 
 @dataclass
 class UserData:
-    demand: np.ndarray      # U x T, MWh
-    peak: np.ndarray        # U, MW delivered at the design hour
-    cap: np.ndarray         # U x T, MWh deliverable with pipes sized for alpha x peak
+    demand: np.ndarray      # U x T x W, MWh (weather-year scenarios vary; normals otherwise)
+    peak: np.ndarray        # U, MW delivered at the design hour of the worst scenario
+    peak_w: np.ndarray      # U x W, each scenario's own design peak
+    cap: np.ndarray         # U x T x W, MWh deliverable with pipes sized for alpha x peak
     r: np.ndarray           # U, waste heat drawn per MWh delivered
     elec: np.ndarray        # U, MWh of electricity per MWh delivered
     q: np.ndarray           # U, MW on each pipe of the user's path at peak
@@ -412,32 +420,56 @@ class UserData:
     cop: list               # U, COP or None (direct use)
 
 
-def user_data(inst: Instance, P: Params, scens: list[Scenario]) -> UserData:
-    dem = inst.demand()
-    U = inst.U
-    peak, cap = np.zeros(U), np.zeros((U, T))
+def user_data(inst: Instance, P: Params, scens: list[Scenario],
+              design_peak: np.ndarray | None = None) -> UserData:
+    """Per-user numbers. Demand varies by scenario when the scenario carries a WeatherYear: the
+    year's own daily temperatures and snowfall reshape the months and scale the annual demand
+    (dcopt.heat.weather). Pipes and heat pumps are sized once, for the worst scenario's worst
+    month (the published convention; see the sizing note below).
+
+    `design_peak` evaluates a FIXED build: the pipes exist, so their design peak (and the q and
+    deliverable energy derived from it) stays the plan's own; only the demand follows the new
+    scenarios. Without it the peak would be re-derived from the evaluation scenarios — letting a
+    plan evaluated on colder years quietly grow pipes it never built."""
+    U, Wn = inst.U, len(scens)
+    dem = np.empty((U, T, Wn))
+    normals = inst.demand()                                   # U x T, from the climate normals
+    for w, sc in enumerate(scens):
+        dem[:, :, w] = normals if sc.weather is None else \
+            [sc.weather.monthly_demand(u.kind, u.annual_mwh) for u in inst.users]
+    fs = np.array([P.peak_factor[site.kind] for site in inst.users])
+    means = dem / np.array(HOURS)[None, :, None]              # U x T x W
+    peak_w = means.max(axis=1) * fs[:, None]                  # U x W: each year's design peak
+    # Sized for the worst MONTH of the worst scenario (the published convention). A design-DAY
+    # peak would be the more faithful engineering choice, but with the all-or-nothing pipe-size
+    # convention (a pipe must carry the user's full peak or the user stays off) it forces every
+    # candidate build to pay for the worst day of 50 years while mean-built plans evaluated on
+    # the same years keep their mild sizing — the stage-A comparison stops being apples-to-
+    # apples (EEV 149.7M vs RP 104.4M). A consistent design-day model needs the deliverable
+    # capacity tied to the BUILT pipe size, not to alpha x the scenario peak (see the weather
+    # module's daily_peak_mw for the data side of that next step).
+    peak = peak_w.max(axis=1) if design_peak is None else np.asarray(design_peak, float)
+    c = P.alpha * peak
+    cap = np.empty((U, T, Wn))
+    for w in range(Wn):
+        for u in range(U):
+            cap[u, :, w] = [duration_energy(means[u, t, w], HOURS[t], fs[u], c[u]) for t in range(T)]
     r, elec, q, co2, hp = (np.zeros(U) for _ in range(5))
-    cops = []
     fuel_t = KEROSENE_KG_CO2_PER_L / (KEROSENE_KWH_PER_L * P.boiler_eff)      # t CO2 per MWh of heat
     for u, site in enumerate(inst.users):
-        f = P.peak_factor[site.kind]
-        means = [dem[u, t] / HOURS[t] for t in range(T)]
-        peak[u] = max(means) * f
-        c = P.alpha * peak[u]
-        cap[u] = [duration_energy(means[t], HOURS[t], f, c) for t in range(T)]
         k = P.per_kind(site.kind)
-        cops.append(k["cop"])
         r[u], elec[u] = k["r"], k["elec"]
-        q[u] = c * k["share"] * (1 + P.loss)
+        q[u] = c[u] * k["share"] * (1 + P.loss)
         grid = P.grid_t_per_mwh if (P.mode == "ambient" or not P.renewable_central) else 0.0
         co2[u] = fuel_t - elec[u] * grid
         if P.mode == "central":
-            hp[u] = P.hp_yen_per_mw_central * c
+            hp[u] = P.hp_yen_per_mw_central * c[u]
         elif k["hp_user"]:
-            hp[u] = P.hp_yen_per_mw_user * c
+            hp[u] = P.hp_yen_per_mw_user * c[u]
     v = np.array([[P.fuel_yen_per_mwh(s.kerosene_yen_l) - P.power_yen_kwh * 1000 * elec[u] for s in scens]
                   for u in range(U)]).reshape(U, len(scens))
-    return UserData(dem, peak, cap, r, elec, q, v, co2, hp, cops)
+    return UserData(dem, peak, peak_w, cap, r, elec, q, v, co2, hp,
+                    [P.per_kind(u.kind)["cop"] for u in inst.users])
 
 
 def waste_heat(inst: Instance, P: Params, scens: list[Scenario]) -> np.ndarray:
@@ -578,12 +610,13 @@ class Model:
 
 
 def build_model(inst: Instance, P: Params, scens: list[Scenario], *, edges: list[tuple[int, int]] | None = None,
-                force_edges: bool = False, fix: dict | None = None, off: tuple | list = ()) -> Model:
+                force_edges: bool = False, fix: dict | None = None, off: tuple | list = (),
+                design_peak: np.ndarray | None = None) -> Model:
     D, U, n, Wn = inst.D, inst.U, inst.n, len(scens)
     E = list(edges) if edges is not None else candidate_edges(inst, P)
     E = [(a, b) for a, b in E if np.isfinite(inst.dist[a, b])]
     nE, K, A = len(E), len(P.sizes), 2 * len(E)
-    ud = user_data(inst, P, scens)
+    ud = user_data(inst, P, scens, design_peak)
     Wc = waste_heat(inst, P, scens)
     a_from = np.array([a for a, b in E] + [b for a, b in E], dtype=int)
     a_to = np.array([b for a, b in E] + [a for a, b in E], dtype=int)
@@ -665,12 +698,12 @@ def build_model(inst: Instance, P: Params, scens: list[Scenario], *, edges: list
         block(np.concatenate([ee, ee, np.repeat(np.arange(nE), K)]),
               np.concatenate([og + ue * A + ee, og + ue * A + ee + nE, oy + np.arange(nE * K)]),
               np.concatenate([ud.q[ue], ud.q[ue], -np.tile(cap_k, nE)]), nE, -np.inf, 0.0)
-    # (demand and coverage) s_udtw - cap_ut z_ud <= 0
+    # (demand and coverage) s_udtw - cap_utw z_ud <= 0
     idx = np.arange(U * D * T * Wn)
     su, sd, st = idx // (D * T * Wn), (idx // (T * Wn)) % D, (idx // Wn) % T
     sw = idx % Wn
     block(np.concatenate([idx, idx]), np.concatenate([osv + idx, oz + su * D + sd]),
-          np.concatenate([np.ones(idx.size), -ud.cap[su, st]]), idx.size, -np.inf, 0.0)
+          np.concatenate([np.ones(idx.size), -ud.cap[su, st, sw]]), idx.size, -np.inf, 0.0)
     # (waste heat) sum_u r_u s_udtw <= W_dtw
     block((sd * T + st) * Wn + sw, osv + idx, ud.r[su], D * T * Wn, -np.inf, Wc.ravel())
 
@@ -823,17 +856,19 @@ def _start(m: Model, plan: Plan, objective: str, own_opt, P: Params) -> np.ndarr
 def solve(inst: Instance, P: Params, scens: list[Scenario], *, objective: str = "expected",
           own_opt: list[float] | None = None, eps: float = 1e-4, edges: list[tuple[int, int]] | None = None,
           force_edges: bool = False, fix: dict | None = None, off: tuple | list = (),
-          start: Plan | None = None) -> Plan:
+          start: Plan | None = None, design_peak: np.ndarray | None = None) -> Plan:
     """Build and solve (HiGHS by default, see `solver_name`). objective:
       "expected"  max sum_w p_w net_w                                      (two-stage stochastic)
       "worst"     max t  s.t. t <= net_w for every w                         (max-min, epigraph t)
       "regret"    min t  s.t. t >= own_opt_w - net_w for every w             (min-max regret)
     The robust objectives add eps x the expected net benefit to break ties among equally robust plans.
     `fix` holds a plan's build (y on the same `edges`, x, assign) to evaluate it on other scenarios;
-    `off` lists users that may not connect; `force_edges` builds every given edge (pair by pair);
-    `start` is a plan on a subset of the links and the same scenarios, used as a MIP start."""
+    `design_peak` keeps the evaluated plan's own pipe sizing (see user_data); `off` lists users that
+    may not connect; `force_edges` builds every given edge (pair by pair); `start` is a plan on a
+    subset of the links and the same scenarios, used as a MIP start."""
     t0 = time.perf_counter()
-    m = build_model(inst, P, scens, edges=edges, force_edges=force_edges, fix=fix, off=off)
+    m = build_model(inst, P, scens, edges=edges, force_edges=force_edges, fix=fix, off=off,
+                    design_peak=design_peak)
     c, A, lo, hi, lb, ub, integ = _with_objective(m, scens, objective, own_opt, eps)
     v0 = _start(m, start, objective, own_opt, P) if start is not None else None
     res = _run(c, A, lo, hi, lb, ub, integ, P, v0)
@@ -911,9 +946,10 @@ def _score(plan: Plan, objective: str) -> float:
 
 def evaluate(plan: Plan, scens: list[Scenario] | None = None, off: tuple | list = ()) -> Plan:
     """The plan's pipes and connections kept fixed; deliveries re-optimised (on other scenarios, or
-    with some users switched off). This is the second-stage LP."""
+    with some users switched off). This is the second-stage LP: the built pipes keep the design
+    peak they were sized for, only the demand follows the scenarios."""
     return solve(plan.inst, plan.P, scens if scens is not None else plan.scens, edges=plan.E,
-                 fix=plan.build(), off=off)
+                 fix=plan.build(), off=off, design_peak=plan.ud.peak)
 
 
 # ------------------------------------------------------------------------------------- uncertainty
@@ -1092,7 +1128,7 @@ def pair_score(inst: Instance, P: Params, scens: list[Scenario], d: int, u: int,
     if k is None or not np.isfinite(dist) or dist > P.max_link_m:
         return None
     prob = np.array([s.prob for s in scens])
-    heat = np.array([sum(min(ud.cap[u, t], Wc[d, t, w] / ud.r[u]) for t in range(T)) for w in range(len(scens))])
+    heat = np.array([sum(min(ud.cap[u, t, w], Wc[d, t, w] / ud.r[u]) for t in range(T)) for w in range(len(scens))])
     value = float(prob @ (heat * ud.v[u]))
     pipe = P.sizes[k].yen_m * dist
     return {"u": u, "d": d, "dist_m": dist, "size": P.sizes[k].dn, "capex": pipe + ud.hp[u],
@@ -1153,7 +1189,7 @@ def pair_calculator(inst: Instance, P: Params, scens: list[Scenario], d: int, u:
     prob = np.array([s.prob for s in scens])
     if ps is None:
         return []
-    heat_w = np.array([sum(min(ud.cap[u, t], Wc[d, t, w] / ud.r[u]) for t in range(T)) for w in range(len(scens))])
+    heat_w = np.array([sum(min(ud.cap[u, t, w], Wc[d, t, w] / ud.r[u]) for t in range(T)) for w in range(len(scens))])
     save_w = heat_w * ud.v[u]
     k = smallest_size(P, ud.q[u])
     pipe = P.sizes[k].yen_m * ps["dist_m"]
@@ -1164,8 +1200,9 @@ def pair_calculator(inst: Instance, P: Params, scens: list[Scenario], d: int, u:
         ("dist", "道路沿いの距離", "Distance along roads", round(ps["dist_m"]), "m",
          "source" if inst.road else "calculated",
          f"OpenStreetMap road network, shortest path (© OpenStreetMap contributors, {URL['osm']})"),
-        ("demand", "年間の熱需要", "Annual heat demand", round(float(ud.demand[u].sum())), "MWh", "assumption",
-         f"{site.source}; monthly profile from JMA climate normals"),
+        ("demand", "年間の熱需要", "Annual heat demand", round(float(ud.demand[u].mean(axis=1).sum())), "MWh", "assumption",
+         f"{site.source}; monthly profile from JMA climate normals"
+         + (" or the scenarios' weather years" if any(s.weather for s in scens) else "")),
         ("peak", "設計ピーク", "Design peak", round(float(ud.peak[u]), 2), "MW", "assumption", PEAK_BASIS),
         ("temp", "必要な温度", "Supply temperature needed", P.supply_c[site.kind], "C", "assumption",
          SUPPLY_BASIS[site.kind]),
