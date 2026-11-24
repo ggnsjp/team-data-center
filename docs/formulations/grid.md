@@ -206,7 +206,7 @@ The outage study in the first command runs at load level 0.7; `--n1-level 1.0` a
 
 ## References
 
-Relaxations, benchmarks and tools are references 37–47 of the README. In addition:
+Relaxations, benchmarks and tools are references 37–47 of the README. The six below are also its references 59–64:
 
 - Grone, R., Johnson, C.R., Sá, E.M., Wolkowicz, H. (1984). Positive definite completions of partial Hermitian matrices. *Linear Algebra and its Applications*, 58, 109–124. https://doi.org/10.1016/0024-3795(84)90207-6
 - Jabr, R.A. (2012). Exploiting Sparsity in SDP Relaxations of the OPF Problem. *IEEE Transactions on Power Systems*, 27(2), 1138–1139. https://doi.org/10.1109/TPWRS.2011.2170772

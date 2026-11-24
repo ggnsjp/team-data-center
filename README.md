@@ -25,7 +25,7 @@ We took the idea starter **"Warm Ishikari"**: a matchmaker and calculator for da
 | | Question | Method | Status |
 |---|---|---|---|
 | 1. Waste-heat networks | Which users connect to which data center, along which streets, with which pipes? | Network-design MILP with monthly heat balances; stochastic and robust versions [23–26, 31–36] | Models v1 and v2, app and animated map |
-| 2. Grid hosting capacity | How much data-center and heat-pump load can each grid location take? | AC optimal power flow with convex (SDP/SOCP) relaxations: certified upper bounds plus feasible points [37–47] | Planned |
+| 2. Grid hosting capacity | How much data-center and heat-pump load can each grid location take? | AC optimal power flow with convex (SDP/SOCP) relaxations: certified upper bounds plus feasible points [37–47, 59–64] | Method and app page; checked on benchmark systems |
 | 3. Siting | Where should the next data center go? | Facility location using the results of themes 1 and 2 [48–52] | Planned |
 
 ## Results so far (theme 1)
@@ -122,6 +122,36 @@ Notes on the table:
 
 Details: the full mathematical model, with every coefficient and worked numbers, is in [docs/formulations/heat-model.md](docs/formulations/heat-model.md); results are in [docs/formulations/heat.md](docs/formulations/heat.md).
 
+## Results so far (theme 2)
+
+> **These are results on public benchmark networks, not on the Hokkaido grid.** We found no public network model of Hokkaido. The numbers show what the method does, and how far a simpler screening can be off.
+
+For one bus of a network, the hosting capacity is the largest added load (power factor 0.95) that the AC network can serve within its voltage, branch, angle and generator limits, with all generators free to redispatch. We bracket it from both sides:
+- **Upper bound.** A convex relaxation (semidefinite with chordal decomposition, or second-order cone) [39, 40, 59–61]. No operating point can host more.
+- **Lower bound.** An AC operating point found by an interior-point method [62], then confirmed by a separate check of every balance and limit.
+
+We ran every bus of six PGLib-OPF systems [45], 558 buses in all.
+
+| System | Buses | Bracket closed within 1 % | DC screening above the upper bound | DC value / AC value, median | Limit that binds: thermal / voltage / generation |
+|---|---|---|---|---|---|
+| case14_ieee | 14 | 14 | 14 | 3.12 | 0 / 14 / 0 |
+| case30_ieee | 30 | 27 | 30 | 2.24 | 26 / 3 / 1 |
+| case39_epri | 39 | 6 | 14 | 1.06 | 0 / 0 / 39 |
+| case57_ieee | 57 | 1 | 57 | 4.53 | 0 / 57 / 0 |
+| case118_ieee | 118 | 50 | 96 | 1.14 | 57 / 53 / 8 |
+| case300_ieee | 300 | 223 | 297 | 3.19 | 7 / 291 / 2 |
+
+- **A checked AC operating point exists at every bus** (558 of 558), so every bus has a lower bound.
+- **DC screening overstates the hostable load at most buses.** The usual screening model (no losses, no reactive power, no voltage limits) exceeds the certified upper bound at 508 of 558 buses, and by more than 10 % at 458. A 2026 study of a synthetic Texas grid reports the same direction [47].
+- **The bracket closes at more than half of the buses.** The two bounds agree within 1 % at 321 of 558 buses, and within 0.1 % at 130. It stays wide where voltage limits bind: on the 57-bus system the median gap is 28 %.
+- **Which limit binds depends on the system.** Voltage at 418 buses, thermal ratings at 90, generator limits at 50.
+- **A lower existing load leaves several times more room.** On the 30-bus system, bus 5 takes 12 MW at the load of the case as given, 64 MW at 80 % of it and 114 MW at 60 %. A load that can be curtailed in the highest-demand hours could therefore be much larger than a firm one.
+- **Outages matter.** With any single branch out, the same bus takes 20 MW at 70 % load, against 89 MW with the network intact.
+
+The app's *Grid hosting capacity* page solves one bus at a time and shows the bracket, the binding limits and the network. Formulation, all tables and the limits of the study: [docs/formulations/grid.md](docs/formulations/grid.md).
+
+**Caveats.** Generators redispatch freely, which is the best case for the network; an operator's own dispatch rules leave less room. One operating condition at a time, no stability limits. The upper bounds are certified up to the conic solver's tolerance. The AC method is local, so a lower bound need not be the best one unless the bracket is closed.
+
 ## How it works
 
 ```mermaid
@@ -156,6 +186,7 @@ uv run pytest                                          # tests; those that need 
 - Model v1 against v2: `uv run python experiments/heat_v2_compare/run.py`
 - Robust sweep: `uv run python experiments/heat_ccg/run.py ambient`
 - Carbon price and subsidy scenarios: `uv run python experiments/heat_policy/run.py`
+- Theme 2, every bus of six benchmark systems (downloads PGLib-OPF): `uv run python experiments/grid_hosting/run.py --workers 8`
 
 **Live simulation (the app's Warm Ishikari page)**
 - Type a what-if in either language ("電気料金を2倍にして" / "double the electricity price"); the LLM
@@ -171,7 +202,7 @@ uv run pytest                                          # tests; those that need 
 
 ```
 src/dcopt/heat      theme 1: model v1 (v1.py), v2 (network.py), proposals (proposal.py)
-src/dcopt/grid      theme 2
+src/dcopt/grid      theme 2: networks (cases.py), relaxations (relax.py), AC points (ac.py), brackets (hosting.py)
 src/dcopt/siting    theme 3
 src/dcopt/common    shared code: road network, styles
 app/                Streamlit app
@@ -190,6 +221,7 @@ tests/              unit tests on synthetic instances and app tests
 - **Map data.**
   - Scripts download OpenStreetMap data (© OpenStreetMap contributors, ODbL [18]) into `data/raw/` and `data/cache/`. This data is not committed.
   - The animation is a produced work from OpenStreetMap data and is credited as such.
+- **Benchmark power systems.** Theme 2 uses PGLib-OPF [45] (CC BY 4.0). The code downloads the case files into `data/cache/pglib/`; they are not committed. The small built-in systems are our own illustrative data.
 - **Weather.** Daily JMA observations for Sapporo, 1976–2025 [12], are committed in `data/jma/` under JMA's terms of use (Public Data Terms of Use 1.0: source credited, processing stated), not under the MIT license; see `data/jma/README.md`.
 - **Hokkaido precedents.** Snow melting with data-center heat [19], the snow-cooled data center in Bibai and its eel farm [20, 21], and a bath heated by data-center waste heat [22].
 - **Assumed sites.** The fish farm, the new greenhouses and the road-heating areas are assumptions, drawn as hollow markers.
@@ -197,7 +229,7 @@ tests/              unit tests on synthetic instances and app tests
 
 ## Solvers
 
-- **Open source by default.** HiGHS solves the MILPs; conic problems (theme 2) will use Clarabel or SCS.
+- **Open source by default.** HiGHS solves the MILPs and LPs. Clarabel [64] solves the conic relaxations of theme 2, and the AC points come from our own interior-point code.
 - **Optional commercial solver.** Gurobi can be used when installed (`DCOPT_SOLVER=gurobi`), but no part of the code requires it. On this model it certifies plans that HiGHS cannot within the same time (see Caveats).
 
 ## Next research questions
@@ -207,12 +239,13 @@ tests/              unit tests on synthetic instances and app tests
 - Model heat losses that depend on pipe length, size, temperature and flow.
 - Share the cost of a common trunk fairly: the Shapley value against the least core [27, 28].
 - Two-stage robust design when it is uncertain which planned data centers will be built [32–35].
-- Certified grid hosting capacity from SDP/SOCP relaxations, for flexible data-center loads [37, 39, 42–47, 51].
+- A network model for Ishikari: HEPCO Network's published data for 187 kV and above, the IEEJ standard models, or OpenStreetMap.
+- Tighter relaxations where voltage limits bind [42, 63], and flexible data-center loads as curtailable connections [50, 51].
 - Siting that combines heat reuse, grid capacity, renewables, fiber and hazards [29, 30, 48–52].
 
 ## References
 
-Facts and parameters [1–22], then related literature: waste-heat networks and data-center heat reuse [23–30], robust optimization [31–36], grid hosting capacity [37–47], siting and flexible loads [48–52]. CO₂ factors and policy sources [53–58].
+Facts and parameters [1–22], then related literature: waste-heat networks and data-center heat reuse [23–30], robust optimization [31–36], grid hosting capacity [37–47], siting and flexible loads [48–52]. CO₂ factors and policy sources [53–58]. Methods and the solver of theme 2 [59–64].
 
 1. Hack × Hokkaido Build Week 2026, AI build week in Sapporo, 23–27 November 2026. https://www.hackhokkaido.com/ (accessed 2026-11-24).
 2. Broadband Tower (2025-11-28). Press release on Ishikari Renewable Energy Data Center No. 1 (in Japanese). https://www.bbtower.co.jp/ir/pr/docs/20251128_ishikari_release.pdf
@@ -272,6 +305,12 @@ Facts and parameters [1–22], then related literature: waste-heat networks and 
 56. 経済産業省 (2026). 告示第27号, 2026-03-30: 令和8年度の参考上限取引価格及び調整基準取引価格 (METI notification No. 27: reference prices of the emissions trading scheme for FY2026). https://www.meti.go.jp/policy/energy_environment/global_warming/torihikikakaku.pdf
 57. 環境省 (2026). 地域共生を目指したデータセンター脱炭素化設備導入支援事業 (subsidy for decarbonization equipment at data centers, FY2025 supplementary budget): rate 1/2, waste-heat supply equipment eligible. https://www.env.go.jp/content/000356389.pdf
 58. 環境省 (2026). 地域脱炭素推進交付金 事業概要, FY2026 (grant for regional decarbonization): as a rule 2/3 for decarbonization-leading areas. https://policies.env.go.jp/policy/roadmap/assets/grants/chiiki-datsutanso-kofukin-R8.pdf
+59. Grone, R., Johnson, C.R., Sá, E.M., Wolkowicz, H. (1984). Positive definite completions of partial Hermitian matrices. *Linear Algebra and its Applications*, 58, 109–124. https://doi.org/10.1016/0024-3795(84)90207-6
+60. Jabr, R.A. (2012). Exploiting Sparsity in SDP Relaxations of the OPF Problem. *IEEE Transactions on Power Systems*, 27(2), 1138–1139. https://doi.org/10.1109/TPWRS.2011.2170772
+61. Molzahn, D.K., Holzer, J.T., Lesieutre, B.C., DeMarco, C.L. (2013). Implementation of a Large-Scale Optimal Power Flow Solver Based on Semidefinite Programming. *IEEE Transactions on Power Systems*, 28(4), 3987–3998. https://doi.org/10.1109/TPWRS.2013.2258044
+62. Wang, H., Murillo-Sánchez, C.E., Zimmerman, R.D., Thomas, R.J. (2007). On Computational Issues of Market-Based Optimal Power Flow. *IEEE Transactions on Power Systems*, 22(3), 1185–1193. https://doi.org/10.1109/TPWRS.2007.901301
+63. Coffrin, C., Hijazi, H.L., Van Hentenryck, P. (2017). Strengthening the SDP Relaxation of AC Power Flows With Convex Envelopes, Bound Tightening, and Valid Inequalities. *IEEE Transactions on Power Systems*, 32(5), 3549–3558. https://doi.org/10.1109/TPWRS.2016.2634586
+64. Goulart, P.J., Chen, Y. (2026). Clarabel: An interior-point solver for conic programs with quadratic objectives. *Mathematical Programming Computation*, 18(4), 1279–1361. https://doi.org/10.1007/s12532-026-00320-7
 
 ## Team
 

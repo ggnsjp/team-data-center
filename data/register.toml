@@ -90,6 +90,35 @@ checks = ["tests/test_data_and_docs.py"]
 refresh = "OSM changes daily; re-run made_by before a run whose results are published, and record the date."
 
 [[dataset]]
+id = "pglib-opf"
+title = "PGLib-OPF benchmark power systems (six cases, 14 to 300 buses)"
+storage = "local"
+paths = ["data/cache/pglib/"]
+terms = "CC-BY-4.0"
+licence = "CC BY 4.0, IEEE PES Task Force on Benchmarks for Validation of Emerging Power System Algorithms. Never committed; results that use it name the library."
+sources = ["https://github.com/power-grid-lib/pglib-opf", "https://arxiv.org/abs/1908.02788"]
+made_by = "downloaded on first use by dcopt.grid.cases.ensure_pglib, for example through uv run python experiments/grid_hosting/run.py"
+code = ["src/dcopt/grid/cases.py"]
+processing = "Each MATPOWER case file is saved unchanged. On loading, out-of-service elements and isolated buses are dropped, buses are renumbered, and powers are converted to per unit."
+used_by = ["src/dcopt/grid/hosting.py", "experiments/grid_hosting/run.py", "app/pages/5_Grid_Hosting.py"]
+checks = ["tests/test_grid_cases.py", "tests/test_grid_hosting.py"]
+refresh = "Delete data/cache/pglib and run again before a run whose results are published, and record the date."
+
+[[dataset]]
+id = "grid-builtin-systems"
+title = "Built-in illustrative power systems: a two-bus line, a five-bus ring and an eight-bus feeder"
+storage = "code"
+paths = ["src/dcopt/grid/cases.py"]
+terms = "MIT"
+licence = "MIT (our own illustrative values in a realistic per-unit range; not a real network)"
+sources = []
+made_by = "written by hand as two_bus, ring5 and feeder8 in src/dcopt/grid/cases.py"
+processing = "None."
+used_by = ["src/dcopt/grid/hosting.py", "app/pages/5_Grid_Hosting.py"]
+checks = ["tests/test_grid_cases.py", "tests/test_grid_hosting.py", "tests/test_grid_app.py"]
+refresh = "None: they are examples."
+
+[[dataset]]
 id = "results"
 title = "Generated results: experiment outputs, proposal exports and map exports"
 storage = "local"

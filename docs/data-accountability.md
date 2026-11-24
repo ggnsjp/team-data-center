@@ -133,14 +133,26 @@ flowchart LR
   n33["src/dcopt/common/geo.py"]
   n34["app/pages/1_Warm_Ishikari.py"]
   n35["app/pages/2_Warm_Ishikari_Map.py"]
-  n36[("Generated results: experiment outputs, proposal exports and map exports")]
-  n37(["MIT + ODbL-1.0 where maps are drawn"])
-  n40["scripts/export_proposals.py"]
-  n41["scripts/export_heat_story.py"]
-  n42["app/pages/3_Warm_Ishikari_Proposals.py"]
-  n43{"tests/test_proposal.py"}
-  n44{"tests/test_properties.py"}
-  n45{"tests/test_bruteforce.py"}
+  n36[("PGLib-OPF benchmark power systems (six cases, 14 to 300 buses)")]
+  n37(["CC-BY-4.0"])
+  n38>"github.com/power-grid-lib/pglib-opf"]
+  n39>"arxiv.org/abs/1908.02788"]
+  n41["src/dcopt/grid/cases.py"]
+  n42["src/dcopt/grid/hosting.py"]
+  n43["experiments/grid_hosting/run.py"]
+  n44["app/pages/5_Grid_Hosting.py"]
+  n45{"tests/test_grid_cases.py"}
+  n46{"tests/test_grid_hosting.py"}
+  n47[("Built-in illustrative power systems: a two-bus line, a five-bus ring and an eight-bus feeder")]
+  n49{"tests/test_grid_app.py"}
+  n50[("Generated results: experiment outputs, proposal exports and map exports")]
+  n51(["MIT + ODbL-1.0 where maps are drawn"])
+  n54["scripts/export_proposals.py"]
+  n55["scripts/export_heat_story.py"]
+  n56["app/pages/3_Warm_Ishikari_Proposals.py"]
+  n57{"tests/test_proposal.py"}
+  n58{"tests/test_properties.py"}
+  n59{"tests/test_bruteforce.py"}
   n0 -->|under| n1
   n2 -->|feeds| n0
   n0 -->|used_by| n4
@@ -181,13 +193,28 @@ flowchart LR
   n27 -->|used_by| n35
   n5 -->|checks| n27
   n36 -->|under| n37
-  n14 -->|makes| n36
-  n40 -->|makes| n36
+  n38 -->|feeds| n36
+  n39 -->|feeds| n36
   n41 -->|makes| n36
   n36 -->|used_by| n42
-  n43 -->|checks| n36
-  n44 -->|checks| n36
+  n36 -->|used_by| n43
+  n36 -->|used_by| n44
   n45 -->|checks| n36
+  n46 -->|checks| n36
+  n47 -->|under| n1
+  n47 -->|used_by| n42
+  n47 -->|used_by| n44
+  n45 -->|checks| n47
+  n46 -->|checks| n47
+  n49 -->|checks| n47
+  n50 -->|under| n51
+  n14 -->|makes| n50
+  n54 -->|makes| n50
+  n55 -->|makes| n50
+  n50 -->|used_by| n56
+  n57 -->|checks| n50
+  n58 -->|checks| n50
+  n59 -->|checks| n50
 ```
 <!-- lineage:end -->
 

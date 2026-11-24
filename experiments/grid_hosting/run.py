@@ -16,13 +16,14 @@ from __future__ import annotations
 
 import argparse
 import csv
-import subprocess
+import json
 import time
 from importlib.metadata import version
 from pathlib import Path
 
 import numpy as np
 
+from dcopt.common import provenance
 from dcopt.grid import cases
 from dcopt.grid.hosting import KINDS, hosting_curve, hosting_map, hosting_n1, summarize
 
@@ -82,12 +83,15 @@ def main() -> None:
     ap.add_argument("--study-buses", type=int, default=4, help="how many of its largest load buses to study")
     ap.add_argument("--n1-level", type=float, default=0.7, help="load level of the N-1 study (1.0: the case as given)")
     args = ap.parse_args()
-    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True,
-                            check=False).stdout.strip()
-    print(f"hosting-capacity brackets; power factor {args.pf}; commit {commit or 'unknown'}; "
+    stamp = provenance.stamp(solver=f"clarabel {version('clarabel')}", scipy=version("scipy"), power_factor=args.pf,
+                             cases=args.cases)
+    print(f"hosting-capacity brackets; power factor {args.pf}; commit {stamp['git_commit'][:7] or 'unknown'}; "
           + ", ".join(f"{pkg} {version(pkg)}" for pkg in ("clarabel", "scipy", "numpy")))
     for name in [c for c in args.cases.split(",") if c]:
         run_case(name, args.pf, args.workers)
+    out = ROOT / "results" / "grid_hosting"
+    out.mkdir(parents=True, exist_ok=True)
+    (out / "provenance.json").write_text(json.dumps(stamp, indent=1), encoding="utf-8")
 
     if not args.study_case:
         return

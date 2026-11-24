@@ -25,7 +25,7 @@
 | | 問い | 方法 | 状況 |
 |---|---|---|---|
 | 1. 排熱の導管網 | どの施設を、どのデータセンターに、どの道路沿いに、どの太さの管でつなぐか | 月別の熱収支つきのネットワーク設計MILP（確率計画版・ロバスト版） [23–26, 31–36] | モデルv1・v2、アプリ、アニメーション地図 |
-| 2. 系統の受け入れ余地 | データセンターとヒートポンプの負荷を、系統のどこにどれだけ受け入れられるか | 交流最適潮流の凸緩和（SDP/SOCP）による上限の保証と、実行可能な解 [37–47] | 予定 |
+| 2. 系統の受け入れ余地 | データセンターとヒートポンプの負荷を、系統のどこにどれだけ受け入れられるか | 交流最適潮流の凸緩和（SDP/SOCP）による上限の保証と、実行可能な解 [37–47, 59–64] | 手法とアプリのページ。公開の試験系統で検証 |
 | 3. 立地 | 次のデータセンターをどこに建てるか | テーマ1と2の結果を使う施設配置問題 [48–52] | 予定 |
 
 ## これまでの結果（テーマ1）
@@ -122,6 +122,36 @@
 
 数理モデルの完全な解説（すべての係数と数値例つき、英語）は [docs/formulations/heat-model.md](docs/formulations/heat-model.md) に、結果は [docs/formulations/heat.md](docs/formulations/heat.md) にあります。
 
+## これまでの結果（テーマ2）
+
+> **公開の試験系統での結果です。北海道の系統についての結果ではありません。** 北海道の系統の公開モデルは見つかりませんでした。数字が示すのは、手法で何が分かるかと、簡易な評価がどれだけずれるかです。
+
+ある母線の受け入れ余地とは、電圧・線路・位相角・発電機の制約を守ったまま、交流の系統がその母線で受け入れられる追加負荷（力率0.95）の最大値です。発電機は自由に出力を変えられるとします。これを上下からはさみます。
+- **上限：** 凸緩和（弦グラフ分解を使う半正定値計画、または二次錐計画）[39, 40, 59–61]。どの運転点もこれを超えられません。
+- **下限：** 内点法 [62] で求めた交流の運転点。別の計算で、電力の収支とすべての制約が成り立つことを確かめます。
+
+PGLib-OPF [45] の6つの系統の全母線、合計558母線で計算しました。
+
+| 系統 | 母線数 | 上限と下限の差が1%未満 | DC簡易評価が上限を超える | DC値÷交流値（中央値） | 効いている制約：熱容量／電圧／発電機 |
+|---|---|---|---|---|---|
+| case14_ieee | 14 | 14 | 14 | 3.12 | 0 / 14 / 0 |
+| case30_ieee | 30 | 27 | 30 | 2.24 | 26 / 3 / 1 |
+| case39_epri | 39 | 6 | 14 | 1.06 | 0 / 0 / 39 |
+| case57_ieee | 57 | 1 | 57 | 4.53 | 0 / 57 / 0 |
+| case118_ieee | 118 | 50 | 96 | 1.14 | 57 / 53 / 8 |
+| case300_ieee | 300 | 223 | 297 | 3.19 | 7 / 291 / 2 |
+
+- **すべての母線で、確認済みの交流の運転点が見つかりました**（558母線中558）。どの母線にも下限があります。
+- **DC潮流による簡易評価は、ほとんどの母線で受け入れ余地を過大に見積もります。** 損失・無効電力・電圧制約を無視する通常の簡易モデルは、558母線中508母線で、保証つきの上限を超えました。458母線では10%以上超えています。2026年の米テキサスの合成系統の研究も、同じ傾向を報告しています [47]。
+- **半分以上の母線で、上限と下限がほぼ一致します。** 差が1%未満の母線が321、0.1%未満が130です。電圧制約が効く系統では差が残り、57母線系統では中央値で28%です。
+- **効いている制約は系統によって違います。** 電圧が418母線、線路の熱容量が90母線、発電機の制約が50母線です。
+- **既存の負荷が軽いと、余地は数倍になります。** 30母線系統の母線5は、与えられた負荷のままで12 MW、負荷が80%なら64 MW、60%なら114 MWです。需要の高い時間に抑制できる負荷なら、常時つなぐ負荷よりずっと大きくできます。
+- **設備の停止も効きます。** 線路が1本止まった場合、同じ母線は負荷70%で20 MWです。止まっていなければ89 MWです。
+
+アプリの「系統の受け入れ余地」ページでは、母線を1つ選ぶと、上限と下限、効いている制約、系統の図が出ます。定式化、すべての表、検討の限界は [docs/formulations/grid.md](docs/formulations/grid.md)（英語）にあります。
+
+**注意点：** 発電機が自由に出力を変えるという、系統にとって最も有利な場合です。実際の系統運用のルールでは、余地はこれより小さくなります。1つの運用状態だけを見ており、安定度の制約は入れていません。上限の保証は、錐計画ソルバーの許容誤差の範囲内です。交流の解法は局所的なので、上限と一致しないかぎり、下限が最良とは限りません。
+
 ## 仕組み
 
 ```mermaid
@@ -158,6 +188,7 @@ uv run pytest                                          # テスト（地図デ�
 - v1とv2の比較：`uv run python experiments/heat_v2_compare/run.py`
 - ロバスト計画の掃引：`uv run python experiments/heat_ccg/run.py ambient`
 - 炭素価格と補助率のシナリオ：`uv run python experiments/heat_policy/run.py`
+- テーマ2、6つの試験系統の全母線（PGLib-OPFをダウンロードします）：`uv run python experiments/grid_hosting/run.py --workers 8`
 
 **上のアニメーションの作り直し方**
 1. `uv run python scripts/export_heat_network_v2.py`
@@ -167,7 +198,7 @@ uv run pytest                                          # テスト（地図デ�
 
 ```
 src/dcopt/heat      テーマ1：モデルv1（v1.py）、v2（network.py）、提案書（proposal.py）
-src/dcopt/grid      テーマ2
+src/dcopt/grid      テーマ2：系統データ（cases.py）、緩和（relax.py）、交流の運転点（ac.py）、上限と下限（hosting.py）
 src/dcopt/siting    テーマ3
 src/dcopt/common    共通：道路網、配色
 app/                Streamlitのアプリ
@@ -184,6 +215,7 @@ tests/              合成データでの単体テストとアプリのテスト
 - **数字の出典：** すべての数字に出典を付けるか、仮定と明記しています。URL付きの一覧は [docs/data-sources.md](docs/data-sources.md) にあります。対象は、石狩のデータセンター、価格、導管とヒートポンプの費用、気象の平年値、先行事例です。
 - **データの管理：** すべてのデータセットを登録し、SHA-256で固定し、テストで確認しています。各データの保存場所、利用条件、加工の方法、計算の正しさを保つテスト、結果をコードとデータまでさかのぼる方法は [docs/data-accountability.md](docs/data-accountability.md)（英語）にまとめています。
 - **地図データ：** OpenStreetMapのデータ（© OpenStreetMap contributors、ODbL [18]）は、スクリプトで `data/raw/` と `data/cache/` に取得し、コミットしません。アニメーションはOpenStreetMapのデータから作った画像で、その旨を明記しています。
+- **電力系統の試験データ：** テーマ2では PGLib-OPF [45]（CC BY 4.0）を使います。系統のファイルはコードが `data/cache/pglib/` にダウンロードし、コミットしません。組み込みの小さな系統は、このプロジェクトで作った説明用のデータです。
 - **気象データ：** 札幌の1976〜2025年の気象庁の日別値 [12] を `data/jma/` に含めています。MITライセンスではなく、気象庁の利用規約（公共データ利用規約 第1.0版：出典の記載と加工の明記）に従います。詳しくは `data/jma/README.md` を参照してください。
 - **北海道の先行事例：** データセンター排熱による融雪の検討 [19]、美唄の雪冷房データセンターとウナギ養殖 [20, 21]、データセンター排熱を使う浴場の構想 [22]。
 - **仮定の施設：** 陸上養殖、温室の新設候補、道路融雪の区域は仮定で、白抜きの印で描いています。
@@ -191,7 +223,7 @@ tests/              合成データでの単体テストとアプリのテスト
 
 ## ソルバー
 
-- **既定はオープンソース：** MILPはHiGHSで解きます。テーマ2の錐計画には、ClarabelかSCSを使う予定です。
+- **既定はオープンソース：** MILPとLPはHiGHSで解きます。テーマ2の錐計画の緩和はClarabel [64] で解き、交流の運転点は自前の内点法で求めます。
 - **Gurobi：** 入っていれば使えます（`DCOPT_SOLVER=gurobi`）。どの機能もGurobiを必須にはしていません。このモデルでは、HiGHSが同じ時間内に証明できない最適性を証明できます（注意点を参照）。
 
 ## 次の研究課題
@@ -201,12 +233,13 @@ tests/              合成データでの単体テストとアプリのテスト
 - 管の長さ・太さ・温度・流量に応じた熱損失を入れる
 - 共同の幹線の費用を公平に分ける（シャープレイ値と最小コアの比較） [27, 28]
 - どの計画中のデータセンターが建つかが不確かなときの、2段階ロバスト設計 [32–35]
-- 出力を調整できるデータセンター負荷について、SDP/SOCP緩和で系統の受け入れ余地を保証する [37, 39, 42–47, 51]
+- 石狩の系統モデルを作る（北海道電力ネットワークが公表している187kV以上のデータ、電気学会の標準モデル、OpenStreetMapのいずれか）
+- 電圧制約が効く場合の、より強い緩和 [42, 63]。出力を抑制できる接続としての、柔軟なデータセンター負荷 [50, 51]
 - 排熱の利用・系統の余地・再エネ・通信・災害リスクを合わせた立地 [29, 30, 48–52]
 
 ## 参考文献
 
-事実とパラメータの出典 [1–22]、関連文献：排熱の導管網とデータセンター排熱の利用 [23–30]、ロバスト最適化 [31–36]、系統の受け入れ余地 [37–47]、立地と柔軟な負荷 [48–52]、CO₂の排出係数と政策の出典 [53–58]。
+事実とパラメータの出典 [1–22]、関連文献：排熱の導管網とデータセンター排熱の利用 [23–30]、ロバスト最適化 [31–36]、系統の受け入れ余地 [37–47]、立地と柔軟な負荷 [48–52]、CO₂の排出係数と政策の出典 [53–58]、テーマ2の手法とソルバー [59–64]。
 
 1. Hack × Hokkaido Build Week 2026, AI build week in Sapporo, 23–27 November 2026. https://www.hackhokkaido.com/ (accessed 2026-11-24).
 2. Broadband Tower (2025-11-28). Press release on Ishikari Renewable Energy Data Center No. 1 (in Japanese). https://www.bbtower.co.jp/ir/pr/docs/20251128_ishikari_release.pdf
@@ -266,6 +299,12 @@ tests/              合成データでの単体テストとアプリのテスト
 56. 経済産業省 (2026). 告示第27号, 2026-03-30: 令和8年度の参考上限取引価格及び調整基準取引価格 (METI notification No. 27: reference prices of the emissions trading scheme for FY2026). https://www.meti.go.jp/policy/energy_environment/global_warming/torihikikakaku.pdf
 57. 環境省 (2026). 地域共生を目指したデータセンター脱炭素化設備導入支援事業 (subsidy for decarbonization equipment at data centers, FY2025 supplementary budget): rate 1/2, waste-heat supply equipment eligible. https://www.env.go.jp/content/000356389.pdf
 58. 環境省 (2026). 地域脱炭素推進交付金 事業概要, FY2026 (grant for regional decarbonization): as a rule 2/3 for decarbonization-leading areas. https://policies.env.go.jp/policy/roadmap/assets/grants/chiiki-datsutanso-kofukin-R8.pdf
+59. Grone, R., Johnson, C.R., Sá, E.M., Wolkowicz, H. (1984). Positive definite completions of partial Hermitian matrices. *Linear Algebra and its Applications*, 58, 109–124. https://doi.org/10.1016/0024-3795(84)90207-6
+60. Jabr, R.A. (2012). Exploiting Sparsity in SDP Relaxations of the OPF Problem. *IEEE Transactions on Power Systems*, 27(2), 1138–1139. https://doi.org/10.1109/TPWRS.2011.2170772
+61. Molzahn, D.K., Holzer, J.T., Lesieutre, B.C., DeMarco, C.L. (2013). Implementation of a Large-Scale Optimal Power Flow Solver Based on Semidefinite Programming. *IEEE Transactions on Power Systems*, 28(4), 3987–3998. https://doi.org/10.1109/TPWRS.2013.2258044
+62. Wang, H., Murillo-Sánchez, C.E., Zimmerman, R.D., Thomas, R.J. (2007). On Computational Issues of Market-Based Optimal Power Flow. *IEEE Transactions on Power Systems*, 22(3), 1185–1193. https://doi.org/10.1109/TPWRS.2007.901301
+63. Coffrin, C., Hijazi, H.L., Van Hentenryck, P. (2017). Strengthening the SDP Relaxation of AC Power Flows With Convex Envelopes, Bound Tightening, and Valid Inequalities. *IEEE Transactions on Power Systems*, 32(5), 3549–3558. https://doi.org/10.1109/TPWRS.2016.2634586
+64. Goulart, P.J., Chen, Y. (2026). Clarabel: An interior-point solver for conic programs with quadratic objectives. *Mathematical Programming Computation*, 18(4), 1279–1361. https://doi.org/10.1007/s12532-026-00320-7
 
 ## メンバー
 

@@ -57,6 +57,14 @@ Checked on 2026-11-25. The carbon prices and subsidy rates are scenario values f
 | Grant for decarbonization-leading areas (Ishikari City is one, with Tokyu Land) | as a rule 2/3; heat-use equipment and heat pipes up to 2/3. Data-center waste heat is not named in its list of unused heat | 環境省, 地域脱炭素推進交付金 (FY2026): https://policies.env.go.jp/policy/roadmap/assets/grants/chiiki-datsutanso-kofukin-R8.pdf |
 | Subsidy for zero-emission data centers (FY2026) | rate 1/3; waste-heat supply is not among its items | 環境省 (via 地域循環共生社会連携協会): https://rcespa.jp/wordpress/wp-content/uploads/1_R08_DC2_kouboyouryou_20260917-2.pdf |
 
+## Power-system benchmark data (theme 2)
+
+| Item | Value | Source |
+|---|---|---|
+| PGLib-OPF benchmark systems | six cases with typical operating conditions: case14_ieee, case30_ieee, case39_epri, case57_ieee, case118_ieee, case300_ieee (master branch on 2026-11-25). License CC BY 4.0. Downloaded by the code into `data/cache/pglib/`; not committed | IEEE PES Task Force on Benchmarks for Validation of Emerging Power System Algorithms: https://github.com/power-grid-lib/pglib-opf ; https://arxiv.org/abs/1908.02788 |
+| Built-in systems (two buses, a five-bus ring, an eight-bus feeder) | illustrative values in a realistic per-unit range; not a real network | Our own data, in `src/dcopt/grid/cases.py` |
+| A network model of the Hokkaido grid | none found in public. HEPCO Network publishes configuration data for 187 kV and above and 30-minute supply and demand; OpenStreetMap has the lines and substations around Ishikari with their voltage classes | to be built: see the open questions in `docs/formulations/grid.md` |
+
 ## Climate
 
 | Item | Source |
