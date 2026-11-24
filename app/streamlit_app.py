@@ -2,7 +2,7 @@
 
 One language switch for the whole app, declared here so it renders once in the sidebar on every
 page; the navigation labels follow the selection. Defining pages with st.navigation makes
-Streamlit ignore the pages/ directory convention, so the five pages are listed explicitly.
+Streamlit ignore the pages/ directory convention, so the pages are listed explicitly.
 """
 import streamlit as st
 
@@ -23,7 +23,7 @@ def home() -> None:
 | | テーマ | ページ |
 |---|---|---|
 | 1 | 排熱の導管網 | 排熱の導管網・アニメーション・提案書・気象年で試す |
-| 2 | 系統の受け入れ余地 | 作成中 |
+| 2 | 系統の受け入れ余地 | 系統の受け入れ余地（公開の試験系統で検証） |
 | 3 | 次のデータセンターの立地 | 作成中 |
 """)
     else:
@@ -32,7 +32,7 @@ def home() -> None:
 | | Theme | Page |
 |---|---|---|
 | 1 | Waste-heat networks | Waste-heat network, Animation, Proposals, Weather years |
-| 2 | Grid hosting capacity | in progress |
+| 2 | Grid hosting capacity | Grid hosting capacity (checked on benchmark systems) |
 | 3 | Siting the next data center | in progress |
 """)
 
@@ -56,6 +56,8 @@ pages = [
             url_path="Warm_Ishikari_Proposals"),
     st.Page("pages/4_Warm_Ishikari_Weather.py", title=pick("気象年で試す", "Weather years"),
             url_path="Warm_Ishikari_Weather"),
+    st.Page("pages/5_Grid_Hosting.py", title=pick("系統の受け入れ余地", "Grid hosting capacity"),
+            url_path="Grid_Hosting"),
 ]
 st.navigation(pages).run()
 st.caption(pick("地図データ © OpenStreetMap contributors（ODbL）", "Map data © OpenStreetMap contributors (ODbL)"))
