@@ -149,11 +149,20 @@ t = time.perf_counter()
 PLAN_CACHE = {"sp4": plan_for(inst, P, default_scenarios(), extra_edges=extra),
               "ev4": plan_for(inst, P, [mean_scenario(default_scenarios(), inst.sources)], extra_edges=extra)}
 PLAN_CACHE["ev4x"] = evaluate(PLAN_CACHE["ev4"], default_scenarios())
+# the same EV recipe WITHOUT the seeded per-data-center links: the EEV is a draw of the kernel
+# search and moves with the candidate-link set, which is where the published 79.0 diverges (the
+# committed stochastic_report passes the seeds; the same seeded recipe on the publication commit
+# f83f7a3 returns this run's seeded value, not the published one)
+PLAN_CACHE["ev4_plain"] = plan_for(inst, P, [mean_scenario(default_scenarios(), inst.sources)])
+PLAN_CACHE["ev4_plain_x"] = evaluate(PLAN_CACHE["ev4_plain"], default_scenarios())
 print(f"  4-scenario RP {PLAN_CACHE['sp4'].expected_net / M:.1f}M, {len(PLAN_CACHE['sp4'].connected)} sites, "
       f"{PLAN_CACHE['sp4'].pipe_m / 1000:.1f} km in {time.perf_counter() - t:.0f}s")
 print(f"  replication of the published numbers: RP {PLAN_CACHE['sp4'].expected_net / M:.1f}M (93.8), "
       f"EEV {PLAN_CACHE['ev4x'].expected_net / M:.1f}M (79.0), "
       f"VSS {(PLAN_CACHE['sp4'].expected_net - PLAN_CACHE['ev4x'].expected_net) / M:.1f}M (14.8)")
+print(f"  EEV recipe check: seeded links {PLAN_CACHE['ev4x'].expected_net / M:.1f}M vs "
+      f"no seeded links {PLAN_CACHE['ev4_plain_x'].expected_net / M:.1f}M on the same scenarios",
+      flush=True)
 
 results: dict = {"mode": MODE, "years": list(YEARS), "normals_check": checks,
                  "weather_years": [w.year for w in years],
@@ -161,7 +170,14 @@ results: dict = {"mode": MODE, "years": list(YEARS), "normals_check": checks,
                  "published_replication": {
                      "rp": PLAN_CACHE["sp4"].expected_net, "eev": PLAN_CACHE["ev4x"].expected_net,
                      "vss": PLAN_CACHE["sp4"].expected_net - PLAN_CACHE["ev4x"].expected_net,
-                     "published": {"rp": 93.8e6, "eev": 79.0e6, "vss": 14.8e6}},
+                     "published": {"rp": 93.8e6, "eev": 79.0e6, "vss": 14.8e6},
+                     "eev_recipe": {"seeded": PLAN_CACHE["ev4x"].expected_net,
+                                    "no_seeds": PLAN_CACHE["ev4_plain_x"].expected_net,
+                                    "note": "the committed recipe solves the EV plan with the seeded "
+                                            "links and gives the seeded value here; the published 79.0 "
+                                            "is a different draw of the same time-limited kernel search "
+                                            "(the no-seeds variant and the publication-commit tree are "
+                                            "recorded in docs/formulations/heat.md)"}},
                  "weather_index_stats": {
                      "hdd18": [round(min(w.hdd18_index for w in years), 3), round(max(w.hdd18_index for w in years), 3)],
                      "snow": [round(min(w.snow_index for w in years), 3), round(max(w.snow_index for w in years), 3)]},
