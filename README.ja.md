@@ -82,6 +82,34 @@
 
 30℃程度の低温の導管網で、ヒートポンプを各施設に置く方式です。陸上養殖と道路融雪は、熱をそのまま使います。この方式の確率計画の期待値は **9,380万円** で、60℃の導管網と集中ヒートポンプの方式（**8,150万円**）を上回ります。今の灯油価格では、低温方式の計画は10.7kmの管で16か所に届き、年1億4,030万円になります（上のアニメーションの計画です）。
 
+### CO₂：計画は補助なしで採算がとれ、炭素価格より補助のほうが計画を大きく動かす
+
+上の確率計画（13か所、7.8km）は、各施設のヒートポンプが北海道電力の標準メニューの電気（0.526 kg/kWh [54]）で動く場合、**年に約3,900トンのCO₂** を減らします。2030年度の国の水準（0.25 kg/kWh [55]）なら4,300トン、再エネ電力なら4,600トンです。灯油の排出量は1Lあたり2.50 kgです [53]。この計画は、減らしながら利益が出ます（1トンあたり約24,000円の得）。炭素価格がなくても成り立ちます。
+
+次に、2つのシナリオで計画を最適化し直しました。減らしたCO₂に価格を付ける場合と、設備費を補助する場合です。
+
+| 政策（シナリオ） | 施設数 | 導管（km） | CO₂削減（t/年） | 投資額（億円） | 事業の純便益 | 政策のお金を除いた純便益 | 追加の削減1トンの費用（円/t） |
+|---|---|---|---|---|---|---|---|
+| なし | 13 | 7.8 | 3,927 | 23.0 | 93.8 | 93.8 | — |
+| 炭素価格 1,700円/t | 13 | 7.8 | 3,927 | 23.0 | 100.5 | 93.8 | — |
+| 炭素価格 4,300円/t | 14 | 9.8 | 4,874 | 32.8 | 111.3 | 90.4 | 3,600 |
+| 炭素価格 10,000円/t | 16 | 10.7 | 5,198 | 36.6 | 139.6 | 87.6 | 4,800 |
+| 炭素価格 20,000円/t | 19 | 11.9 | 5,725 | 43.0 | 195.6 | 81.1 | 7,100 |
+| 補助率 1/3 | 19 | 11.9 | 5,725 | 43.0 | 160.6 | 81.1 | 7,100 |
+| 補助率 1/2 | 30 | 24.2 | 7,922 | 79.0 | 227.4 | 9.8 | 21,000 |
+| 補助率 2/3 | 33 | 27.8 | 8,107 | 84.2 | 301.0 | −7.6 | 24,200 |
+
+- **炭素価格では、計画はゆっくりとしか変わりません。** 1,700円と4,300円は、国の排出量取引制度の2026年度の参考価格（下限と上限）です [56]。下限では何も変わらず、上限で1か所増えます。20,000円でも19か所で、CO₂削減は46%増にとどまります。
+- **補助のほうが、計画を大きく動かします。** 設備費の半分を補助すると、24kmの導管で30か所に届き、CO₂削減は2倍になります。1/2は、データセンターの排熱供給設備を対象に挙げている環境省の事業の補助率です [57]。2/3は、脱炭素先行地域（石狩市も選定）の交付金の原則の交付率で [58]、33か所に届きます。
+- **追加の削減には費用がかかります。** 政策なしの計画に、採算のとれる施設はすべて入っています。追加の1トンあたりの費用は、炭素価格の場合で3,600〜7,100円、大きな補助の場合で21,000〜24,000円です。補助率2/3では、補助を除くと導管網全体として費用をまかなえません（−7.6）。
+- **提案書とアプリ。** 各提案書の計算表に、3通りの電気でのCO₂削減量、1トンあたりの費用、補助率1/3・1/2・2/3での回収年数を載せています。アプリの *Warm Ishikari* ページでは、2つの政策をスライダーで試せます。
+
+表についての注意：
+- CO₂は、ヒートポンプが北海道電力の標準メニューの電気で動く場合です。「追加の削減1トンの費用」は、政策なしの計画より減った純便益を、増えたCO₂削減量で割った値です。
+- 炭素価格と補助率はシナリオです。実際の制度が個別の事業にどう適用されるかを示すものではありません。
+- 表は、Gurobiで見つけた最良の計画です（政策ごとに300秒、上界とのギャップは4〜11%）。HiGHSだけで求めた計画は、これらから3.4%以内で、全体の傾向も同じです。ただし4,300円/tでは13か所のままになります。
+- どの政策にも同じ候補区間を与え、見つかったすべての計画をすべての政策のもとで評価しています。計画の違いが、探索のばらつきではなく政策によるものになるようにするためです（[方法](docs/formulations/heat-model.md#12-co2-and-policy-scenarios)、[2つの表](docs/formulations/heat.md)、いずれも英語）。
+
 ### 注意点
 
 - **最適性。** 計画は、HiGHSを使い、LPで候補を絞るカーネル探索で求めています。
@@ -129,6 +157,7 @@ uv run pytest                                          # テスト（地図デ�
 **実験**
 - v1とv2の比較：`uv run python experiments/heat_v2_compare/run.py`
 - ロバスト計画の掃引：`uv run python experiments/heat_ccg/run.py ambient`
+- 炭素価格と補助率のシナリオ：`uv run python experiments/heat_policy/run.py`
 
 **上のアニメーションの作り直し方**
 1. `uv run python scripts/export_heat_network_v2.py`
@@ -176,7 +205,7 @@ tests/              合成データでの単体テストとアプリのテスト
 
 ## 参考文献
 
-事実とパラメータの出典 [1–22]、関連文献：排熱の導管網とデータセンター排熱の利用 [23–30]、ロバスト最適化 [31–36]、系統の受け入れ余地 [37–47]、立地と柔軟な負荷 [48–52]。
+事実とパラメータの出典 [1–22]、関連文献：排熱の導管網とデータセンター排熱の利用 [23–30]、ロバスト最適化 [31–36]、系統の受け入れ余地 [37–47]、立地と柔軟な負荷 [48–52]、CO₂の排出係数と政策の出典 [53–58]。
 
 1. Hack × Hokkaido Build Week 2026, AI build week in Sapporo, 23–27 November 2026. https://www.hackhokkaido.com/ (accessed 2026-11-24).
 2. Broadband Tower (2025-11-28). Press release on Ishikari Renewable Energy Data Center No. 1 (in Japanese). https://www.bbtower.co.jp/ir/pr/docs/20251128_ishikari_release.pdf
@@ -230,6 +259,12 @@ tests/              合成データでの単体テストとアプリのテスト
 50. Kim, K., Yang, F., Zavala, V.M., Chien, A.A. (2017). Data Centers as Dispatchable Loads to Harness Stranded Power. *IEEE Transactions on Sustainable Energy*, 8(1), 208-218. https://doi.org/10.1109/TSTE.2016.2593607
 51. Norris, T. H., Profeta, T., Patino-Echeverri, D., Cowie-Haskell, A. (2025). Rethinking Load Growth: Assessing the Potential for Integration of Large Flexible Loads in US Power Systems. Nicholas Institute, Duke University, NI R 25-01. https://nicholasinstitute.duke.edu/publications/rethinking-load-growth (figures as cited in the lead author's testimony of 2025-03-05)
 52. Onodera, H., Shiraki, H., Matsuhashi, K. (2026). Strategic data center siting can mitigate trade-offs between decarbonization and digitalization in Japan. *Cell Reports Sustainability*, 3(9), 100823. https://doi.org/10.1016/j.crsus.2026.100823
+53. 環境省. 算定・報告・公表制度における算定方法・排出係数一覧 (Ministry of the Environment, list of calculation methods and emission factors): kerosene 2.50 t-CO₂/kL. https://policies.env.go.jp/earth/ghg-santeikohyo/files/calc/ichiran_2025r.pdf (accessed 2026-11-25).
+54. 環境省・経済産業省 (2026). 電気事業者別排出係数（特定排出者の温室効果ガス排出量算定用）R6年度実績, published 2026-01-09 (emission factors by electricity retailer, FY2024 results): Hokkaido Electric Power. https://policies.env.go.jp/earth/ghg-santeikohyo/files/calc/r08_denki_coefficient_rev4.pdf
+55. 日本政府 (2025). 地球温暖化対策計画 関連資料2, Cabinet decision of 2025-02-18 (Plan for Global Warming Countermeasures, annex 2): 0.25 kg-CO₂/kWh in FY2030. https://www.env.go.jp/content/000290553.pdf
+56. 経済産業省 (2026). 告示第27号, 2026-03-30: 令和8年度の参考上限取引価格及び調整基準取引価格 (METI notification No. 27: reference prices of the emissions trading scheme for FY2026). https://www.meti.go.jp/policy/energy_environment/global_warming/torihikikakaku.pdf
+57. 環境省 (2026). 地域共生を目指したデータセンター脱炭素化設備導入支援事業 (subsidy for decarbonization equipment at data centers, FY2025 supplementary budget): rate 1/2, waste-heat supply equipment eligible. https://www.env.go.jp/content/000356389.pdf
+58. 環境省 (2026). 地域脱炭素推進交付金 事業概要, FY2026 (grant for regional decarbonization): as a rule 2/3 for decarbonization-leading areas. https://policies.env.go.jp/policy/roadmap/assets/grants/chiiki-datsutanso-kofukin-R8.pdf
 
 ## メンバー
 

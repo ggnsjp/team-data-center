@@ -415,7 +415,7 @@ with st.expander(pick("前提と出典", "Assumptions and sources")):
         [pick("導管の年経費", "Pipe cost per year"), f"{A.pipe_yen_m * A.crf:,.0f} 円/m",
          pick(f"工事費 × 資本回収係数（{A.years}年・{A.rate:.1%}）", f"Cost x capital recovery ({A.years} y, {A.rate:.1%})")],
         [pick("CO2削減係数", "CO2 factor"), f"{A.co2_t_per_mwh:.3f} t/MWh",
-         pick("灯油 2.49 kg-CO2/L（環境省）、ボイラー効率85%", "Kerosene 2.49 kg-CO2/L (MOE), boiler 85%")],
+         pick("灯油 2.50 kg-CO2/L（環境省）、ボイラー効率85%", "Kerosene 2.50 kg-CO2/L (MOE), boiler 85%")],
         [pick("温室の熱需要", "Greenhouse heat"), "0.40 MWh/m²・年", pick("仮定", "Assumption")],
         [pick("融雪の熱需要", "Snow melting heat"), "0.12 MWh/m²・年", pick("仮定（降雪479cm/年）", "Assumption (479 cm snow/yr)")],
         [pick("施設の熱需要", "Facility heat"), pick("温泉2,000・病院1,500・プール800・学校250 MWh/年",

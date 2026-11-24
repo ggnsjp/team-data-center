@@ -76,7 +76,9 @@ URL = {
     "nttme": "https://cloud.watch.impress.co.jp/docs/news/2057156.html",
     "kerosene": "https://www.enecho.meti.go.jp/statistics/petroleum_and_lpgas/pl007/xlsx/261118.xlsx",
     "pipe": "https://ynu.repo.nii.ac.jp/record/12712/files/tachibana_masaya-thesis.pdf",
-    "co2": "https://ghg-santeikohyo.env.go.jp/calc",
+    "co2": "https://policies.env.go.jp/earth/ghg-santeikohyo/files/calc/ichiran_2025r.pdf",
+    "grid_co2": "https://policies.env.go.jp/earth/ghg-santeikohyo/files/calc/r08_denki_coefficient_rev4.pdf",
+    "grid_2030": "https://www.env.go.jp/content/000290553.pdf",
     "osm": "https://www.openstreetmap.org/copyright",
 }
 
@@ -171,7 +173,7 @@ class Params:
     cop_override: float | None = None   # one COP for every user (validation against v1)
     loss_override: float | None = None
     renewable_central: bool = True   # assumption (as v1): the central heat pump runs on the data center's renewable power
-    grid_t_per_mwh: float = GRID_KG_CO2_PER_KWH   # Hokkaido grid electricity, t CO2 per MWh (as v1)
+    grid_t_per_mwh: float = GRID_KG_CO2_PER_KWH   # t CO2 per MWh: Hokkaido Electric, standard plans (URL["grid_co2"])
     carbon_yen_t: float = 0.0        # scenario: a price on the CO2 avoided, on top of today's fuel taxes
     subsidy: float = 0.0             # scenario: share of the pipe and heat-pump investment paid by a subsidy
     k: int = 3                       # candidate links: k nearest neighbours of every node
@@ -1281,7 +1283,8 @@ def pair_calculator(inst: Instance, P: Params, scens: list[Scenario], d: int, u:
     rows += [
         ("saving", "年間の節約（期待値）", "Annual saving (expected)", round(exp_save), "yen", "calculated", "probability-weighted"),
         ("co2", "CO2削減（期待値）", "CO2 avoided (expected)", round(float(prob @ heat_w) * ud.co2[u], 1), "t/yr", "calculated",
-         f"kerosene {KEROSENE_KG_CO2_PER_L} kg/L ({URL['co2']}); grid {P.grid_t_per_mwh} t/MWh for user heat pumps (assumption)"),
+         f"kerosene {KEROSENE_KG_CO2_PER_L:.2f} kg/L ({URL['co2']}); grid electricity {P.grid_t_per_mwh:g} t/MWh for user "
+         f"heat pumps ({URL['grid_co2']})"),
         ("payback", "単純回収年数", "Simple payback",
          round(P.own * (pipe + ud.hp[u]) / exp_save, 1) if exp_save > 0 else None,
          "years", "calculated", "investment / expected annual saving"),
@@ -1328,7 +1331,14 @@ def assumptions_table(P: Params) -> list[dict]:
         ("boiler_eff", "置き換えるボイラーの効率", "Boiler efficiency replaced", P.boiler_eff, "", "assumption (as v1)"),
         ("power", "電気代", "Electricity price", P.power_yen_kwh, "yen/kWh", "assumption (as v1)"),
         ("co2_kerosene", "灯油のCO2排出係数", "Kerosene CO2 factor", KEROSENE_KG_CO2_PER_L, "kg/L", f"source: {URL['co2']}"),
-        ("grid", "系統電力のCO2", "Grid electricity CO2", P.grid_t_per_mwh, "t/MWh", "assumption (as v1)"),
+        ("grid", "系統電力のCO2", "Grid electricity CO2", P.grid_t_per_mwh, "t/MWh",
+         f"source: Hokkaido Electric Power, standard plans, FY2024 results ({URL['grid_co2']})"),
+        ("grid_2030", "2030年度の電力のCO2（シナリオ）", "Grid electricity CO2 in FY2030 (scenario)", GRID_SCENARIOS["target2030"][2],
+         "t/MWh", f"source: Plan for Global Warming Countermeasures, 2025 ({URL['grid_2030']})"),
+        ("carbon", "炭素価格（シナリオ）", "Carbon price (scenario)", P.carbon_yen_t, "yen/t",
+         "scenario, zero by default: a price on the CO2 avoided, on top of today's fuel taxes"),
+        ("subsidy", "設備費の補助率（シナリオ）", "Investment subsidy (scenario)", P.subsidy, "",
+         "scenario, zero by default: share of the pipe and heat-pump investment"),
         ("years", "導管の年数・割引率", "Pipe life, discount rate", f"{P.years} / {P.rate:.0%}", "", "assumption (as v1)"),
         ("hp_years", "ヒートポンプの年数", "Heat-pump life", P.hp_years, "years", "assumption"),
         ("hp_capex", "ヒートポンプの投資", "Heat-pump investment", f"{P.hp_yen_per_mw_user:,.0f} / {P.hp_yen_per_mw_central:,.0f}",

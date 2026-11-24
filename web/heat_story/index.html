@@ -832,7 +832,7 @@ function renderAssumptions() {
     [ja ? "熱の価値" : "Value of heat", `${nf(a.value_per_mwh)} ${ja ? "円/MWh" : "yen/MWh"}`, ja ? "灯油代の節約 − ヒートポンプの電気代" : "Kerosene saved minus heat-pump power"],
     [ja ? "導管の工事費" : "Pipe cost", `${nf(a.pipe_man_per_m)} ${ja ? "万円/m" : "×10k yen/m"}`, A],
     [ja ? "償却年数・割引率" : "Lifetime, discount rate", `${nf(a.years)} ${ja ? "年" : "years"} · ${nf(a.rate * 100, 1)}%`, A],
-    [ja ? "CO2削減係数" : "CO2 factor", `${nf(a.co2_per_mwh, 3)} t/MWh`, ja ? "灯油 2.49 kg-CO2/L（環境省）。ヒートポンプは再エネ電力を想定" : "Kerosene 2.49 kg-CO2/L (Ministry of the Environment); heat pumps on renewable power"],
+    [ja ? "CO2削減係数" : "CO2 factor", `${nf(a.co2_per_mwh, 3)} t/MWh`, ja ? "灯油 2.50 kg-CO2/L（環境省）。ヒートポンプは再エネ電力を想定" : "Kerosene 2.50 kg-CO2/L (Ministry of the Environment); heat pumps on renewable power"],
     [ja ? "月別の需要の形" : "Monthly shape of demand", ja ? "暖房度日（建物18℃・温室15℃）、融雪は降雪量" : "Heating degree-days (buildings 18 °C, greenhouses 15 °C); snow melting follows snowfall", story.climate.source],
     [ja ? "施設の熱需要" : "Heat demand by type", ja ? "温室 0.40 MWh/m²・融雪 0.12 MWh/m²、病院 1,500・温泉 2,000・プール 800・学校 250・新設温室（1ha）4,000・陸上養殖 5,000 MWh/年" : "Greenhouses 0.40 MWh/m², snow melting 0.12 MWh/m²; hospital 1,500, bath 2,000, pool 800, school 250, new 1 ha greenhouse 4,000, fish farm 5,000 MWh a year", A],
     [ja ? "仮定の候補地" : "Assumed sites", assumedSites.length ? assumedSites.join(ja ? "、" : "; ") : "—", ja ? "地図では点線の縁" : "Dashed ring on the map"],

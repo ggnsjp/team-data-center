@@ -59,9 +59,13 @@ from dcopt.heat.v1 import GRID_SCENARIOS, ishikari_sites
 
 ROOT = Path(__file__).resolve().parents[2]
 M = 1e6
-CARBON = (0, 2000, 5000, 10000, 20000)          # yen per t CO2, on top of today's fuel taxes
-SUBSIDY = (1 / 3, 1 / 2, 2 / 3)                 # share of the investment
-POLICIES = ([(c, 0.0) for c in CARBON] + [(0, s) for s in SUBSIDY] + [(5000, 1 / 2)])
+# Carbon prices in yen per t CO2, on top of today's fuel taxes. 1,700 and 4,300 are the lower and upper
+# reference prices of Japan's emissions trading scheme for FY2026 (METI notification No. 27 of 2026);
+# 10,000 and 20,000 are higher levels for comparison.
+CARBON = (0, 1700, 4300, 10000, 20000)
+# Shares of the investment. Programmes that name such equipment pay 1/3 to 2/3 (see docs/data-sources.md).
+SUBSIDY = (1 / 3, 1 / 2, 2 / 3)
+POLICIES = ([(c, 0.0) for c in CARBON] + [(0, s) for s in SUBSIDY] + [(4300, 1 / 2)])
 
 
 def own_plan_links(args) -> list[tuple[int, int]]:

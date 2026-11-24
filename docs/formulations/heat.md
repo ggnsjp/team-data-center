@@ -183,6 +183,60 @@ The published mean-scenario plan scores within 0.5 of the published stochastic p
 - The model has monthly energy balances only, with a flat heat-loss share.
 - The largest pipe (DN250) carries 4.6 MW in ambient mode.
 
+### CO2 and policy scenarios (`experiments/heat_policy`)
+
+The formulas are in [heat-model.md](heat-model.md#12-co2-and-policy-scenarios). A carbon price $\pi$ adds $\pi$ times the CO₂ avoided to the value of the heat; a subsidy $\phi$ leaves the project $(1-\phi)$ of every annuity. Both are scenarios. The carbon prices 1,700 and 4,300 yen/t are the lower and upper reference prices of Japan's emissions trading scheme for FY2026; the subsidy rates 1/3, 1/2 and 2/3 are those of programmes that name such equipment (sources in [data-sources.md](../data-sources.md)).
+
+**How the comparison is kept fair.** The plans come from a heuristic search, and a search can land on different plans for reasons that have nothing to do with the policy. A first version of this experiment showed it: with more candidate links, the no-policy plan came out worse (83.9 instead of 93.8), a difference as large as the policy effects. The experiment therefore gives every policy the same chances:
+1. *Candidate links.* The links of the published plan, plus the links of each data center's own plan under the strongest carbon price and the strongest subsidy. The same 160 links for every policy.
+2. *Pool.* Kernel search for every policy, once on the published links and once on all of them.
+3. *Cross-evaluation.* Every build in the pool is evaluated under every policy (pipes fixed, deliveries re-optimized), and each policy takes the best build for its own objective.
+4. *Polish.* The full MILP on all candidate links, started from that build, with a time limit; the polished builds join the pool and step 3 is repeated.
+
+After step 4 no policy would prefer another policy's plan. The no-policy plan then has the largest plain net benefit, and the cost of the extra tonnes cannot be negative.
+
+**Best plans found** (ambient loop; Gurobi 14.0, 300 s of polish per policy; money in M yen per year unless noted):
+
+| Carbon price (yen/t) | Subsidy | Sites | Pipe (km) | CO₂ avoided, t/yr: Hokkaido Electric / FY2030 level / renewable | Investment (100 M yen) | Subsidy (100 M yen) | Carbon value | Net to the project | Plain net | Cost of the extra tonnes (yen/t) | Subsidy per extra tonne (yen/t) | Gap |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| 0 | 0 | 13 | 7.8 | 3,927 / 4,277 / 4,594 | 23.0 | 0 | 0 | 93.8 | 93.8 | — | — | 5.5 % |
+| 1,700 | 0 | 13 | 7.8 | 3,927 / 4,277 / 4,594 | 23.0 | 0 | 6.7 | 100.5 | 93.8 | — | — | 8.0 % |
+| 4,300 | 0 | 14 | 9.8 | 4,874 / 5,362 / 5,804 | 32.8 | 0 | 21.0 | 111.3 | 90.4 | 3,618 | — | 11.4 % |
+| 10,000 | 0 | 16 | 10.7 | 5,198 / 5,774 / 6,297 | 36.6 | 0 | 52.0 | 139.6 | 87.6 | 4,841 | — | 9.9 % |
+| 20,000 | 0 | 19 | 11.9 | 5,725 / 6,383 / 6,979 | 43.0 | 0 | 114.5 | 195.6 | 81.1 | 7,071 | — | 9.0 % |
+| 0 | 1/3 | 19 | 11.9 | 5,725 / 6,383 / 6,979 | 43.0 | 14.3 | 0 | 160.6 | 81.1 | 7,071 | 44,247 | 7.7 % |
+| 0 | 1/2 | 30 | 24.2 | 7,922 / 9,020 / 10,014 | 79.0 | 39.5 | 0 | 227.4 | 9.8 | 21,012 | 54,450 | 4.3 % |
+| 0 | 2/3 | 33 | 27.8 | 8,107 / 9,231 / 10,248 | 84.2 | 56.1 | 0 | 301.0 | −7.6 | 24,246 | 73,825 | 4.9 % |
+| 4,300 | 1/2 | 30 | 24.2 | 7,922 / 9,020 / 10,014 | 79.0 | 39.5 | 34.1 | 261.5 | 9.8 | 21,012 | 54,450 | 3.5 % |
+
+- *Net to the project* is what the plan's owners see under the policy; *plain net* is the same plan with no policy money.
+- *Cost of the extra tonnes* is (plain net of the no-policy plan − plain net of this plan) / (extra CO₂ avoided, with heat pumps on Hokkaido Electric's standard power).
+- *Subsidy per extra tonne* is the subsidy as an annuity (the same factors as the costs) divided by the extra CO₂ avoided. It is high because part of a subsidy pays for pipes that would be built anyway.
+- *Gap* is the distance of the plan to the best bound of the full MILP on the candidate links. The plans are the best found, not proven optima.
+
+**The same experiment with HiGHS alone** (120 s of polish per policy):
+
+| Carbon price (yen/t) | Subsidy | Sites | Pipe (km) | CO₂ avoided, t/yr (Hokkaido Electric) | Net to the project | Plain net | Gap | Net against the table above |
+|---|---|---|---|---|---|---|---|---|
+| 0 | 0 | 13 | 7.8 | 3,927 | 93.8 | 93.8 | 12.0 % | the same plan |
+| 1,700 | 0 | 13 | 7.8 | 3,927 | 100.5 | 93.8 | 13.3 % | the same plan |
+| 4,300 | 0 | 13 | 7.8 | 3,927 | 110.7 | 93.8 | 14.5 % | −0.6 % |
+| 10,000 | 0 | 20 | 12.9 | 5,818 | 134.9 | 76.7 | 16.2 % | −3.4 % |
+| 20,000 | 0 | 20 | 12.9 | 5,818 | 193.1 | 76.7 | 11.6 % | −1.3 % |
+| 0 | 1/3 | 20 | 12.9 | 5,818 | 159.5 | 76.7 | 9.7 % | −0.7 % |
+| 0 | 1/2 | 31 | 25.5 | 7,983 | 224.9 | 1.4 | 6.1 % | −1.1 % |
+| 0 | 2/3 | 31 | 25.5 | 7,983 | 299.4 | 1.4 | 6.1 % | −0.5 % |
+| 4,300 | 1/2 | 31 | 25.5 | 7,983 | 259.2 | 1.4 | 5.3 % | −0.9 % |
+
+What the tables say:
+- **The no-policy plan pays for itself.** It avoids 3,927 t a year with a net benefit of 93.8; a tonne avoided costs −23,883 yen. Both solvers return this plan, and it is the published one.
+- **A carbon price moves the plan slowly.** The lower reference price changes nothing. The upper one adds one site in the best plan found; HiGHS keeps the 13-site plan there, which is 0.6 % worse under that price. Even 20,000 yen/t reaches only 19 or 20 sites.
+- **A subsidy moves it much more.** With half of the investment subsidized the plan has 30 or 31 sites and avoids twice the CO₂. With two thirds the best plan no longer covers its full cost without the subsidy (plain net −7.6).
+- **The extra tonnes cost real resources:** 3,600 to 7,100 yen per tonne under a carbon price, 21,000 to 24,000 yen under the larger subsidies.
+- **The solvers agree on the picture and differ at the margin.** HiGHS's plans are within 3.4 % of the best found. Which site joins first, and at which price, is therefore not settled by HiGHS alone.
+
+Run: `uv run python experiments/heat_policy/run.py` (HiGHS, about 12 minutes on 8 processes); `DCOPT_SOLVER=gurobi DCOPT_THREADS=4 uv run python experiments/heat_policy/run.py --workers 3 --polish 300` for the first table. The runs behind the tables were made on 2026-11-25.
+
 ## Open questions
 
 - What are the temperature and the recoverable share of waste heat for each cooling type in the Ishikari data centers?

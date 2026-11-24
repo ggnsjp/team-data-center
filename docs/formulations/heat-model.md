@@ -124,7 +124,7 @@ v_{u\omega} = \frac{1000\,p^{ker}_\omega}{9.7\,\eta_b} - 1000\,p^{el}\,e_u \qqua
 | 115 yen/L (conservative bulk price, an assumption) | 13,948 yen | 13,948 yen/MWh | 10,823 yen/MWh |
 | 156.8 yen/L (survey of 16 Nov 2026 [11]) | 19,018 yen | 19,018 yen/MWh | 15,893 yen/MWh |
 
-**CO₂ avoided.** It is $2.49/(9.7 \times 0.85) = 0.302$ t per MWh. Heat-pump electricity from the grid (0.55 t/MWh) is subtracted in ambient mode; the central heat pump runs on the data center's renewable power.
+**CO₂ avoided.** It is $2.50/(9.7 \times 0.85) = 0.303$ t per MWh. Heat-pump electricity from the grid (0.526 t/MWh) is subtracted in ambient mode; the central heat pump runs on the data center's renewable power.
 
 ### 2.5 Pipes
 
@@ -338,7 +338,7 @@ The shared network beats this baseline because it avoids duplicated pipes, lets 
 | Pipe investment | 517 M yen | $2{,}483 \times 208{,}367$ |
 | Heat-pump investment | 0 | direct use |
 | Saving per year | 69.7 M yen (115 yen/L) to 95.1 M yen (156.8 yen/L); expected 82.4 M yen | $5{,}000 \times v$ |
-| CO₂ avoided | 1,510 t/yr | $5{,}000 \times 0.302$ |
+| CO₂ avoided | 1,516 t/yr | $5{,}000 \times 0.303$ |
 | Simple payback | 6.3 years | $517 / 82.4$ |
 
 ## 11. A heat price for a pair
@@ -367,7 +367,51 @@ so a price that leaves both sides better off exists exactly when the pair's scor
 
 This is a price for one pair. In a shared network the cost of the common pipes must also be split among the partners. Whether a split exists that no group of partners would leave (the core of the network-design game) is an open question for this model; see the next research questions in the README.
 
-## 12. Limitations
+## 12. CO2 and policy scenarios
+
+**CO₂ avoided per MWh.** A MWh delivered to user $u$ avoids
+
+```math
+a_u = \frac{2.50}{9.7\,\eta_b} - \varepsilon^{el}\, e_u \qquad \text{(t CO₂ per MWh)} .
+```
+
+The first term is the kerosene not burned (0.303 t/MWh, Section 2.4; kerosene emits 2.50 kg CO₂ per litre [53]). The second is the heat pump's electricity $e_u$ (Section 2.3) at the emission factor $\varepsilon^{el}$ of that electricity. In the plans, $\varepsilon^{el}$ is the grid factor for the users' heat pumps (ambient loop) and zero for the central heat pump, which runs on the data center's renewable power. Any plan can also be reported under three electricity scenarios:
+
+| Electricity for the heat pumps | $\varepsilon^{el}$ (t CO₂/MWh) | Basis |
+|---|---|---|
+| 100 % renewable power | 0 | the supply of data center No. 1 [2, 5] |
+| National level for FY2030 | 0.25 | the Plan for Global Warming Countermeasures of 2025 [55] |
+| Hokkaido Electric Power, standard plans | 0.526 | results of FY2024 [54] |
+
+**Carbon price.** With a price $\pi$ (yen per tonne) on the CO₂ avoided, the value of a delivered MWh becomes
+
+```math
+v_{u\omega} + \pi\, a_u \qquad \text{(yen/MWh)} .
+```
+
+Today's fuel taxes are levied upstream and are part of the kerosene price, so $\pi$ is a price on top of them. The default is $\pi = 0$. For orientation, the reference prices of Japan's emissions trading scheme for FY2026 are 1,700 and 4,300 yen per tonne [56].
+
+**Subsidy.** With a share $\phi$ of the investment paid by a subsidy, the project pays $(1-\phi)$ of every pipe and heat-pump annuity. The default is $\phi = 0$. For orientation, programmes that name such equipment pay 1/3 to 2/3 of the investment [57, 58].
+
+Both scenarios enter the objective of Section 5 only through these coefficients, so the methods of Sections 5–7 apply unchanged.
+
+**What is reported for a plan.** Let $C$ be its full annual cost (pipes and heat pumps, no subsidy), $V$ its expected annual value at $\pi = 0$ and $A$ its expected CO₂ avoided per year.
+
+| Quantity | Formula | Meaning |
+|---|---|---|
+| Net benefit to the project | $V + \pi A - (1-\phi)\,C$ | what the plan's owners see under the policy |
+| Plain net benefit | $V - C$ | the same plan with no policy money |
+| Cost of a tonne avoided | $(C - V)/A$ | negative when the plan pays for itself; for a pair that does not pay, the carbon price at which it breaks even |
+| Cost of the extra tonnes a policy brings | $\dfrac{(V_0 - C_0) - (V - C)}{A - A_0}$ | index 0 is the no-policy plan; it maximizes the plain net benefit, so this cost is not negative, up to the search gap |
+
+**Where it appears.**
+- The app's *Warm Ishikari* page has both policies as sliders (model v1, one data center) and compares the plan with the no-policy plan.
+- Each proposal's calculation sheet lists the CO₂ avoided under the three electricity scenarios, the cost of a tonne, and the payback at subsidy rates of 1/3, 1/2 and 2/3.
+- `experiments/heat_policy/run.py` re-optimizes the regional plan for a list of policies. Every policy gets the same candidate links, and every plan found is evaluated under every policy, so that the plans differ because of the policy and not because of the search. The results are in [heat.md](heat.md).
+
+The carbon prices and subsidy rates are scenarios. They do not state how an actual scheme applies to a project.
+
+## 13. Limitations
 
 - **Monthly energy balances.** The model has no hourly operation, no storage and no pumping energy. Peaks enter only through $P_u$, $\alpha$ and the duration curve.
 - **Deliverable capacity is not tied to the built pipes.** $c_u$ comes from $\alpha$ times the scenario set's design peak — the same for every build — and pipe sizes gate connectivity all-or-nothing. With demand-side uncertainty (the weather years) this makes plans built on different-sized scenario sets incomparable: the 50-year experiment shows the signature (see the weather-years section in [heat.md](heat.md)). The fix ties the deliverable cap to the built pipe size (a per-user path bottleneck).

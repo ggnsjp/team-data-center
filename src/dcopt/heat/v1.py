@@ -68,13 +68,15 @@ KINDS = {
 GREENHOUSE_MWH_PER_M2 = 0.40      # assumption: heated greenhouse in Hokkaido, per m2 per year
 SNOW_MWH_PER_M2 = 0.12            # assumption: ~0.25 kWh per m2 per cm of snowfall x 479 cm
 KEROSENE_KWH_PER_L = 9.7          # lower heating value of kerosene
-KEROSENE_KG_CO2_PER_L = 2.49      # Ministry of the Environment emission factor
-GRID_KG_CO2_PER_KWH = 0.55        # assumption for Hokkaido grid electricity
+# CO2 factors, each from an official list (URLs in dcopt.heat.network.URL and docs/data-sources.md).
+KEROSENE_KG_CO2_PER_L = 2.50      # Ministry of the Environment list: 36.5 GJ/kL x 0.0187 tC/GJ x 44/12
+GRID_KG_CO2_PER_KWH = 0.526       # Hokkaido Electric Power, standard plans (menu F), FY2024 results
+GRID_2030_KG_CO2_PER_KWH = 0.25   # national FY2030 level in the Plan for Global Warming Countermeasures (2025)
 # Electricity for the heat pumps under three supply scenarios, kg CO2 per kWh (label ja, label en, factor).
 GRID_SCENARIOS = {
     "renewable": ("再エネ100%", "100 % renewable power", 0.0),
-    "target2030": ("2030年度の国の目標", "national target for FY2030", 0.25),
-    "grid": ("北海道の系統電力（今）", "Hokkaido grid power today", GRID_KG_CO2_PER_KWH),
+    "target2030": ("2030年度の国の目標", "national target for FY2030", GRID_2030_KG_CO2_PER_KWH),
+    "grid": ("北海道電力の標準メニュー（2024年度）", "Hokkaido Electric, standard plans (FY2024)", GRID_KG_CO2_PER_KWH),
 }
 
 
