@@ -37,29 +37,29 @@ def solve(A: Assumptions, assumed: bool, k: int):
     return design(dc, sites, A, k=k, kinds=kinds, time_limit=60), pairwise(dc, sites, A, kinds=kinds)
 
 
+def pick(a, b):
+    return a if ja else b
+
+
 with st.sidebar:
-    lang = st.radio("表示言語 / Language", ["日本語", "English"], horizontal=True, key="heat_lang")
+    lang = st.radio("表示言語 / Language", ["日本語", "English"], horizontal=True, key="app_lang")
     ja = lang == "日本語"
-    st.subheader("前提（すべて仮定・変更可） / Assumptions (all adjustable)")
-    it = st.slider("データセンターのIT負荷（MW） / Data-center IT load (MW)", 2, 50, 10, 1)
-    rec = st.slider("回収できる廃熱の割合 / Share of heat recovered", 0.3, 0.9, 0.6, 0.05)
-    cop = st.slider("ヒートポンプのCOP / Heat pump COP", 2.5, 6.0, 4.0, 0.1)
-    kero = st.slider("灯油価格（円/L） / Kerosene (yen/L)", 70, 170, 115, 5)
-    power = st.slider("電気料金（円/kWh） / Electricity (yen/kWh)", 10, 40, 25, 1)
-    pipe = st.slider("導管の工事費（万円/m） / Pipe cost (10k yen per m)", 3, 30, 10, 1)
-    years = st.slider("償却年数 / Lifetime (years)", 15, 40, 30, 5)
-    rate = st.slider("割引率（%） / Discount rate (%)", 0.0, 8.0, 3.0, 0.5)
-    renew = st.toggle("ヒートポンプは再エネ電力 / Heat pumps on renewable power", value=True)
-    assumed = st.toggle("仮定の候補地も含める（温室新設・陸上養殖・融雪） / Include assumed sites", value=True)
-    k = st.select_slider("候補の導管（近い順に何本） / Candidate pipes per site", options=[2, 3, 4], value=3)
+    st.subheader(pick("前提（すべて仮定・変更可）", "Assumptions (all adjustable)"))
+    it = st.slider(pick("データセンターのIT負荷（MW）", "Data-center IT load (MW)"), 2, 50, 10, 1, key="it_load")
+    rec = st.slider(pick("回収できる廃熱の割合", "Share of heat recovered"), 0.3, 0.9, 0.6, 0.05, key="recovery")
+    cop = st.slider(pick("ヒートポンプのCOP", "Heat pump COP"), 2.5, 6.0, 4.0, 0.1, key="hp_cop")
+    kero = st.slider(pick("灯油価格（円/L）", "Kerosene (yen/L)"), 70, 170, 115, 5, key="kerosene")
+    power = st.slider(pick("電気料金（円/kWh）", "Electricity (yen/kWh)"), 10, 40, 25, 1, key="power_price")
+    pipe = st.slider(pick("導管の工事費（万円/m）", "Pipe cost (10k yen per m)"), 3, 30, 10, 1, key="pipe_cost")
+    years = st.slider(pick("償却年数", "Lifetime (years)"), 15, 40, 30, 5, key="lifetime")
+    rate = st.slider(pick("割引率（%）", "Discount rate (%)"), 0.0, 8.0, 3.0, 0.5, key="discount_rate")
+    renew = st.toggle(pick("ヒートポンプは再エネ電力", "Heat pumps on renewable power"), value=True, key="renewable")
+    assumed = st.toggle(pick("仮定の候補地も含める（温室新設・陸上養殖・融雪）", "Include assumed sites"), value=True, key="assumed_sites")
+    k = st.select_slider(pick("候補の導管（近い順に何本）", "Candidate pipes per site"), options=[2, 3, 4], value=3, key="k_pipes")
 
 A = Assumptions(it_load_mw=float(it), recovery=float(rec), cop=float(cop), kerosene_yen_l=float(kero),
                 power_yen_kwh=float(power), pipe_yen_m=float(pipe) * 10_000, years=int(years), rate=rate / 100,
                 renewable_power=renew)
-
-
-def pick(a, b):
-    return a if ja else b
 
 
 dc, _ = load_sites()
