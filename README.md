@@ -30,6 +30,8 @@ We took the idea starter **"Warm Ishikari"**: a matchmaker and calculator for da
 
 ## Results so far (theme 1)
 
+> **All numbers are model estimates** from public data and stated assumptions, not measured values or quotations. Several sites, demands and data-center positions are assumptions (see [Caveats](#caveats) and [docs/data-sources.md](docs/data-sources.md)).
+
 All figures are annual net benefits in million yen, averaged over four scenarios: IT load low or high, crossed with kerosene at 115 or 156.8 yen/L. The net benefit is the value of the kerosene replaced, minus heat-pump electricity, minus the annualized cost of pipes and heat pumps. Pipe costs follow [15], heat-pump costs [16], kerosene prices [11], and monthly demand follows JMA climate normals [12]. There are 50 candidate sites: 40 from OpenStreetMap facility tags, plus 10 named public buildings, hotels and a factory. Demand per building type is an assumption.
 
 ### A shared network beats pair-by-pair matching
