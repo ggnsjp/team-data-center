@@ -355,7 +355,7 @@ with right:
         x=alt.X("label:N", sort=month_labels, title=None, axis=alt.Axis(labelColor=INK2, labelAngle=0)),
         y=alt.Y("sum(mwh):Q", title="MWh", axis=alt.Axis(gridColor=GRID, labelColor=INK2, titleColor=INK2)),
         color=alt.Color("kind:N", sort=kinds_present, scale=alt.Scale(domain=kinds_present, range=colours),
-                        title=pick("供給先", "Delivered to"), legend=alt.Legend(orient="bottom", columns=2)),
+                        title=pick("供給先", "Delivered to"), legend=alt.Legend(orient="bottom", columns=2, labelColor=INK2, titleColor=INK2)),
         tooltip=[alt.Tooltip("label:N", title=pick("月", "Month")), alt.Tooltip("kind:N", title=pick("種類", "Type")),
                  alt.Tooltip("sum(mwh):Q", title="MWh", format=",.0f")])
     lines = pd.DataFrame({"label": month_labels * 2,
@@ -364,7 +364,8 @@ with right:
                           + [pick("候補全体の需要", "Demand of all candidates")] * 12})
     line = alt.Chart(lines).mark_line(strokeWidth=2, point=alt.OverlayMarkDef(size=36, filled=True)).encode(
         x=alt.X("label:N", sort=month_labels), y="mwh:Q",
-        strokeDash=alt.StrokeDash("series:N", title=None, legend=alt.Legend(orient="bottom")),
+        strokeDash=alt.StrokeDash("series:N", title=None,
+                                  legend=alt.Legend(orient="top", labelColor=INK2, labelLimit=320, symbolType="stroke")),
         color=alt.value(INK), tooltip=[alt.Tooltip("series:N"), alt.Tooltip("mwh:Q", format=",.0f")])
     st.altair_chart((bars + line).properties(height=360).configure(background=SURFACE, font=FONT)
                     .configure_view(stroke=None), use_container_width=True, theme=None)

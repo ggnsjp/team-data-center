@@ -197,7 +197,7 @@ def results_panel(res: dict, rule_year: int) -> None:
             color=alt.Color("plan:N", sort=[label for _, label, _ in series],
                             scale=alt.Scale(domain=[label for _, label, _ in series],
                                             range=[c for _, _, c in series]),
-                            title=None, legend=alt.Legend(orient="bottom")),
+                            title=None, legend=alt.Legend(orient="bottom", labelColor=INK2)),
             tooltip=[alt.Tooltip("year:Q", title=pick("年", "Year")),
                      alt.Tooltip("plan:N", title=pick("計画", "Plan")),
                      alt.Tooltip("net:Q", format=".1f")])
