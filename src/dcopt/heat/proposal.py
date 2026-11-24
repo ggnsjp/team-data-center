@@ -66,7 +66,9 @@ def proposal_data(plan: Plan, d: int, u: int, *, rank: int | None = None, loss: 
     ud, Wc, p = plan.ud, plan.W, plan.p
     src, site = inst.sources[d], inst.users[u]
     nW = len(scens)
-    demand = ud.demand[u]
+    demand = ud.demand[u]                       # T x W (normals repeated when a scenario carries no weather)
+    if demand.ndim == 2:
+        demand = demand @ p                     # the expected monthly demand, as for the supply side
     if route is None:
         route = [[src.lon, src.lat], [site.lon, site.lat]]
     group = GROUP.get(site.kind, "building")
@@ -90,7 +92,7 @@ def proposal_data(plan: Plan, d: int, u: int, *, rank: int | None = None, loss: 
     }
     rows = pair_calculator(inst, P, scens, d, u)
     pair = pair_score(inst, P, scens, d, u, ud, Wc)
-    heat_tw = (np.array([[min(ud.cap[u, t], Wc[d, t, w] / ud.r[u]) for w in range(nW)] for t in range(T)])
+    heat_tw = (np.minimum(ud.cap[u], Wc[d] / ud.r[u])      # T x W: the pair's deliverable heat
                if pair else np.zeros((T, nW)))
     heat_w = heat_tw.sum(axis=0)
     H = float(p @ heat_w)
