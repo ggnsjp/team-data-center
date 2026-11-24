@@ -16,7 +16,14 @@ PAGE = ROOT / "web" / "heat_story" / "index.html"
 DATA = {"story.json": ROOT / "out" / "heat_story" / "story.json",
         "base.json": ROOT / "out" / "heat_story" / "base.json"}
 
-st.set_page_config(page_title="Warm Ishikari Map", layout="wide")
+lang = st.session_state.get("app_lang", "日本語")
+ja = lang == "日本語"
+
+
+def pick(a, b):
+    return a if ja else b
+
+
 st.markdown("<style>.block-container{padding-top:1rem;padding-bottom:0}</style>", unsafe_allow_html=True)
 
 
@@ -37,8 +44,10 @@ def page_html(stamp: float) -> str:
 
 missing = [str(p.relative_to(ROOT)) for p in [PAGE, *DATA.values()] if not p.exists()]
 if missing:
-    st.warning("Data for the map is missing: " + ", ".join(missing)
-               + ". Run `uv run python scripts/export_heat_story.py` first.")
+    missing_txt = "、".join(missing) if ja else ", ".join(missing)
+    st.warning(pick("地図のデータがありません：", "Data for the map is missing: ") + missing_txt
+               + pick("。先に `uv run python scripts/export_heat_story.py` を実行してください。",
+                      ". Run `uv run python scripts/export_heat_story.py` first."))
 else:
     stamp = max(p.stat().st_mtime for p in [PAGE, *DATA.values()])
     components.html(page_html(stamp), height=3400, scrolling=True)

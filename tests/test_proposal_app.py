@@ -19,8 +19,9 @@ def test_page_without_data_says_what_to_run():
 @pytest.mark.skipif(not DATA.exists(), reason="run scripts/export_proposals.py first")
 @pytest.mark.parametrize("lang", ["日本語", "English"])
 def test_page_lists_partners_and_opens_a_proposal(lang):
-    at = AppTest.from_file(PAGE, default_timeout=120).run()
-    at.radio(key="app_lang").set_value(lang).run()
+    at = AppTest.from_file(PAGE, default_timeout=120)
+    at.session_state["app_lang"] = lang
+    at.run()
     assert not at.exception
     table = at.dataframe[0].value
     assert 1 <= len(table) <= 5

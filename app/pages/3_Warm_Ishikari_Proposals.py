@@ -19,8 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "out" / "proposals" / "proposals.json"
 BASE = ROOT / "out" / "heat_story" / "base.json"
 
-st.set_page_config(page_title="Warm Ishikari Proposals", layout="wide")
-lang = st.sidebar.radio("表示言語 / Language", ["日本語", "English"], horizontal=True, key="app_lang")
+lang = st.session_state.get("app_lang", "日本語")
 L = "ja" if lang == "日本語" else "en"
 
 

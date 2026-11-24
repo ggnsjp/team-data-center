@@ -18,13 +18,17 @@ from dcopt.heat import weather as W
 from dcopt.heat.network import Params, Scenario, build_instance, ishikari_sources, plan_for
 from dcopt.heat.v1 import KINDS, ishikari_sites
 
-st.set_page_config(page_title="Warm Ishikari Weather · 石狩の排熱と気象年", layout="wide",
-                   initial_sidebar_state="expanded")
-
 M = 1e6
 
+lang = st.session_state.get("app_lang", "日本語")
+ja = lang == "日本語"
 
-@st.cache_resource(show_spinner="地図と施設を読み込み中 / Loading Ishikari's map and facilities...")
+
+def pick(a, b):
+    return a if ja else b
+
+
+@st.cache_resource(show_spinner=False)
 def load_instance():
     from dcopt.common.geo import use_overpass_mirror
     use_overpass_mirror()
@@ -32,12 +36,12 @@ def load_instance():
     return build_instance(ishikari_sources(sakura), sites), sites
 
 
-@st.cache_resource(show_spinner="50年分の気象データを読み込み中 / Loading 50 years of weather...")
+@st.cache_resource(show_spinner=False)
 def weather_years() -> list[W.WeatherYear]:
     return W.load_years(1976, 2025)
 
 
-@st.cache_resource(show_spinner="その年の気象で導管網を最適化中 / Optimizing the network for this year...")
+@st.cache_resource(show_spinner=False)
 def solve_year(year: int, it_level: str, price: float):
     w = next(w for w in weather_years() if w.year == year)
     sc = Scenario(f"y{year}", f"{year}年・IT{it_level}・{price:g}円/L", f"{year}, IT {it_level}, {price:g} yen/L",
@@ -53,14 +57,6 @@ def latest_results() -> dict | None:
     return json.loads(runs[-1].read_text(encoding="utf-8")) if runs else None
 
 
-def pick(a, b):
-    return a if ja else b
-
-
-with st.sidebar:
-    lang = st.radio("表示言語 / Language", ["日本語", "English"], horizontal=True, key="app_lang")
-    ja = lang == "日本語"
-
 res = latest_results()
 st.title("Warm Ishikari Weather · " + pick("50年の気象で試す導管網", "The heat network against 50 years of weather"))
 st.caption(pick("平年値だけの計画を、1976〜2025年の実際の毎日の気象（気象庁・札幌）で試します。上のセクションは実験の結果、"
@@ -74,8 +70,10 @@ if not W.year_csv(W.YEARS[0]).exists():
                   "The weather years (the 1976-2025 CSVs under data/jma) are missing. Fetch them with (about 10 minutes):"))
     st.code("uv run python -m dcopt.heat.weather 1976 2025")
     st.stop()
+with st.spinner(pick("50年分の気象データを読み込み中…", "Loading 50 years of weather…")):
+    years = weather_years()
 missing = [f"{w.year}年 {w.n_missing_t}日" if ja else f"{w.year} ({w.n_missing_t} d)"
-           for w in weather_years() if w.n_missing_t]
+           for w in years if w.n_missing_t]
 if missing:
     st.warning(pick("観測のない日は、同じ月の他の日の平均で補いました：",
                     "Days without a temperature observation were imputed from their month's other days: ")
@@ -83,7 +81,7 @@ if missing:
 
 with st.sidebar:
     st.subheader(pick("シナリオ", "Scenario"))
-    year = st.select_slider(pick("気象年", "Weather year"), options=[w.year for w in weather_years()], value=1984,
+    year = st.select_slider(pick("気象年", "Weather year"), options=[w.year for w in years], value=1984,
                             key="weather_year")
     it_level = st.radio(pick("データセンターのIT負荷", "Data-center IT load"), ["high", "low"], horizontal=True,
                         key="weather_it")
@@ -170,14 +168,15 @@ else:
             "deliverable capacity to the built pipe size."))
 
 st.subheader(pick(f"{year}年の気象で導管網を作り直すと", f"Re-optimizing the network for {year}"))
-w = next(w for w in weather_years() if w.year == year)
+w = next(w for w in years if w.year == year)
 st.caption(pick(f"年平均気温 {sum(w.t_day) / len(w.t_day):.1f} ℃、年降雪量 {sum(w.snow_day):.0f} cm、"
                 f"最寒月の平均 {min(w.t_month):.1f} ℃。暖房度日指数 {w.hdd18_index:.2f}、降雪指数 {w.snow_index:.2f}"
                 "（平年 = 1.00）。",
                 f"Annual mean {sum(w.t_day) / len(w.t_day):.1f} °C, snowfall {sum(w.snow_day):.0f} cm, "
                 f"coldest-month mean {min(w.t_month):.1f} °C. Heating-degree-day index {w.hdd18_index:.2f}, "
                 f"snow index {w.snow_index:.2f} (normals = 1.00)."))
-plan = solve_year(year, it_level, price)
+with st.spinner(pick("その年の気象で導管網を最適化中…", "Optimizing the network for this year…")):
+    plan = solve_year(year, it_level, price)
 hedge = None
 if res is not None and len(a_plans["rp"]["per_scenario"]) == len(years_axis):
     hedge = a_plans["rp"]["per_scenario"][years_axis.index(year)]

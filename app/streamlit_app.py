@@ -1,27 +1,61 @@
-"""Team Data Center demo app: `uv run streamlit run app/streamlit_app.py`."""
+"""Team Data Center demo app: `uv run streamlit run app/streamlit_app.py`.
+
+One language switch for the whole app, declared here so it renders once in the sidebar on every
+page; the navigation labels follow the selection. Defining pages with st.navigation makes
+Streamlit ignore the pages/ directory convention, so the five pages are listed explicitly.
+"""
 import streamlit as st
 
-st.set_page_config(page_title="Team Data Center", layout="wide")
-lang = st.sidebar.radio("表示言語 / Language", ["日本語", "English"], horizontal=True, key="app_lang")
+st.set_page_config(page_title="Team Data Center", layout="wide", initial_sidebar_state="expanded")
 
-st.title("Team Data Center")
-if lang == "日本語":
-    st.markdown("石狩（北海道）のデータセンターの最適化")
-    st.markdown("""
+
+def pick_for(lang: str):
+    return (lambda a, b: a) if lang == "日本語" else (lambda a, b: b)
+
+
+def home() -> None:
+    lang = st.session_state.get("app_lang", "日本語")
+    p = pick_for(lang)
+    st.title("Team Data Center")
+    if lang == "日本語":
+        st.markdown("石狩（北海道）のデータセンターの最適化")
+        st.markdown("""
 | | テーマ | ページ |
 |---|---|---|
-| 1 | 排熱の導管網 | Warm Ishikari, Warm Ishikari Map, Warm Ishikari Proposals, Warm Ishikari Weather |
+| 1 | 排熱の導管網 | 排熱の導管網・アニメーション・提案書・気象年で試す |
 | 2 | 系統の受け入れ余地 | 作成中 |
 | 3 | 次のデータセンターの立地 | 作成中 |
 """)
-else:
-    st.markdown("Optimization for data centers in Ishikari, Hokkaido")
-    st.markdown("""
+    else:
+        st.markdown("Optimization for data centers in Ishikari, Hokkaido")
+        st.markdown("""
 | | Theme | Page |
 |---|---|---|
-| 1 | Waste-heat networks | Warm Ishikari, Warm Ishikari Map, Warm Ishikari Proposals, Warm Ishikari Weather |
+| 1 | Waste-heat networks | Waste-heat network, Animation, Proposals, Weather years |
 | 2 | Grid hosting capacity | in progress |
 | 3 | Siting the next data center | in progress |
 """)
-st.caption("地図データ / Map data: © OpenStreetMap contributors (ODbL)" if lang == "日本語"
-           else "Map data: © OpenStreetMap contributors (ODbL)")
+
+
+pick = pick_for(st.session_state.get("app_lang") or st.query_params.get("lang") or "日本語")
+if "app_lang" not in st.session_state:                 # a reload starts a fresh session: seed it
+    st.session_state["app_lang"] = st.query_params.get("lang") or "日本語"
+lang = st.sidebar.radio(pick("表示言語", "Language"), ["日本語", "English"], horizontal=True,
+                        key="app_lang", label_visibility="collapsed")
+if st.query_params.get("lang") != lang:                # keep the URL in sync so reloads keep the choice
+    st.query_params["lang"] = lang
+pick = pick_for(lang)
+
+pages = [
+    st.Page(home, title=pick("ホーム", "Home"), url_path="", default=True),
+    st.Page("pages/1_Warm_Ishikari.py", title=pick("排熱の導管網", "Waste-heat network"),
+            url_path="Warm_Ishikari"),
+    st.Page("pages/2_Warm_Ishikari_Map.py", title=pick("アニメーション", "Animation"),
+            url_path="Warm_Ishikari_Map"),
+    st.Page("pages/3_Warm_Ishikari_Proposals.py", title=pick("提案書", "Proposals"),
+            url_path="Warm_Ishikari_Proposals"),
+    st.Page("pages/4_Warm_Ishikari_Weather.py", title=pick("気象年で試す", "Weather years"),
+            url_path="Warm_Ishikari_Weather"),
+]
+st.navigation(pages).run()
+st.caption(pick("地図データ © OpenStreetMap contributors（ODbL）", "Map data © OpenStreetMap contributors (ODbL)"))
