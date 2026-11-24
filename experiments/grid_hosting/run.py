@@ -16,7 +16,9 @@ from __future__ import annotations
 
 import argparse
 import csv
+import subprocess
 import time
+from importlib.metadata import version
 from pathlib import Path
 
 import numpy as np
@@ -78,8 +80,12 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--study-case", default="case30_ieee", help="case for the load-level and N-1 studies ('' to skip)")
     ap.add_argument("--study-buses", type=int, default=4, help="how many of its largest load buses to study")
+    ap.add_argument("--n1-level", type=float, default=0.7, help="load level of the N-1 study (1.0: the case as given)")
     args = ap.parse_args()
-    print(f"hosting-capacity brackets; power factor {args.pf}")
+    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True,
+                            check=False).stdout.strip()
+    print(f"hosting-capacity brackets; power factor {args.pf}; commit {commit or 'unknown'}; "
+          + ", ".join(f"{pkg} {version(pkg)}" for pkg in ("clarabel", "scipy", "numpy")))
     for name in [c for c in args.cases.split(",") if c]:
         run_case(name, args.pf, args.workers)
 
@@ -100,7 +106,9 @@ def main() -> None:
             cells.append(f"{h.ac:9.1f} / {h.upper:9.1f}" if h.ac is not None and h.upper is not None else f"{'n/a':>21s}")
         print(f"   {case.label(b):>5s}  " + "  ".join(cells))
     methods = ("socp", "sdp", "ac")
-    print(f"\n== single-branch outages (N-1) on {case.name}: the worst outage per bus, AC point and upper bound")
+    case = case.scaled_loads(args.n1_level)
+    print(f"\n== single-branch outages (N-1) on {case.name} at load level x{args.n1_level}: "
+          "the worst outage per bus, AC point and upper bound")
     for b in buses:
         intact = hosting_map(case, buses=[b], pf=args.pf, methods=methods)[0]
         n1 = hosting_n1(case, b, pf=args.pf, methods=methods, workers=args.workers)
