@@ -95,11 +95,11 @@ class Case:
     def label(self, i: int) -> str:
         return str(int(self.bus_id[i]))
 
-    def scaled_loads(self, alpha: float) -> "Case":
+    def scaled_loads(self, alpha: float) -> Case:
         """The same network with every load multiplied by alpha (a load-level snapshot)."""
         return replace(self, pd=self.pd * alpha, qd=self.qd * alpha)
 
-    def without_branch(self, l: int) -> "Case":
+    def without_branch(self, l: int) -> Case:
         """The network after the outage of branch l (for N-1 screening)."""
         keep = np.arange(self.m) != l
         return replace(self, **{k: getattr(self, k)[keep]
@@ -124,7 +124,9 @@ def make_case(name: str, base_mva: float, buses: list[dict], gens: list[dict], b
     per unit here; voltages in per unit; angles in degrees."""
     ids = [b["id"] for b in buses]
     pos = {i: k for k, i in enumerate(ids)}
-    arr = lambda rows, key, default=0.0: np.array([float(r.get(key, default)) for r in rows])  # noqa: E731
+    def arr(rows: list[dict], key: str, default: float = 0.0) -> np.ndarray:
+        return np.array([float(r.get(key, default)) for r in rows])
+
     ref = [k for k, b in enumerate(buses) if b.get("ref")]
     rate = arr(branches, "rate", 0.0)
     ratio = arr(branches, "ratio", 1.0)
@@ -154,7 +156,7 @@ def make_case(name: str, base_mva: float, buses: list[dict], gens: list[dict], b
 # ---------------------------------------------------------------------------------------------
 
 def _matrix(text: str, key: str) -> np.ndarray:
-    m = re.search(rf"mpc\.{key}\s*=\s*\[(.*?)\]\s*;", text, flags=re.S)
+    m = re.search(rf"mpc\.{key}\s*=\s*\[(.*?)\]\s*;", text, flags=re.DOTALL)
     if not m:
         raise ValueError(f"no mpc.{key} block in the case file")
     rows = [row.split() for row in re.split(r"[;\n]", m.group(1)) if row.strip()]
@@ -175,11 +177,11 @@ def read_matpower(text: str, name: str = "case") -> Case:
         branch = branch[branch[:, 10] != 0]
     branch = branch[np.isin(branch[:, 0].astype(int), list(live)) & np.isin(branch[:, 1].astype(int), list(live))]
     wide = branch.shape[1] > 12
-    buses = [dict(id=int(b[0]), ref=(int(b[1]) == 3), pd=b[2], qd=b[3], gs=b[4], bs=b[5], base_kv=b[9],
-                  vmax=b[11], vmin=b[12]) for b in bus]
-    gens = [dict(bus=int(g[0]), qmax=g[3], qmin=g[4], pmax=g[8], pmin=g[9]) for g in gen]
-    branches = [dict(f=int(br[0]), t=int(br[1]), r=br[2], x=br[3], b=br[4], rate=br[5], ratio=br[8],
-                     shift=br[9], angmin=br[11] if wide else -360.0, angmax=br[12] if wide else 360.0)
+    buses = [{"id": int(b[0]), "ref": int(b[1]) == 3, "pd": b[2], "qd": b[3], "gs": b[4], "bs": b[5],
+              "base_kv": b[9], "vmax": b[11], "vmin": b[12]} for b in bus]
+    gens = [{"bus": int(g[0]), "qmax": g[3], "qmin": g[4], "pmax": g[8], "pmin": g[9]} for g in gen]
+    branches = [{"f": int(br[0]), "t": int(br[1]), "r": br[2], "x": br[3], "b": br[4], "rate": br[5], "ratio": br[8],
+                 "shift": br[9], "angmin": br[11] if wide else -360.0, "angmax": br[12] if wide else 360.0}
                 for br in branch]
     return make_case(name, base, buses, gens, branches)
 
@@ -202,7 +204,7 @@ def ensure_pglib(name: str, timeout: float = TIMEOUT_S) -> Path | None:
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             text = resp.read().decode("utf-8")
         read_matpower(text, name)                              # refuse to cache something unreadable
-    except Exception:                                          # offline, timeout, a moved file
+    except (OSError, ValueError, AttributeError, IndexError):   # offline, timeout, a moved or unreadable file
         return None
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
@@ -231,41 +233,40 @@ def available(download: bool = False) -> list[str]:
 # Built-in illustrative systems (our own data)
 # ---------------------------------------------------------------------------------------------
 
-def two_bus(x: float = 0.1, r: float = 0.0, vmin: float = 0.9) -> Case:
+def two_bus(x: float = 0.1, r: float = 0.0, vmin: float = 0.9, rate: float = 0.0) -> Case:
     """A stiff source and one load bus behind a line: the textbook loadability example. With
     r = 0 and a unity-power-factor load, the largest load is V1^2 sin(2 delta) / (2 x) at
     cos(delta) = vmin / V1 (the lower voltage limit binds before the nose of the PV curve)."""
     return make_case("two_bus", 100.0,
-                     [dict(id=1, ref=True, vmin=1.0, vmax=1.0), dict(id=2, vmin=vmin, vmax=1.1)],
-                     [dict(bus=1, pmin=0, pmax=5000, qmin=-5000, qmax=5000)],
-                     [dict(f=1, t=2, r=r, x=x, b=0.0)])
+                     [{"id": 1, "ref": True, "vmin": 1.0, "vmax": 1.0}, {"id": 2, "vmin": vmin, "vmax": 1.1}],
+                     [{"bus": 1, "pmin": 0, "pmax": 5000, "qmin": -5000, "qmax": 5000}],
+                     [{"f": 1, "t": 2, "r": r, "x": x, "b": 0.0, "rate": rate}])
 
 
 def ring5() -> Case:
     """A five-bus meshed system: two generators, three loads, six lines with ratings."""
-    buses = [dict(id=1, ref=True), dict(id=2, pd=90, qd=30), dict(id=3, pd=100, qd=35),
-             dict(id=4), dict(id=5, pd=60, qd=20)]
-    for b in buses:
-        b.update(vmin=0.95, vmax=1.05, base_kv=187.0)
-    gens = [dict(bus=1, pmin=0, pmax=300, qmin=-150, qmax=150), dict(bus=4, pmin=0, pmax=200, qmin=-100, qmax=100)]
+    loads = {2: (90, 30), 3: (100, 35), 5: (60, 20)}
+    buses = [{"id": i, "ref": i == 1, "pd": loads.get(i, (0, 0))[0], "qd": loads.get(i, (0, 0))[1],
+              "vmin": 0.95, "vmax": 1.05, "base_kv": 187.0} for i in range(1, 6)]
+    gens = [{"bus": 1, "pmin": 0, "pmax": 300, "qmin": -150, "qmax": 150},
+            {"bus": 4, "pmin": 0, "pmax": 200, "qmin": -100, "qmax": 100}]
     lines = [(1, 2, 0.012, 0.070, 0.030, 180), (1, 3, 0.020, 0.110, 0.045, 150), (2, 3, 0.015, 0.080, 0.030, 100),
              (2, 4, 0.018, 0.095, 0.040, 150), (3, 5, 0.014, 0.075, 0.030, 120), (4, 5, 0.010, 0.060, 0.025, 160)]
     return make_case("ring5", 100.0, buses, gens,
-                     [dict(f=f, t=t, r=r, x=x, b=b, rate=s, angmin=-30, angmax=30) for f, t, r, x, b, s in lines])
+                     [{"f": f, "t": t, "r": r, "x": x, "b": b, "rate": s, "angmin": -30, "angmax": 30}
+                      for f, t, r, x, b, s in lines])
 
 
 def feeder8() -> Case:
     """A radial 66 kV-class feeder: a substation and seven load buses on a trunk with two laterals."""
-    buses = [dict(id=1, ref=True, vmin=1.0, vmax=1.03)] + [
-        dict(id=i, pd=p, qd=q, vmin=0.94, vmax=1.06) for i, p, q in
+    buses = [{"id": 1, "ref": True, "vmin": 1.0, "vmax": 1.03, "base_kv": 66.0}] + [
+        {"id": i, "pd": p, "qd": q, "vmin": 0.94, "vmax": 1.06, "base_kv": 66.0} for i, p, q in
         [(2, 6, 2), (3, 8, 3), (4, 5, 1.5), (5, 7, 2.5), (6, 4, 1.5), (7, 6, 2), (8, 3, 1)]]
-    for b in buses:
-        b["base_kv"] = 66.0
-    gens = [dict(bus=1, pmin=0, pmax=200, qmin=-100, qmax=100)]
+    gens = [{"bus": 1, "pmin": 0, "pmax": 200, "qmin": -100, "qmax": 100}]
     lines = [(1, 2, 0.020, 0.045, 60), (2, 3, 0.030, 0.060, 45), (3, 4, 0.035, 0.065, 30), (4, 5, 0.040, 0.070, 30),
              (2, 6, 0.045, 0.075, 30), (3, 7, 0.040, 0.070, 30), (7, 8, 0.050, 0.080, 20)]
     return make_case("feeder8", 100.0, buses, gens,
-                     [dict(f=f, t=t, r=r, x=x, b=0.004, rate=s) for f, t, r, x, s in lines])
+                     [{"f": f, "t": t, "r": r, "x": x, "b": 0.004, "rate": s} for f, t, r, x, s in lines])
 
 
 BUILTIN = {"ring5": ring5, "feeder8": feeder8, "two_bus": two_bus}
