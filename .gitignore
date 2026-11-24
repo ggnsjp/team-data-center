@@ -9,6 +9,8 @@ __pycache__/
 # Downloaded and generated data (rebuild with scripts)
 data/raw/
 data/cache/
+# the JMA weather years ship with the repo (tiny, pinned observations)
+!data/jma/
 out/
 results/
 

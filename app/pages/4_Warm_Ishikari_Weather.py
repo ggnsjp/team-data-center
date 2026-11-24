@@ -70,8 +70,8 @@ st.caption(pick("平年値だけの計画を、1976〜2025年の実際の毎日�
                 "the network for one chosen year."))
 
 if not W.year_csv(W.YEARS[0]).exists():
-    st.error(pick("気象データ（1976〜2025年）がまだダウンロードされていません。まず一度だけ実行してください（約10分）：",
-                  "The weather years (1976-2025) are not downloaded yet. Run this once first (about 10 minutes):"))
+    st.error(pick("気象データ（data/jma の1976〜2025年のCSV）が見つかりません。次のコマンドで取得できます（約10分）：",
+                  "The weather years (the 1976-2025 CSVs under data/jma) are missing. Fetch them with (about 10 minutes):"))
     st.code("uv run python -m dcopt.heat.weather 1976 2025")
     st.stop()
 missing = [f"{w.year}年 {w.n_missing_t}日" if ja else f"{w.year} ({w.n_missing_t} d)"

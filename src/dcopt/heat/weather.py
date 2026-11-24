@@ -25,8 +25,10 @@ DAY of the year sets the pipe design load (the design-day method of district hea
 snow-melting stays monthly (melt is a multi-day process) and flat kinds have no peak day.
 
 Data   JMA 過去の気象データ検索 (the daily view of the same station 47412 that JMA_SOURCE cites),
-       fetched once per month into data/cache/jma/ (git ignored), one CSV per year.
-Run    `uv run python -m dcopt.heat.weather 1976 2025` fetches and validates the years.
+       one tidy CSV per year, committed under data/jma/ (204 KB for 1976-2025) so the model,
+       the experiment and the app page work on a fresh clone; JMA is the source (气象庁).
+Run    `uv run python -m dcopt.heat.weather 1976 2025` fetches any missing years of the span and
+       validates the whole span against the normals (existing years are kept).
 """
 from __future__ import annotations
 
@@ -39,19 +41,19 @@ from pathlib import Path
 
 import numpy as np
 
-from dcopt.common.geo import CACHE
 from dcopt.heat.v1 import DAYS, KINDS, SNOW, TEMP
 
+ROOT = Path(__file__).resolve().parents[3]
 PREC_NO, BLOCK_NO = 14, 47412          # Sapporo, the station JMA_SOURCE cites
 URL = ("https://www.data.jma.go.jp/obd/stats/etrn/view/daily_s1.php"
        "?prec_no={prec}&block_no={block}&year={year}&month={month}&day=&view=p1")
 USER_AGENT = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
               "Chrome/124.0 Safari/537.36")
 DELAY_S = 0.5                          # politeness delay between JMA requests
-CACHE_DIR = CACHE / "jma"
+CACHE_DIR = ROOT / "data" / "jma"
 
 # Daily-climatology normals, Sapporo 47412, 1991-2020: sum over the calendar year of the
-# per-calendar-day mean of the fetched daily observations (computed from data/cache/jma,
+# per-calendar-day mean of the fetched daily observations (computed from data/jma,
 # 2026-11-24; matches v1's monthly TEMP exactly and SNOW within 2 %). These are the
 # denominators that make a normals-like year scale to 1.0.
 HDD18_N = 3464.328                     # sum of daily max(0, 18 - T_day), C x days

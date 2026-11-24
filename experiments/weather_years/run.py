@@ -16,7 +16,7 @@ annual net benefit. `--evpi` also solves every scenario's own optimum (wait-and-
 one extra solve per scenario.
 
 Run: uv run python experiments/weather_years/run.py [ambient|central] [--stage a|b|both] [--evpi]
-Data: uv run python -m dcopt.heat.weather 1976 2025   (one-time, cached in data/cache/jma/)
+Data: uv run python -m dcopt.heat.weather 1976 2025   (one-time; the years ship in data/jma/, fetch only to extend)
 """
 from __future__ import annotations
 
