@@ -45,6 +45,7 @@ This page lists every value the models use, with its source, or marks it as an a
 | Item | Source |
 |---|---|
 | Monthly mean temperature and snowfall, Sapporo (station 47412), normals 1991–2020 | JMA: https://www.data.jma.go.jp/obd/stats/etrn/view/nml_sfc_ym.php?prec_no=14&block_no=47412 |
+| Daily mean temperature and snowfall, Sapporo (station 47412), 1976–2025, per weather year | JMA 過去の気象データ検索, the daily view of the same station: https://www.data.jma.go.jp/obd/stats/etrn/view/daily_s1.php?prec_no=14&block_no=47412 (fetched by `dcopt.heat.weather`, cached per year in `data/cache/jma/`) |
 
 ## Precedents
 

@@ -64,6 +64,8 @@ P_u = f_{\kappa(u)}\,\max_t \mu_{ut}.
 
 **Sizing.** Pipes and heat pumps are sized for $c_u = \alpha P_u$, a share $\alpha$ of the peak ($\alpha=1$ by default). The existing boiler covers anything above $c_u$.
 
+**With weather scenarios.** Under the weather-year scenarios the demand itself varies: $\mu_{ut}$ becomes $\mu_{ut\omega}$, aggregated from the daily JMA observations of year $\omega$ with per-kind daily weights. The design peak is then taken over the whole set, $P_u = f_{\kappa(u)}\max_{t,\omega}\mu_{ut\omega}$ — the worst scenario's worst month — and is the same for every candidate build. The deliverable capacity is therefore a property of the scenario set, not of the built pipes; see the Limitations section for what that implies when plans built on different scenario sets are compared.
+
 **Energy deliverable in a month.** Within a month, the hourly load is taken as spread evenly between $\underline L = \mu(1-b)$ and $\overline L = \mu(1+b)$, where $b=\min(f-1,1)$. A connection of size $c$ then delivers the expected value of $\min(L, c)$ over the month:
 
 ```math
@@ -368,6 +370,7 @@ This is a price for one pair. In a shared network the cost of the common pipes m
 ## 12. Limitations
 
 - **Monthly energy balances.** The model has no hourly operation, no storage and no pumping energy. Peaks enter only through $P_u$, $\alpha$ and the duration curve.
+- **Deliverable capacity is not tied to the built pipes.** $c_u$ comes from $\alpha$ times the scenario set's design peak — the same for every build — and pipe sizes gate connectivity all-or-nothing. With demand-side uncertainty (the weather years) this makes plans built on different-sized scenario sets incomparable: the 50-year experiment shows the signature (see the weather-years section in [heat.md](heat.md)). The fix ties the deliverable cap to the built pipe size (a per-user path bottleneck).
 - **Heat loss.** Losses are a flat share $\lambda$. A length-, size- and temperature-dependent loss, fixed per built pipe, is the next step.
 - **Positions.** Two data-center positions are approximate and one is a placeholder. Several users are assumed sites.
 - **Assumed parameters.** The peak factors, supply temperatures, velocities, the pipe-cost line and the heat-pump cost at the users are assumptions to be checked with experts and data.

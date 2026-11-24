@@ -142,6 +142,36 @@ Four scenarios with equal weights: IT load low or high, crossed with kerosene at
 
 The HiGHS kernel-search plans reach 88.08 and 81.31 on the standard links. That is within 0.18 % and 0.83 % of the proven optimum.
 
+### Weather years: 50 years of daily JMA observations (`experiments/weather_years`)
+
+The four published scenarios differ only on the supply side (IT load, kerosene price); demand is the same in all of them. This study adds demand-side uncertainty: 50 years (1976–2025) of daily JMA observations for Sapporo, station 47412 [12], fetched by `dcopt.heat.weather` into `data/cache/jma/` and turned into monthly demands with per-kind daily weights. The 30-year normals reproduced the sourced constants within 0.05 °C and 7.5 cm of annual snowfall. Weather spread: heating-degree-day index 0.913 (2023) to 1.142 (1984) and snowfall index 0.504 (1989) to 1.456 (2000) against the normals. Run: `uv run python experiments/weather_years/run.py ambient both --bound`; results in `results/weather_years/20261124-132920` (commit 53a115f). Values are annual net benefits in million yen; unmet demand is the share of the 50 candidate sites' total demand the plan does not serve (dominated by unconnected sites — the year-to-year movement is the weather signal).
+
+**Stage A — 50 weather years, IT high, 156.8 yen/L:**
+
+| Plan | Sites | Pipe km | Expected | Worst year | Unmet, expected → worst year |
+|---|---|---|---|---|---|
+| stochastic on the 50 years | 15 | 6.2 | 116.6 | 105.9 | 73.2 → 74.7 % |
+| plan for the mean weather year, evaluated on the 50 years | 18 | 11.7 | 149.7 | 118.2 | 56.0 → 57.4 % |
+| published 4-scenario plan, evaluated on the 50 years | 13 | 7.8 | 133.5 | 108.2 | 70.7 → 72.4 % |
+
+**Stage B — 10 stratified years × the 4 published levels (40 scenarios):**
+
+| Plan | Sites | Pipe km | Expected | Worst year |
+|---|---|---|---|---|
+| stochastic on the 40 scenarios | 10 | 5.2 | 84.8 | 49.6 |
+| mean-scenario plan evaluated on the 40 | 13 | 7.8 | 83.7 | 30.1 |
+| published 4-scenario plan evaluated on the 40 | 13 | 7.8 | 93.3 | 44.0 |
+
+The published mean-scenario plan scores within 0.5 of the published stochastic plan on both sets (134.0 / 108.7 and 89.2 / 37.9).
+
+**What the weather years say.**
+- The published plan is robust to real weather. Built without any daily data, it earns 133.5 expected (108.2 in its worst year) on the 50 real years at the high kerosene price, and its unserved share grows only from 70.7 to 72.4 % from the average to the worst year.
+- **A cross-set VSS is not identifiable in the current formulation.** The deliverable-capacity cap is derived from the scenario set's design peak ($\alpha$ times the worst month of the worst scenario) and is the same for every candidate build, while pipe sizes gate connectivity all-or-nothing. With demand-side spread this excludes builds the narrower set would allow: on the 50-year set the design peak is 21.5 % above the mean-year peak, 5 users climb a pipe size and 2 exceed the largest pipe (DN250) and are dropped rather than partially served. The decisive check: the LP bound of the 50-year first-stage model is 134.4, below the mean-built plan's evaluated 149.7 — that plan is provably outside the model's feasible set, so the apparent "VSS −33.1" is a formulation artifact, not a planning result. The published numbers are unaffected: their four scenarios have identical demand, so the convention never bound there.
+- Within one set the comparison is legitimate: on the 40-scenario stage the LP bound (94.4) admits the mean-built plan, and the stochastic plan's edge is 1.1 with kernel gaps 11.2 / 18.7 % — directionally positive but not certified.
+- Replication inside the run: the published RP reproduces exactly (93.8, 13 sites, 7.8 km); the published EEV 79.0 reproduces as 89.4 — unexplained, recorded as open in `results.json`.
+
+**Caveats.** Kernel gaps on the wide sets are 11–19 %: no plan here is certified optimal. Demands remain HDD-scaled annual estimates — daily resolution sharpens the winter shape of demand, not the underlying user data. The design-day peak (the daily data's sharpest signal) is computed (`daily_peak_mw`) but deliberately unused: using it consistently requires tying deliverable capacity to the built pipe size.
+
 **What the results say.**
 - Small or planned data centers are where uncertainty bites. A robust plan moves users to the large, operating center at a small price.
 - Planning for the average scenario costs 14.8 a year against the stochastic plan in ambient mode.
@@ -158,6 +188,7 @@ The HiGHS kernel-search plans reach 88.08 and 81.31 on the standard links. That 
 - What are the temperature and the recoverable share of waste heat for each cooling type in the Ishikari data centers?
 - What are the heat losses and the installed cost of buried pipes in Hokkaido? What do heat pumps cost?
 - Can a stronger pipe-sizing formulation (cut-set inequalities, Benders cuts) let HiGHS certify the plans?
+- How should deliverable capacity be tied to the built pipes (a per-user path bottleneck) so that plans built on different scenario sets compare cleanly? That would also make design-day sizing usable with the daily weather data.
 - Can topology, temperature mode and heat-pump placement be co-optimized at street scale? We did not find this in the literature.
 - How should the cost of a shared trunk be split fairly? The Shapley value on the fixed tree can be compared with the least core when each coalition's network is re-optimized, with the prize-collecting Steiner tree as the separation problem.
 - Two-stage robust design under budgeted IT-load uncertainty, including planned data centers: we did not find a published network design of this kind.
