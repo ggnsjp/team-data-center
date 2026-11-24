@@ -260,7 +260,8 @@ def test_page_offline_with_an_empty_cache_shows_the_normals(page, jma):
     assert "平年値の気象で導管網を作り直すと" in subheaders(at)
     assert len(at.metric) == 5 and at.metric[4].value == "—"
     assert len(jma.requests) == W.ATTEMPTS                  # one page, ATTEMPTS tries, then it gives up
-    at.radio(key="weather_lang").set_value("English").run()
+    at.session_state["app_lang"] = "English"
+    at.run()
     assert not at.exception
     [warning] = at.warning
     assert "The 1984 weather data" in warning.value and "climate normals" in warning.value
@@ -278,7 +279,8 @@ def test_page_offline_falls_back_to_the_nearest_cached_year(page, jma):
     W.ensure_years([1990, 2010])
     jma.fail = urllib.error.URLError("offline")
     at = AppTest.from_file(str(page), default_timeout=120).run()
-    at.radio(key="weather_lang").set_value("English").run()
+    at.session_state["app_lang"] = "English"
+    at.run()
     assert not at.exception
     [warning] = at.warning
     assert "The 1984 weather data" in warning.value and "Showing 1990 instead" in warning.value
@@ -309,7 +311,8 @@ def test_page_says_when_the_experiment_ran_on_fewer_years(page, jma):
     write_results(page, "20261201-000000",
                   results(kept, {str(y): "download failed: offline" for y in W_YEARS if y not in kept}))
     at = AppTest.from_file(str(page), default_timeout=120).run()
-    at.radio(key="weather_lang").set_value("English").run()
+    at.session_state["app_lang"] = "English"
+    at.run()
     assert not at.exception
     [warning] = at.warning
     assert "This run used 3 weather years (missing: 1976-1982, 1986-2025)" in warning.value
