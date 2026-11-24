@@ -143,10 +143,11 @@ _YEARS: list | None = None
 
 
 def _weather_years() -> list:
-    """The cached JMA years (1976-2025), loaded once per process; an empty list when not fetched."""
+    """The cached JMA years (1976-2025), loaded once per process; an empty list when not fetched. A
+    missing or unreadable year is left out instead of stopping the export."""
     global _YEARS
     if _YEARS is None:
-        _YEARS = W.load_years(W.YEARS[0], W.YEARS[1]) if W.year_csv(W.YEARS[0]).exists() else []
+        _YEARS = W.load_cached(range(W.YEARS[0], W.YEARS[1] + 1))[0]
     return _YEARS
 
 

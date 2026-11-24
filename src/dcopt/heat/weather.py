@@ -29,6 +29,9 @@ Data   JMA 過去の気象データ検索 (the daily view of the same station 47
        the experiment and the app page work on a fresh clone; JMA is the source (气象庁).
 Run    `uv run python -m dcopt.heat.weather 1976 2025` fetches any missing years of the span and
        validates the whole span against the normals (existing years are kept).
+Use    `ensure_years` gives the usable years and downloads only those missing from data/jma/ (or
+       unreadable there); a year it cannot get (offline, a timeout, a changed page) is reported,
+       never raised, so the app page and the experiment carry on with the years they have.
 """
 from __future__ import annotations
 
@@ -50,6 +53,9 @@ URL = ("https://www.data.jma.go.jp/obd/stats/etrn/view/daily_s1.php"
 USER_AGENT = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
               "Chrome/124.0 Safari/537.36")
 DELAY_S = 0.5                          # politeness delay between JMA requests
+TIMEOUT_S = 15.0                       # ensure_years: per request, short so an offline page fails fast
+ATTEMPTS = 2                           # ensure_years: tries per month page, with a pause in between
+MAX_FAILURES = 2                       # ensure_years: failed years in a row before it stops asking
 CACHE_DIR = ROOT / "data" / "jma"
 
 # Daily-climatology normals, Sapporo 47412, 1991-2020: sum over the calendar year of the
@@ -61,6 +67,7 @@ HDD15_N = 2686.048                     # same at 15 C (greenhouses)
 SNOW_N = 486.15                        # mean seasonal snowfall total, cm
 
 YEARS = (1976, 2025)                   # the observed span the model's weather years cover
+COMMAND = f"uv run python -m dcopt.heat.weather {YEARS[0]} {YEARS[1]}"   # fetches the missing years
 
 
 def _norm(x) -> tuple[float, ...]:
@@ -164,16 +171,18 @@ def parse_month(html: str) -> dict[str, list[float | None] | int]:
             "days": len(data)}
 
 
-def fetch_month(year: int, month: int, delay: float = DELAY_S) -> dict:
-    """Fetch and parse one month; retry once, then give up (the caller records the gap)."""
+def fetch_month(year: int, month: int, delay: float = DELAY_S, timeout: float = 90.0, attempts: int = 2) -> dict:
+    """Fetch and parse one month: `attempts` tries, pausing 2 x delay before the first retry and twice
+    as long before each further one, then give up (the caller records the gap)."""
     url = URL.format(prec=PREC_NO, block=BLOCK_NO, year=year, month=month)
-    for attempt in (1, 2):
+    attempts = max(1, attempts)
+    for attempt in range(1, attempts + 1):
         try:
-            return parse_month(_get(url))
-        except Exception as e:                              # noqa: BLE001 - report and retry once
-            if attempt == 2:
+            return parse_month(_get(url, timeout))
+        except Exception as e:                              # noqa: BLE001 - report and retry
+            if attempt == attempts:
                 raise RuntimeError(f"JMA {year}-{month:02d}: {e}") from e
-            time.sleep(2 * delay)
+            time.sleep(2 * delay * 2 ** (attempt - 1))
     raise RuntimeError("unreachable")
 
 
@@ -181,8 +190,10 @@ def year_csv(year: int) -> Path:
     return CACHE_DIR / f"sapporo_{BLOCK_NO}_daily_{year}.csv"
 
 
-def fetch_year(year: int, delay: float = DELAY_S, force: bool = False) -> Path:
-    """Fetch 12 months of daily data and write one tidy CSV per year; skips an existing file."""
+def fetch_year(year: int, delay: float = DELAY_S, force: bool = False, timeout: float = 90.0,
+               attempts: int = 2) -> Path:
+    """Fetch 12 months of daily data and write one tidy CSV per year; skips an existing file. The file
+    appears only once all 12 months are in, so a failed or interrupted fetch never leaves part of a year."""
     out = year_csv(year)
     if out.exists() and not force:
         return out
@@ -191,12 +202,14 @@ def fetch_year(year: int, delay: float = DELAY_S, force: bool = False) -> Path:
     lines = ["month,day,t_mean_c,snow_cm"]
     t_missing = 0
     for month in range(1, 13):
-        d = fetch_month(year, month, delay)
+        d = fetch_month(year, month, delay, timeout, attempts)
         for i, (t, s) in enumerate(zip(d["t_mean"], d["snow"])):
             lines.append(f"{month},{i + 1},{fmt(t)},{fmt(s)}")
         t_missing += sum(v is None for v in d["t_mean"])
         time.sleep(delay)
-    out.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    part = out.with_name(out.name + ".part")
+    part.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    part.replace(out)                                     # atomic: readers see the old file or the whole year
     return out
 
 
@@ -343,8 +356,79 @@ def weather_year_from_csv(year: int, path: Path) -> WeatherYear:
 
 
 def load_years(start: int, end: int) -> list[WeatherYear]:
-    """The cached weather years; run fetch_years first (or `python -m dcopt.heat.weather`)."""
+    """The cached weather years; raises when one is missing or unusable (ensure_years downloads
+    the missing ones and reports what it cannot get instead)."""
     return [weather_year_from_csv(year, year_csv(year)) for year in range(start, end + 1)]
+
+
+def load_cached(years) -> tuple[list[WeatherYear], dict[int, str]]:
+    """The cached years that load cleanly, and why each other year does not: no file yet, or a partial
+    or corrupt one. Reads the cache only and never raises for a bad file."""
+    have, missing = [], {}
+    for year in sorted(set(years)):
+        path = year_csv(year)
+        if not path.exists():
+            missing[year] = "not downloaded yet"
+            continue
+        try:
+            have.append(weather_year_from_csv(year, path))
+        except (OSError, ValueError) as e:                  # truncated, garbled, a day without a value
+            missing[year] = f"cache file unusable ({e})"
+    return have, missing
+
+
+def ensure_years(years, log=None) -> tuple[list[WeatherYear], dict[int, str]]:
+    """The requested weather years: the cached ones, plus a download of only those the cache cannot
+    provide. Returns the usable years in ascending order and, for every other year, why it is still
+    unavailable. A failed download (offline, a timeout, a blocked request, a changed JMA page) is
+    reported this way and never raised, so callers can go on with what they have.
+
+    The requests stay polite: one at a time with DELAY_S between them, at most ATTEMPTS tries per page
+    with a doubling pause, a TIMEOUT_S timeout, and after MAX_FAILURES failed years in a row the rest
+    are not requested at all (the site is unreachable or its pages have changed). `log` gets one line
+    per year it downloads."""
+    have, missing = load_cached(years)
+    todo, failed = sorted(missing), 0
+    for i, year in enumerate(todo):
+        if failed >= MAX_FAILURES:
+            missing[year] = f"not requested after {failed} failed downloads in a row"
+            continue
+        if log is not None:
+            log(f"downloading the JMA daily data for {year} ({missing[year]})")
+        try:
+            fetch_year(year, DELAY_S, force=True, timeout=TIMEOUT_S, attempts=ATTEMPTS)
+        except Exception as e:                              # noqa: BLE001 - any failure is reported, not raised
+            failed += 1
+            missing[year] = f"download failed: {e}"
+            if i + 1 < len(todo):
+                time.sleep(2 * DELAY_S)                     # and a pause before the next year's first request
+            continue
+        failed = 0
+        try:
+            have.append(weather_year_from_csv(year, year_csv(year)))
+            del missing[year]
+        except (OSError, ValueError) as e:                  # e.g. JMA has no value for a day of that year
+            missing[year] = f"downloaded but unusable ({e})"
+    return sorted(have, key=lambda w: w.year), missing
+
+
+def year_spans(years) -> str:
+    """Years as compact spans: 1978, 1979, 1980, 1990 -> '1978-1980, 1990'."""
+    ys = sorted(set(years))
+    spans, start = [], ys[0] if ys else None
+    for a, b in zip(ys, ys[1:] + [None]):
+        if b != a + 1:
+            spans.append(str(a) if a == start else f"{start}-{a}")
+            start = b
+    return ", ".join(spans)
+
+
+def describe_missing(missing: dict[int, str]) -> list[str]:
+    """One line per reason, with its years as compact spans: '1978-1983, 1990: not downloaded yet'."""
+    by_reason: dict[str, list[int]] = {}
+    for year in sorted(missing):
+        by_reason.setdefault(missing[year], []).append(year)
+    return [f"{year_spans(ys)}: {why}" for why, ys in by_reason.items()]
 
 
 def validate_normals(years: list[WeatherYear], span: tuple[int, int] = (1991, 2020)) -> dict:
@@ -374,5 +458,9 @@ def validate_normals(years: list[WeatherYear], span: tuple[int, int] = (1991, 20
 if __name__ == "__main__":
     import sys
     a, b = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else YEARS
-    fetch_years(a, b)
-    print(validate_normals(load_years(a, b)) if a <= 1991 and b >= 2020 else "fetched; normals not in range")
+    got, gaps = ensure_years(range(a, b + 1), log=lambda line: print(line, flush=True))
+    print(f"{len(got)} of {b - a + 1} years usable in {CACHE_DIR}")
+    for line in describe_missing(gaps):
+        print("  missing " + line)
+    print(validate_normals(got) if a <= 1991 and b >= 2020 else "normals not checked: the range misses 1991-2020")
+    sys.exit(1 if gaps else 0)

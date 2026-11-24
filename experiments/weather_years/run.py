@@ -16,7 +16,9 @@ annual net benefit. `--evpi` also solves every scenario's own optimum (wait-and-
 one extra solve per scenario.
 
 Run: uv run python experiments/weather_years/run.py [ambient|central] [--stage a|b|both] [--evpi]
-Data: uv run python -m dcopt.heat.weather 1976 2025   (one-time; the years ship in data/jma/, fetch only to extend)
+Data: the years ship in data/jma/; the run downloads any year missing or unreadable there (or ahead of
+      time: uv run python -m dcopt.heat.weather 1976 2025). Years that still cannot be downloaded are
+      reported and left out; with none at all the run stops with a message.
 """
 from __future__ import annotations
 
@@ -45,10 +47,15 @@ M = 1e6
 YEARS = (1976, 2025)
 
 use_overpass_mirror()
-if not W.year_csv(YEARS[0]).exists() or not W.year_csv(YEARS[1]).exists():
-    print(f"fetching JMA daily data {YEARS[0]}-{YEARS[1]} (one-time, ~10 min)...", flush=True)
-    subprocess.run([sys.executable, "-m", "dcopt.heat.weather", *map(str, YEARS)], check=True)
-years = W.load_years(*YEARS)
+years, missing = W.ensure_years(range(YEARS[0], YEARS[1] + 1), log=lambda line: print(line, flush=True))
+if missing:
+    print(f"weather years missing: {len(missing)} of {YEARS[1] - YEARS[0] + 1}", flush=True)
+    for line in W.describe_missing(missing):
+        print("  " + line, flush=True)
+if not years:
+    sys.exit(f"no weather years available, so there is nothing to run; fetch them when online: {W.COMMAND}")
+if missing:
+    print(f"continuing with the {len(years)} available years; fetch the rest with: {W.COMMAND}", flush=True)
 checks = W.validate_normals(years)
 print(f"weather years {YEARS[0]}-{YEARS[1]}: {len(years)}; normals check {checks}", flush=True)
 
@@ -149,6 +156,8 @@ print(f"  replication of the published numbers: RP {PLAN_CACHE['sp4'].expected_n
       f"VSS {(PLAN_CACHE['sp4'].expected_net - PLAN_CACHE['ev4x'].expected_net) / M:.1f}M (14.8)")
 
 results: dict = {"mode": MODE, "years": list(YEARS), "normals_check": checks,
+                 "weather_years": [w.year for w in years],
+                 "missing_years": {str(y): why for y, why in missing.items()},
                  "published_replication": {
                      "rp": PLAN_CACHE["sp4"].expected_net, "eev": PLAN_CACHE["ev4x"].expected_net,
                      "vss": PLAN_CACHE["sp4"].expected_net - PLAN_CACHE["ev4x"].expected_net,
