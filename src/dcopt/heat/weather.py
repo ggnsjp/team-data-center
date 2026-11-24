@@ -58,6 +58,8 @@ HDD18_N = 3464.328                     # sum of daily max(0, 18 - T_day), C x da
 HDD15_N = 2686.048                     # same at 15 C (greenhouses)
 SNOW_N = 486.15                        # mean seasonal snowfall total, cm
 
+YEARS = (1976, 2025)                   # the observed span the model's weather years cover
+
 
 def _norm(x) -> tuple[float, ...]:
     s = float(sum(x))
@@ -286,6 +288,8 @@ class WeatherYear:
             n = monthrange(self.year, m + 1)[1]
             out.append(sum(w[i:i + n]))
             i += n
+        if sum(out) <= 0:               # a degenerate year (e.g. no snow at all): calendar shares,
+            return _norm(DAYS)          # the demand stays 0 anyway through scale()
         return _norm(out)
 
     def daily_peak_mw(self, kind: str, annual_mwh: float) -> float | None:
@@ -352,6 +356,6 @@ def validate_normals(years: list[WeatherYear], span: tuple[int, int] = (1991, 20
 
 if __name__ == "__main__":
     import sys
-    a, b = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else (1976, 2025)
+    a, b = (int(sys.argv[1]), int(sys.argv[2])) if len(sys.argv) > 2 else YEARS
     fetch_years(a, b)
     print(validate_normals(load_years(a, b)) if a <= 1991 and b >= 2020 else "fetched; normals not in range")

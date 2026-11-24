@@ -115,3 +115,52 @@ def test_bilingual_values_pick_the_language():
     assert _bilingual("石狩再エネデータセンター第1号 / Ishikari Renewable Energy Data Center No. 1", 0) == "石狩再エネデータセンター第1号"
     assert _bilingual("直接利用 / direct", 1) == "direct"
     assert _bilingual("6 / 10", 0) == "6 / 10"           # numbers are left alone
+
+
+# ------------------------------------------------------------------------------------- weather block
+def _weather_years() -> list:
+    """Two synthetic years: 2001 mild (9 C all year), 2002 cold (winter months at -5 C)."""
+    from calendar import monthrange
+    from dcopt.heat import weather as W
+    cold = [-5.0 if m in (0, 1, 11) else 0.0 if m in (2, 10) else 8.0 if m in (3, 9) else 18.0
+            for m in range(12) for _ in range(monthrange(2002, m + 1)[1])]
+    zero = [0.0] * 365
+    return [W.WeatherYear.from_daily(2001, [9.0] * 365, zero), W.WeatherYear.from_daily(2002, cold, zero)]
+
+
+def test_weather_block_band_coldest_and_coverage(plan):
+    """The block derives everything from the given years: band bounds, extremes, and the pipe's
+    cold-year coverage from the model's own duration-curve deliverable."""
+    from dcopt.heat.proposal import weather_block
+    from dcopt.heat.v1 import KINDS
+    ys = _weather_years()
+    for d, r, data in proposals(plan):
+        w = weather_block(plan, data, years=ys)
+        assert w is not None and w["span"] == [2001, 2002] and len(w["years"]) == 2
+        scale = {y.year: y.scale(KINDS[data["site"]["kind"]][2]) for y in ys}
+        assert scale[w["coldest"]["year"]] == max(scale.values())      # the extremes follow the kind's scale
+        assert scale[w["mildest"]["year"]] == min(scale.values())
+        annual = data["site"]["annual_mwh"]
+        for row in w["years"]:
+            # monthly_demand sums to annual x scale; abs covers the 3-decimal scale rounding
+            assert row[2] == pytest.approx(annual * row[1], abs=1.6)
+        assert all(lo <= hi for lo, hi in zip(w["band_min"], w["band_max"]))
+        assert all(lo <= m <= hi for lo, m, hi in zip(w["band_min"], w["coldest"]["month"], w["band_max"]))
+        pr = data["pair"]
+        if pr:
+            c = w["coverage"]
+            assert c["dn"] == pr["dn"] and 0 < c["share_worst"] <= 1
+        else:
+            assert "coverage" not in w
+
+
+@pytest.mark.parametrize("lang", ["en", "ja"])
+def test_render_html_shows_the_weather_block(plan, lang):
+    from dcopt.heat.proposal import weather_block
+    for _, _, data in proposals(plan):
+        w = weather_block(plan, data, years=_weather_years())
+        assert w is not None
+        data["weather"] = w
+        page = render_html(data, lang)
+        assert str(data["weather"]["coldest"]["year"]) in page and "47412" in page
+        assert not re.findall(r"\bnan\b|\bNone\b|\binf\b", page)

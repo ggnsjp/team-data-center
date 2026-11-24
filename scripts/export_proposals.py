@@ -6,6 +6,10 @@ without them (rank_partners), and writes
   out/proposals/proposals.json      every number of every proposal (read by the app page)
   out/proposals/html/<lang>/*.html  printable proposals, A4, Japanese and English
 
+Each proposal carries a weather block (the 50-year demand band, the coldest and mildest years and the
+proposed pipe's cold-year coverage) when the JMA years are cached; run `uv run python -m dcopt.heat.weather`
+once to fetch them.
+
 Run: uv run python scripts/export_proposals.py [--mode ambient|central] [--top 5]
      uv run python scripts/export_proposals.py --render-only    # redraw the HTML from proposals.json
 """
@@ -106,6 +110,9 @@ def main() -> None:
             "network": network, "partners": partners,
             "note": "Model v2; several sites and data-center positions are assumptions or placeholders. "
                     "Map data (c) OpenStreetMap contributors (ODbL)."}
+    if not any(p["proposal"].get("weather") for rows in partners.values() for p in rows):
+        print("note: the JMA weather years are not cached, so the proposals carry no weather block; "
+              "fetch them once with `uv run python -m dcopt.heat.weather`")
     OUT.mkdir(parents=True, exist_ok=True)
     (OUT / "proposals.json").write_text(json.dumps(jsonable(data), ensure_ascii=False, separators=(",", ":")),
                                         encoding="utf-8")

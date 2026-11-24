@@ -29,7 +29,9 @@ from datetime import date
 
 import numpy as np
 
-from dcopt.heat.network import KEROSENE_LOW, KEROSENE_SURVEY, MODES, T, URL, Plan, pair_calculator, pair_score
+from dcopt.heat.network import (HOURS, KEROSENE_LOW, KEROSENE_SURVEY, MODES, T, URL, Plan, duration_energy,
+                                pair_calculator, pair_score)
+from dcopt.heat import weather as W
 from dcopt.heat.v1 import KEROSENE_KWH_PER_L, KINDS, MONTHS_EN
 
 REPO = "https://github.com/ggnsjp/team-data-center"
@@ -133,7 +135,61 @@ def proposal_data(plan: Plan, d: int, u: int, *, rank: int | None = None, loss: 
         "sites": len(plan.connected), "km": plan.pipe_m / 1000, "net": plan.expected_net,
     }
     out["rows"] = _rows(out, rows, P, src)
+    out["weather"] = weather_block(plan, out)
     return out
+
+
+_YEARS: list | None = None
+
+
+def _weather_years() -> list:
+    """The cached JMA years (1976-2025), loaded once per process; an empty list when not fetched."""
+    global _YEARS
+    if _YEARS is None:
+        _YEARS = W.load_years(W.YEARS[0], W.YEARS[1]) if W.year_csv(W.YEARS[0]).exists() else []
+    return _YEARS
+
+
+def weather_block(plan: Plan, out: dict, years: list | None = None) -> dict | None:
+    """The weather-year view of one proposal, or None when the JMA years are not cached.
+
+    Demand side only, no new solver semantics: the monthly demand of every observed year for this
+    user's kind (the band the proposal's expected profile sits in), the coldest and mildest years,
+    and — once a dedicated pipe is proposed — how much of the coldest year's demand that pipe's size
+    still delivers in each month (the model's own duration-curve evaluation; the boiler covers the
+    rest). The pipe itself stays sized for the published convention (the worst month, alpha x peak).
+    """
+    ys = years if years is not None else _weather_years()
+    if not ys:
+        return None
+    kind = out["site"]["kind"]
+    profile = KINDS[kind][2]
+    annual = out["site"]["annual_mwh"]                     # the normals-year annual demand (expected)
+    M = np.array([w.monthly_demand(kind, annual) for w in ys])      # Y x T
+    scales = np.array([w.scale(profile) for w in ys])
+    ic, im = int(np.argmax(scales)), int(np.argmin(scales))
+    block: dict = {
+        "span": [ys[0].year, ys[-1].year],
+        "profile": profile,
+        "years": [[w.year, round(float(scales[i]), 3), round(float(M[i].sum()), 1)]
+                  for i, w in enumerate(ys)],
+        "band_min": [round(float(x), 2) for x in M.min(axis=0)],
+        "band_max": [round(float(x), 2) for x in M.max(axis=0)],
+        "annual_lo": round(float(M[im].sum()), 1), "annual_hi": round(float(M[ic].sum()), 1),
+        "coldest": {"year": ys[ic].year, "scale": round(float(scales[ic]), 3),
+                    "month": [round(float(x), 2) for x in M[ic]]},
+        "mildest": {"year": ys[im].year, "scale": round(float(scales[im]), 3),
+                    "month": [round(float(x), 2) for x in M[im]]},
+    }
+    pr = out.get("pair")
+    if pr:
+        c = next(s for s in plan.P.sizes if s.dn == pr["dn"]).capacity_mw(plan.P.dT)
+        f = plan.P.peak_factor[kind]
+        shares = [1.0 if M[ic, t] <= 0.01 else
+                  duration_energy(M[ic, t] / HOURS[t], HOURS[t], f, c) / M[ic, t] for t in range(T)]
+        block["coverage"] = {"dn": pr["dn"], "c_mw": round(float(c), 3), "worst_month": int(np.argmin(shares)),
+                             "share_worst": round(float(min(shares)), 3)}
+    return block
 
 
 def _rows(out: dict, rows: list[dict], P, src) -> list[dict]:
@@ -496,6 +552,58 @@ def chart_svg(demand: list, delivered: list, lang: str, w_mm: float = 82, h_mm: 
     return "".join(parts)
 
 
+def weather_svg(w: dict, demand_month: list, lang: str, w_mm: float = 118, h_mm: float = 42) -> str:
+    """Monthly demand across the weather years: the grey band is the observed range, the orange line
+    the proposal's expected (normals) demand and the dark dashed line the coldest year."""
+    L = 0 if lang == "ja" else 1
+    W_, H = w_mm * 4, h_mm * 4
+    left, right, top, bottom = 36, 6, 14, 22
+    pw, ph = W_ - left - right, H - top - bottom
+    ymax = max(max(w["band_max"]), 1e-9)
+    step = 10 ** math.floor(math.log10(ymax / 3))
+    for m in (1, 2, 2.5, 5, 10):
+        if ymax / (m * step) <= 4:
+            step *= m
+            break
+    top_v = step * math.ceil(ymax / step)
+    sy = ph / top_v
+    n = len(w["years"])
+    x = lambda t: left + (t + 0.5) * pw / 12
+    y = lambda v: top + ph - v * sy
+    band = "M" + " L".join(f"{x(t):.1f},{y(w['band_max'][t]):.1f}" for t in range(12)) \
+           + " L" + " L".join(f"{x(11 - t):.1f},{y(w['band_min'][11 - t]):.1f}" for t in range(12)) + " Z"
+    line = lambda series: "M" + " L".join(f"{x(t):.1f},{y(series[t]):.1f}" for t in range(12))
+    parts = [f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {W_:.0f} {H:.0f}" width="{w_mm}mm" height="{h_mm}mm" '
+             f'role="img" aria-label="{_esc((f"{n}年分の月別需要の範囲", f"Monthly demand across {n} weather years")[L])}">']
+    for k in range(int(top_v / step) + 1):
+        parts.append(f'<path d="M{left},{top + ph - k * step * sy:.1f}H{W_ - right}" '
+                     f'stroke="{"#B8BFCB" if k == 0 else "#ECEEF2"}" stroke-width="1"/>'
+                     f'<text x="{left - 5}" y="{top + ph - k * step * sy + 3.5:.1f}" font-size="9.5" fill="{MUTED}" '
+                     f'text-anchor="end">{_num(k * step)}</text>')
+    parts.append(f'<path d="{band}" fill="#E4E8EF"/>')
+    parts.append(f'<path d="{line(w["band_max"])}" fill="none" stroke="#C6CCD6" stroke-width="0.8"/>')
+    parts.append(f'<path d="{line(w["coldest"]["month"])}" fill="none" stroke="{INK}" stroke-width="1.6" stroke-dasharray="5 3"/>')
+    parts.append(f'<path d="{line(demand_month)}" fill="none" stroke="{HEAT}" stroke-width="2.2"/>')
+    months = MONTHS_EN if L == 1 else [str(m) for m in range(1, 13)]
+    for t in range(12):
+        parts.append(f'<text x="{x(t):.1f}" y="{H - bottom + 13}" font-size="9.5" fill="{MUTED}" text-anchor="middle">'
+                     f'{_esc(months[t][0] if L == 1 else months[t])}</text>')
+    leg = [(HEAT, ("平年", "normal")[L]), (INK, (f"最寒年（{w['coldest']['year']}）", f"coldest ({w['coldest']['year']})")[L]),
+           ("#C6CCD6", (f"{n}年分の範囲（{w['span'][0]}–{w['span'][1]}）", f"range of {n} years")[L])]
+    lx = left
+    for col, text in leg:
+        if col == HEAT:
+            parts.append(f'<path d="M{lx},{8}H{lx + 16}" stroke="{col}" stroke-width="2.2"/>')
+        elif col == INK:
+            parts.append(f'<path d="M{lx},{8}H{lx + 16}" stroke="{col}" stroke-width="1.6" stroke-dasharray="5 3"/>')
+        else:
+            parts.append(f'<rect x="{lx}" y="2" width="16" height="12" fill="{col}"/>')
+        parts.append(f'<text x="{lx + 20}" y="{12.5 if col != "#C6CCD6" else 11.5}" font-size="10.5" fill="{INK}">{_esc(text)}</text>')
+        lx += 20 + len(text) * (10.5 if L == 0 else 5.9) + 14
+    parts.append(f'<text x="{left - 5}" y="{top - 8}" font-size="9.5" fill="{MUTED}" text-anchor="end">MWh</text></svg>')
+    return "".join(parts)
+
+
 def price_svg(pr: dict, lang: str, w_mm: float = 84, h_mm: float = 24) -> str:
     """The range of heat prices that leaves both sides better off, against the cost of heat from kerosene."""
     W, H = w_mm * 4, h_mm * 4
@@ -780,7 +888,36 @@ def render_html(data: dict, lang: str = "en", base: BaseMap | None = None, netwo
     model = f"{REPO}/blob/main/docs/formulations/heat-model.md"
     p2.append('<p class="note" style="margin-top:1.2mm">'
               + _esc(("モデルの数式と全パラメータ：", "Model and every parameter: ")[L])
-              + f'<a href="{model}">{_esc(model)}</a></p></section>')
+              + f'<a href="{model}">{_esc(model)}</a></p>')
+    w = data.get("weather")
+    if w:
+        cov = w.get("coverage")
+        if cov:
+            cov_t = (f"提案中の専用管DN{cov['dn']}（{cov['c_mw']:.1f} MW）は、最寒年の最も厳しい月でも"
+                     f"需要の{cov['share_worst']:.0%}をまかなえます。足りない分は、今のボイラーが補います。",
+                     f"The proposed DN{cov['dn']} pipe ({cov['c_mw']:.1f} MW) still covers {cov['share_worst']:.0%} of "
+                     f"the demand in the coldest year's hardest month; the existing boiler covers the rest.")[L]
+        else:
+            cov_t = ("専用管が決まれば、その管で最寒年の需要をどれだけまかなえるかも示します。",
+                     "Once a dedicated pipe is proposed, this section also shows how much of a cold year it still covers.")[L]
+        lo = w["annual_lo"] / sum(data["demand_month"]) - 1
+        hi = w["annual_hi"] / sum(data["demand_month"]) - 1
+        w_txt = (f"{w['span'][0]}〜{w['span'][1]}年の実績気象では、この施設の年間需要は平年比{lo:+.0%}〜{hi:+.0%}。"
+                 f"最寒年は{w['coldest']['year']}年（平年の{w['coldest']['scale']:.2f}倍）。{cov_t}",
+                 f"Across the observed weather of {w['span'][0]}-{w['span'][1]}, this site's annual demand runs "
+                 f"{lo:+.0%} to {hi:+.0%} against the normal year; the coldest is {w['coldest']['year']} "
+                 f"({w['coldest']['scale']:.2f}x). {cov_t}")[L]
+        w_note = (f"灰色の帯：{len(w['years'])}年分の月別需要の範囲。橙線：提案の前提（平年）の需要。黒の破線：最寒年。"
+                  "管の太さは最も厳しい月に合わせて決めています（モデルの方式）。"
+                  f"出典：気象庁札幌測候所（47412）の1日ごとの値、{w['span'][0]}–{w['span'][1]}。",
+                  f"The grey band spans the monthly demand of all {len(w['years'])} years; the orange line is the "
+                  "proposal's basis (the normal year) and the dark dashed line the coldest one. The pipe is sized "
+                  f"for the hardest month, the model's convention. "
+                  f"Source: JMA Sapporo daily observations, station 47412, {w['span'][0]}-{w['span'][1]}.")[L]
+        p2.append(f'<div class="box" style="margin-top:4mm"><h2>{_esc(("50年の気象年で見る需要のゆらぎ", "How the demand moves across the weather years")[L])}</h2>'
+                  f'<p>{_esc(w_txt)}</p><div style="text-align:center">{weather_svg(w, data["demand_month"], lang)}</div>'
+                  f'<p class="note">{_esc(w_note)}</p></div>')
+    p2.append("</section>")
     head = (f'<!doctype html><html lang="{lang}"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
             f'<title>{_esc(t["title"])}</title>'
