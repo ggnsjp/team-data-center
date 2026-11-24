@@ -42,7 +42,7 @@ GROUP_LABEL = {"farm": "Greenhouses, fish farm", "building": "Buildings: public,
 DN_WIDTH = {50: 1.8, 80: 2.2, 100: 2.6, 150: 3.4, 200: 4.2, 250: 5.0}
 # Label offsets in km from each data center, chosen so the four labels do not overlap.
 LABEL_AT = {"zed": (0.14, 0.13, "left"), "isrd1": (-0.16, 0.04, "right"), "sakura": (0.16, -0.12, "left"),
-            "nttme": (0.0, -0.24, "center")}
+            "nttme": (0.10, -0.20, "left")}
 KIND_WORDS = {"public": ("a public building", "public buildings"), "hotel": ("a hotel", "hotels"),
               "factory": ("a factory", "factories"), "pool": ("a pool", "pools"), "school": ("a school", "schools"), "hospital": ("a hospital", "hospitals"),
               "onsen": ("a bath", "baths"), "aquaculture": ("a fish farm", "fish farms"),
@@ -273,8 +273,8 @@ def main() -> None:
         if rest:
             fig.text(tx, 0.875, rest[0].upper() + rest[1:], color=C["ink2"], fontsize=9.5)
         fig.text(tx, 0.80, MONTHS_LONG[m], color=C["heat"], fontsize=26, weight="bold")
-        fig.text(tx, 0.755, f"Mean temperature {data['temp'][m]:+.1f} °C, snowfall {SNOW[m]} cm "
-                 "(Sapporo, 1991-2020 normals)", color=C["ink2"], fontsize=9)
+        fig.text(tx, 0.755, f"Sapporo normals: {data['temp'][m]:+.1f} °C, {SNOW[m]} cm of snow",
+                 color=C["ink2"], fontsize=9)
         fig.text(tx, 0.70, f"Heat delivered  {delivered[m]:,.0f} MWh", color=C["ink"], fontsize=11)
         used = delivered[m] / waste[m] if waste[m] else 0
         fig.text(tx, 0.665, f"Share of available waste heat used  {used:.0%}", color=C["ink2"], fontsize=9.5)
@@ -304,7 +304,8 @@ def main() -> None:
         fig.text(lx, yy, "○ assumed site   ■ data center   □ planned", color=C["ink2"], fontsize=8.5)
         fig.text(lx, yy - 0.035, "Line width: pipe size DN80 to DN250", color=C["ink2"], fontsize=8.5)
 
-        fig.text(0.5, 0.04, f"Model v2: {plan['label']}, heat pumps included.", color=C["muted"], fontsize=7.5,
+        fig.text(0.5, 0.04, f"Model v2: {plan['label']}, heat pumps included. Climate: JMA normals 1991-2020.",
+                 color=C["muted"], fontsize=7.5,
                  ha="center")
         fig.text(0.5, 0.016, "Some sites and data-center positions are assumptions or placeholders.  "
                  "Map data © OpenStreetMap contributors (ODbL).",

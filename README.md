@@ -4,7 +4,7 @@
 
 [日本語版 / Japanese](README.ja.md)
 
-![Waste heat flowing from two Ishikari data centers to 19 sites, month by month](docs/img/heat-network-map.gif)
+![Waste heat flowing from two Ishikari data centers to 16 sites, month by month](docs/img/heat-network-map.gif)
 
 *Model v2 at today's kerosene price (156.8 yen/L [11]), heat pumps included. One shared network carries waste heat from two data centers in the Ishikari Bay New Port to 19 sites: public buildings, pools, schools, hotels, hospitals, a fish farm, a new greenhouse site and road heating. Line width shows the pipe size; brightness and particle speed show each month's flow, and snow falls in the snowy months. The bars show the heat delivered each month. Several sites and data-center positions are assumptions or placeholders ([Data and sources](#data-and-sources)). Map data © OpenStreetMap contributors (ODbL).*
 
