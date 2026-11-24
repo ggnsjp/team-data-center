@@ -152,6 +152,7 @@ tests/              unit tests on synthetic instances and app tests
 - **Map data.**
   - Scripts download OpenStreetMap data (© OpenStreetMap contributors, ODbL [18]) into `data/raw/` and `data/cache/`. This data is not committed.
   - The animation is a produced work from OpenStreetMap data and is credited as such.
+- **Weather.** Daily JMA observations for Sapporo, 1976–2025 [12], are committed in `data/jma/` under JMA's terms of use (Public Data Terms of Use 1.0: source credited, processing stated), not under the MIT license; see `data/jma/README.md`.
 - **Hokkaido precedents.** Snow melting with data-center heat [19], the snow-cooled data center in Bibai and its eel farm [20, 21], and a bath heated by data-center waste heat [22].
 - **Assumed sites.** The fish farm, the new greenhouses and the road-heating areas are assumptions, drawn as hollow markers.
 - **Data-center positions.** The positions of No. 1 and ZED are approximate, and NTT-ME's site has not been published.
