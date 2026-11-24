@@ -20,8 +20,18 @@ def test_page_without_data_says_what_to_run():
 @pytest.mark.parametrize("lang", ["日本語", "English"])
 def test_page_lists_partners_and_opens_a_proposal(lang):
     at = AppTest.from_file(PAGE, default_timeout=120).run()
-    at.radio(key="proposal_lang").set_value(lang).run()
+    at.radio(key="app_lang").set_value(lang).run()
     assert not at.exception
     table = at.dataframe[0].value
     assert 1 <= len(table) <= 5
     assert list(table.iloc[:, 0]) == list(range(1, len(table) + 1))
+    # The weather years surface on the page: a coverage column and, for the opened partner,
+    # the coldest/mildest-year metrics from the proposal's weather block.
+    label = "寒冬年の最弱月" if lang == "日本語" else "Coldest year, weakest month"
+    assert label in table.columns
+    if any(v != "—" for v in table[label]):
+        ja = lang == "日本語"
+        coldest = next(m for m in at.metric
+                       if ("一番寒い年" if ja else "Coldest year") in m.label)
+        assert 1976 <= int(coldest.value) <= 2025
+        assert any(("最も温暖な年" if ja else "Mildest year") in m.label for m in at.metric)
