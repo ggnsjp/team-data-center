@@ -39,6 +39,22 @@ def paths(area: str = DEFAULT_AREA) -> dict[str, Path]:
             "named": d / "named.geojson"}
 
 
+# the files ishikari_sites() and the road distances read; the fetch writes them all
+MAP_FILES = ("graph", "boundary", "pois", "named")
+
+
+def fetch_command(area: str = DEFAULT_AREA) -> str:
+    return f"uv run python scripts/fetch_data.py --area {area}"
+
+
+def missing_map_data(area: str = DEFAULT_AREA) -> list[Path]:
+    """The map files a page needs that are not there yet (none missing: an empty list). A fetch that
+    has not run, or has not finished, leaves some of them out."""
+    p = paths(area)
+    need = [p[k] for k in MAP_FILES] + [p["dir"] / "heat_candidates.geojson"]
+    return [f for f in need if not f.exists()]
+
+
 OVERPASS_MIRROR = "https://maps.mail.ru/osm/tools/overpass/api"
 
 

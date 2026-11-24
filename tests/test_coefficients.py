@@ -51,7 +51,7 @@ def test_capital_recovery_factors():
 
 
 def test_co2_per_mwh_of_kerosene_heat():
-    assert KEROSENE_KG_CO2_PER_L / (KEROSENE_KWH_PER_L * AMB.boiler_eff) == pytest.approx(0.302, abs=5e-4)
+    assert KEROSENE_KG_CO2_PER_L / (KEROSENE_KWH_PER_L * AMB.boiler_eff) == pytest.approx(0.303, abs=5e-4)
 
 
 # -------------------------------------------------------------------------------------------- pipes
@@ -150,7 +150,7 @@ def test_worked_pair_no1_and_fish_farm():
     assert rows["saving_low-115"]["value"] == pytest.approx(69.7e6, rel=2e-3)
     assert rows["saving_low-156.8"]["value"] == pytest.approx(95.1e6, rel=2e-3)
     assert rows["saving"]["value"] == pytest.approx(82.4e6, rel=2e-3)
-    assert rows["co2"]["value"] == pytest.approx(1510, abs=2)
+    assert rows["co2"]["value"] == pytest.approx(1516, abs=2)
     assert rows["payback"]["value"] == pytest.approx(6.3, abs=0.05)
 
 
@@ -160,6 +160,6 @@ def test_user_data_matches_the_page_for_a_direct_user():
     inst = Instance([src], [fish], np.array([[0.0, 1.0], [1.0, 0.0]]), road=False)
     ud = user_data(inst, AMB, default_scenarios())
     assert ud.q[0] == pytest.approx(ud.peak[0] * 1.0 * (1 + AMB.loss))      # sigma = 1 for direct use
-    assert ud.co2[0] == pytest.approx(0.302, abs=5e-4)                       # no electricity, no grid term
+    assert ud.co2[0] == pytest.approx(0.303, abs=5e-4)                       # no electricity, no grid term
     assert ud.hp[0] == 0.0
     assert ud.cap[0].sum(axis=0) == pytest.approx(5000, abs=1e-6)             # alpha = 1 covers the flat demand

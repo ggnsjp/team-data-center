@@ -68,8 +68,16 @@ KINDS = {
 GREENHOUSE_MWH_PER_M2 = 0.40      # assumption: heated greenhouse in Hokkaido, per m2 per year
 SNOW_MWH_PER_M2 = 0.12            # assumption: ~0.25 kWh per m2 per cm of snowfall x 479 cm
 KEROSENE_KWH_PER_L = 9.7          # lower heating value of kerosene
-KEROSENE_KG_CO2_PER_L = 2.49      # Ministry of the Environment emission factor
-GRID_KG_CO2_PER_KWH = 0.55        # assumption for Hokkaido grid electricity
+# CO2 factors, each from an official list (URLs in dcopt.heat.network.URL and docs/data-sources.md).
+KEROSENE_KG_CO2_PER_L = 2.50      # Ministry of the Environment list: 36.5 GJ/kL x 0.0187 tC/GJ x 44/12
+GRID_KG_CO2_PER_KWH = 0.526       # Hokkaido Electric Power, standard plans (menu F), FY2024 results
+GRID_2030_KG_CO2_PER_KWH = 0.25   # national FY2030 level in the Plan for Global Warming Countermeasures (2025)
+# Electricity for the heat pumps under three supply scenarios, kg CO2 per kWh (label ja, label en, factor).
+GRID_SCENARIOS = {
+    "renewable": ("再エネ100%", "100 % renewable power", 0.0),
+    "target2030": ("2030年度の国の目標", "national target for FY2030", GRID_2030_KG_CO2_PER_KWH),
+    "grid": ("北海道電力の標準メニュー（2024年度）", "Hokkaido Electric, standard plans (FY2024)", GRID_KG_CO2_PER_KWH),
+}
 
 
 @dataclass(frozen=True)
@@ -85,6 +93,8 @@ class Assumptions:
     rate: float = 0.03
     renewable_power: bool = True    # heat pumps on the data center's renewable power
     max_link_m: float = 8_000.0     # no candidate pipe longer than this
+    carbon_yen_t: float = 0.0       # scenario: a price on the CO2 avoided, on top of today's fuel taxes
+    subsidy: float = 0.0            # scenario: share of the investment paid by a subsidy
 
     @property
     def fuel_yen_per_mwh(self) -> float:
@@ -96,7 +106,17 @@ class Assumptions:
 
     @property
     def value_yen_per_mwh(self) -> float:
-        return self.fuel_yen_per_mwh - self.hp_yen_per_mwh
+        return self.fuel_yen_per_mwh - self.hp_yen_per_mwh + self.carbon_yen_per_mwh
+
+    @property
+    def carbon_yen_per_mwh(self) -> float:
+        """What the carbon price adds to a MWh of delivered heat: the price times the CO2 it avoids."""
+        return self.carbon_yen_t * self.co2_t_per_mwh
+
+    @property
+    def own_pipe_yen_m(self) -> float:
+        """Pipe cost per metre left to the project after the subsidy."""
+        return self.pipe_yen_m * (1 - self.subsidy)
 
     @property
     def crf(self) -> float:
@@ -105,9 +125,12 @@ class Assumptions:
 
     @property
     def co2_t_per_mwh(self) -> float:
+        return self.co2_t_per_mwh_at(0.0 if self.renewable_power else GRID_KG_CO2_PER_KWH)
+
+    def co2_t_per_mwh_at(self, grid_kg_co2_kwh: float) -> float:
+        """t CO2 avoided per MWh delivered: the kerosene not burned minus the heat pump's electricity."""
         fuel = KEROSENE_KG_CO2_PER_L / (KEROSENE_KWH_PER_L * self.boiler_eff)          # kg per kWh heat
-        hp = 0.0 if self.renewable_power else GRID_KG_CO2_PER_KWH / self.cop
-        return fuel - hp                                                                # t per MWh
+        return fuel - grid_kg_co2_kwh / self.cop                                        # t per MWh
 
     def waste_heat_mwh(self) -> list[float]:
         return [self.it_load_mw * 24 * d * self.recovery for d in DAYS]
@@ -238,12 +261,38 @@ class Design:
         return self.delivered * self.A.value_yen_per_mwh
 
     @property
+    def own_capex(self) -> float:
+        """The investment left to the project after the subsidy."""
+        return self.capex * (1 - self.A.subsidy)
+
+    @property
+    def subsidy_yen(self) -> float:
+        return self.capex * self.A.subsidy
+
+    @property
+    def carbon_value(self) -> float:
+        """The part of the annual value that comes from the carbon price."""
+        return self.delivered * self.A.carbon_yen_per_mwh
+
+    @property
     def annual_net(self) -> float:
-        return self.annual_value - self.capex * self.A.crf
+        return self.annual_value - self.own_capex * self.A.crf
 
     @property
     def payback_years(self) -> float:
-        return self.capex / self.annual_value if self.annual_value > 0 else math.inf
+        return self.own_capex / self.annual_value if self.annual_value > 0 else math.inf
+
+    @property
+    def abatement_yen_t(self) -> float:
+        """Cost of a tonne of CO2 avoided with no carbon price and no subsidy: annual pipe cost minus
+        the fuel saving, per tonne. Negative when the plan pays for itself."""
+        if self.co2_t <= 0:
+            return math.inf
+        return (self.capex * self.A.crf - (self.annual_value - self.carbon_value)) / self.co2_t
+
+    def co2_scenarios(self) -> dict[str, float]:
+        """t CO2 avoided a year by this plan under each electricity scenario of GRID_SCENARIOS."""
+        return {key: self.delivered * self.A.co2_t_per_mwh_at(f) for key, (_, _, f) in GRID_SCENARIOS.items()}
 
     @property
     def co2_t(self) -> float:
@@ -294,7 +343,7 @@ def design(dc: Site, sites: list[Site], A: Assumptions, k: int = 4, kinds: set[s
     nv = nE + nU + nU * nA + nU * T
     c = np.zeros(nv)
     for e, (a, b) in enumerate(E):
-        c[iy(e)] = A.pipe_yen_m * dist[a, b] * A.crf
+        c[iy(e)] = A.own_pipe_yen_m * dist[a, b] * A.crf
     for u in range(nU):
         for t in range(T):
             c[isv(u, t)] = -A.value_yen_per_mwh
@@ -359,7 +408,7 @@ def pairwise(dc: Site, sites: list[Site], A: Assumptions, top: int = 5, kinds: s
     (value of its full demand minus pipe cost), take the best `top`, then see what they deliver."""
     users = [s for s in sites if kinds is None or s.kind in kinds]
     dist = road_distance_matrix([dc.node] + [u.node for u in users], AREA)[0, 1:]
-    score = [(u.annual_mwh * A.value_yen_per_mwh - A.pipe_yen_m * d * A.crf, i)
+    score = [(u.annual_mwh * A.value_yen_per_mwh - A.own_pipe_yen_m * d * A.crf, i)
              for i, (u, d) in enumerate(zip(users, dist)) if d <= A.max_link_m]
     best = [i for s, i in sorted(score, reverse=True)[:top] if s > 0]
     return design(dc, users, A, links=[(0, i + 1) for i in best])
@@ -395,11 +444,11 @@ def standalone_and_shared(d: Design, dc: Site) -> list[dict]:
         while stack:                                     # users in the subtree of n
             x = stack.pop()
             if served.get(x, 0.0) > 0:
-                shared_cost[x] += A.pipe_yen_m * m * A.crf * served[x] / below[n]
+                shared_cost[x] += A.own_pipe_yen_m * m * A.crf * served[x] / below[n]
             stack += [c for c, (pp, _) in parent.items() if pp == x]
     out = []
     for i, s in enumerate(d.sites):
-        alone = s.annual_mwh * A.value_yen_per_mwh - A.pipe_yen_m * dist0[i] * A.crf
+        alone = s.annual_mwh * A.value_yen_per_mwh - A.own_pipe_yen_m * dist0[i] * A.crf
         shared = served[i + 1] * A.value_yen_per_mwh - shared_cost[i + 1]
         out.append({"site": s, "connected": served[i + 1] > 1e-6, "alone": alone, "shared": shared,
                     "own_pipe_m": float(dist0[i])})

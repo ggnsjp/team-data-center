@@ -23,7 +23,6 @@ Data: the years ship in data/jma/; the run downloads any year missing or unreada
 from __future__ import annotations
 
 import json
-import subprocess
 import sys
 import time
 from datetime import datetime
@@ -31,6 +30,7 @@ from pathlib import Path
 
 import numpy as np
 
+from dcopt.common import provenance
 from dcopt.common.geo import use_overpass_mirror
 from dcopt.heat import weather as W
 from dcopt.heat.network import (Params, Scenario, build_instance, default_scenarios,
@@ -211,9 +211,9 @@ if STAGE in ("b", "both"):
 
 out_dir = Path(__file__).resolve().parents[2] / "results" / "weather_years" / datetime.now().strftime("%Y%m%d-%H%M%S")
 out_dir.mkdir(parents=True, exist_ok=True)
-commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], capture_output=True, text=True).stdout.strip()
-results["git_commit"] = commit
+results["git_commit"] = provenance.stamp()["git_commit"][:7]
 results["solver"] = P.solver or "highs (default)"
+results["provenance"] = provenance.stamp(solver=results["solver"], weather_years=[w.year for w in years])
 (out_dir / "results.json").write_text(json.dumps(results, indent=1, ensure_ascii=False), encoding="utf-8")
 for stage, st in results["stages"].items():
     (out_dir / f"stage_{stage}_nets.csv").write_text(

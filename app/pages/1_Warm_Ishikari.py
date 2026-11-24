@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import math
 import re
+from dataclasses import replace
 
 import altair as alt
 import folium
@@ -14,11 +15,11 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-from dcopt.common.geo import geocode, paths
+from dcopt.common.geo import fetch_command, geocode, missing_map_data, paths
 from dcopt.common import llm
 from dcopt.heat import whatif
 from dcopt.heat.network import ishikari_sources
-from dcopt.heat.v1 import (JMA_SOURCE, KINDS, MONTHS_EN, MONTHS_JA, Assumptions, design,
+from dcopt.heat.v1 import (GRID_SCENARIOS, JMA_SOURCE, KINDS, MONTHS_EN, MONTHS_JA, Assumptions, design,
                          ishikari_sites, pairwise, standalone_and_shared)
 from dcopt.common.style import FONT, GRID, INK, INK2, SLOTS, SURFACE
 from dcopt.common.style import GSI_ATTR, GSI_PALE
@@ -41,7 +42,7 @@ KNOB_TO_KEY = {"it_load_mw": "it_load", "recovery": "recovery", "cop": "hp_cop",
                "kerosene_yen_l": "kerosene", "power_yen_kwh": "power_price",
                "pipe_cost": "pipe_cost", "years": "lifetime", "rate": "discount_rate",
                "renewable_power": "renewable", "assumed_sites": "assumed_sites",
-               "k_pipes": "k_pipes"}
+               "k_pipes": "k_pipes", "carbon_yen_t": "carbon_price", "subsidy_pct": "subsidy_pct"}
 pending = st.session_state.pop("pending_whatif", None)
 if pending:
     try:
@@ -103,16 +104,40 @@ with st.sidebar:
     renew = st.toggle(pick("ヒートポンプは再エネ電力", "Heat pumps on renewable power"), value=True, key="renewable")
     assumed = st.toggle(pick("仮定の候補地も含める（温室新設・陸上養殖・融雪）", "Include assumed sites"), value=True, key="assumed_sites")
     k = st.select_slider(pick("候補の導管（近い順に何本）", "Candidate pipes per site"), options=[2, 3, 4], value=3, key="k_pipes")
+    st.subheader(pick("政策のシナリオ", "Policy scenarios"))
+    carbon = st.slider(pick("炭素価格（円/t-CO2）", "Carbon price (yen/t-CO2)"), 0, 20000, 0, 500, key="carbon_price",
+                       help=pick("避けたCO2に付ける価格。今の燃料の税に上乗せする分です。",
+                                 "A price on the CO2 avoided, on top of today's fuel taxes."))
+    subsidy_pct = st.slider(pick("設備費の補助率（%）", "Investment subsidy (%)"), 0, 75, 0, 1, key="subsidy_pct",
+                            help=pick("導管の工事費のうち補助でまかなう割合。1/3は33、1/2は50、2/3は67。",
+                                      "Share of the pipe investment paid by a subsidy: 33 for 1/3, 50 for 1/2, 67 for 2/3."))
 
 A = Assumptions(it_load_mw=float(it), recovery=float(rec), cop=float(cop), kerosene_yen_l=float(kero),
                 power_yen_kwh=float(power), pipe_yen_m=float(pipe) * 10_000, years=int(years), rate=rate / 100,
-                renewable_power=renew)
+                renewable_power=renew, carbon_yen_t=float(carbon), subsidy=subsidy_pct / 100)
+A0 = replace(A, carbon_yen_t=0.0, subsidy=0.0)          # the same assumptions with no policy
 
+
+if missing := missing_map_data():
+    st.title("Warm Ishikari · " + pick("データセンターの排熱を、まちの熱に", "Data-center heat for the town"))
+    st.warning(pick(f"石狩市の地図データがありません（{len(missing)} 件のファイルが未取得: "
+                    f"{', '.join(f.name for f in missing)}）。OpenStreetMap から取得してから、このページを開き直してください"
+                    "（数分かかります）。",
+                    f"Ishikari's map data is missing ({len(missing)} file(s) not fetched yet: "
+                    f"{', '.join(f.name for f in missing)}). Fetch it from OpenStreetMap, then reload this page "
+                    "(it takes a few minutes)."))
+    st.code(fetch_command(), language="bash")
+    st.stop()
 
 with st.spinner(pick("石狩市の地図と施設を読み込み中…", "Loading Ishikari's map and facilities…")):
     dc, _ = load_sites()
 with st.spinner(pick("熱導管ネットワークを最適化中…", "Optimizing the heat network…")):
     opt, pw = solve(A, assumed, k)
+    base = opt if A == A0 else solve(A0, assumed, k)[0]
+    if A != A0:
+        kept = replace(base, A=A)              # the no-policy plan, valued under the policy
+        if kept.annual_net > opt.annual_net:   # a time-limited search must not do worse than keeping that plan
+            opt = kept
 
 st.title("Warm Ishikari · " + pick("データセンターの排熱を、まちの熱に", "Data-center heat for the town"))
 st.caption(pick("石狩市のデータセンターの廃熱を、温室・病院・プール・学校・融雪へ。どこに導管を引けば最も得かを、"
@@ -135,6 +160,48 @@ st.caption(pick(f"差分は「1件ずつ採算順に上位5件を選ぶ」方法
                 f"最適化 {opt.seconds:.1f} 秒（{opt.status.split('.')[0]}）。",
                 f"Deltas against picking the top five users one by one. Investment {opt.capex / 1e8:,.1f} "
                 f"hundred-million yen; optimized in {opt.seconds:.1f} s."))
+
+# ---- CO2 and policy scenarios: what a carbon price or a subsidy changes ----
+with st.expander(pick("CO2と政策のシナリオ", "CO2 and policy scenarios"), expanded=A != A0):
+    cols = st.columns([5, 7], gap="medium")
+    with cols[0]:
+        st.markdown("**" + pick("この計画のCO2削減（ヒートポンプの電気ごと）",
+                                "CO2 avoided by this plan, by heat-pump electricity") + "**")
+        co2 = opt.co2_scenarios()
+        st.dataframe(pd.DataFrame([
+            {pick("電気", "Electricity"): GRID_SCENARIOS[key][0 if ja else 1],
+             pick("排出係数（kg-CO2/kWh）", "Factor (kg-CO2/kWh)"): GRID_SCENARIOS[key][2],
+             pick("CO2削減（t/年）", "CO2 avoided (t/yr)"): round(t)} for key, t in co2.items()]),
+            hide_index=True, width="stretch")
+        cost = base.abatement_yen_t
+        st.caption(pick(
+            f"政策なしの計画では、CO2を1トン減らす費用は{cost:,.0f}円です（マイナスは、減らすほど得になるという意味）。",
+            f"With no policy, avoiding a tonne of CO2 costs {cost:,.0f} yen (negative: the plan gains while it cuts).")
+            if math.isfinite(cost) else pick("政策なしの計画では、つながる施設がありません。",
+                                             "With no policy, no site connects."))
+    with cols[1]:
+        st.markdown("**" + pick("政策なしの計画との比較", "Against the plan with no policy") + "**")
+        rows_p = [
+            (pick("つながる施設", "Sites connected"), f"{len(base.connected)}", f"{len(opt.connected)}"),
+            (pick("導管（km）", "Pipes (km)"), f"{base.pipe_m / 1000:.1f}", f"{opt.pipe_m / 1000:.1f}"),
+            (pick("CO2削減（t/年）", "CO2 avoided (t/yr)"), f"{base.co2_t:,.0f}", f"{opt.co2_t:,.0f}"),
+            (pick("投資額（億円）", "Investment (100M yen)"), f"{base.capex / 1e8:.2f}", f"{opt.capex / 1e8:.2f}"),
+            (pick("うち補助（億円）", "of which subsidy (100M yen)"), "0.00", f"{opt.subsidy_yen / 1e8:.2f}"),
+            (pick("炭素の価値（百万円/年）", "Carbon value (M yen/yr)"), "0.0", f"{opt.carbon_value / 1e6:.1f}"),
+            (pick("事業の純便益（百万円/年）", "Net benefit to the project (M yen/yr)"),
+             f"{base.annual_net / 1e6:.1f}", f"{opt.annual_net / 1e6:.1f}"),
+            (pick("回収年数", "Payback (years)"), f"{base.payback_years:.1f}", f"{opt.payback_years:.1f}"),
+        ]
+        st.dataframe(pd.DataFrame(rows_p, columns=[pick("項目", "Item"), pick("政策なし", "No policy"),
+                                                   pick(f"炭素{carbon:,}円/t・補助{subsidy_pct}%",
+                                                        f"Carbon {carbon:,} yen/t, subsidy {subsidy_pct} %")]),
+                     hide_index=True, width="stretch")
+    st.caption(pick(
+        "炭素価格は、避けたCO2（灯油の削減分からヒートポンプの電気の分を引いたもの）に掛けて、熱の価値に加えます。"
+        "補助は、導管の工事費のうち事業が負担する分を減らします。どちらもシナリオであり、実際の制度の適用を示すものではありません。",
+        "The carbon price multiplies the CO2 avoided (kerosene not burned minus heat-pump electricity) and adds to the "
+        "value of the heat. The subsidy lowers the share of the pipe investment the project pays. Both are scenarios, "
+        "not statements about how an actual scheme applies."))
 
 # ---- live simulation: the LLM chooses the knobs, the model computes the numbers ----
 summary = {pick("つながる需要家（件）", "connected sites"): len(opt.connected),
@@ -359,7 +426,7 @@ with st.expander(pick("前提と出典", "Assumptions and sources")):
         [pick("導管の年経費", "Pipe cost per year"), f"{A.pipe_yen_m * A.crf:,.0f} 円/m",
          pick(f"工事費 × 資本回収係数（{A.years}年・{A.rate:.1%}）", f"Cost x capital recovery ({A.years} y, {A.rate:.1%})")],
         [pick("CO2削減係数", "CO2 factor"), f"{A.co2_t_per_mwh:.3f} t/MWh",
-         pick("灯油 2.49 kg-CO2/L（環境省）、ボイラー効率85%", "Kerosene 2.49 kg-CO2/L (MOE), boiler 85%")],
+         pick("灯油 2.50 kg-CO2/L（環境省）、ボイラー効率85%", "Kerosene 2.50 kg-CO2/L (MOE), boiler 85%")],
         [pick("温室の熱需要", "Greenhouse heat"), "0.40 MWh/m²・年", pick("仮定", "Assumption")],
         [pick("融雪の熱需要", "Snow melting heat"), "0.12 MWh/m²・年", pick("仮定（降雪479cm/年）", "Assumption (479 cm snow/yr)")],
         [pick("施設の熱需要", "Facility heat"), pick("温泉2,000・病院1,500・プール800・学校250 MWh/年",

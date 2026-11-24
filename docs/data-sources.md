@@ -33,12 +33,29 @@ This page lists every value the models use, with its source, or marks it as an a
 | Heat-pump COP (to about 60 °C) | 4.0 | Assumption |
 | Boiler efficiency (kerosene) | 0.85 | Assumption |
 | Lower heating value of kerosene | 9.7 kWh/L | Assumption (standard value) |
-| CO2 from kerosene | 2.49 kg/L | Ministry of the Environment emission factor (URL to be added) |
+| CO2 from kerosene | 2.50 kg/L | Ministry of the Environment list of emission factors (see *CO₂ factors and policy scenarios* below) |
 | Heat-pump electricity | 25 yen/kWh | Assumption |
 | Pipe, installed, both directions | 100,000 yen per metre of street | Assumption; compare with the range above |
 | Annuity | 3 %, 30 years | Assumption |
 | Heated greenhouse demand in Hokkaido | 0.40 MWh/m² per year | Assumption |
 | Snow melting | 0.12 MWh/m² per year | Assumption: about 0.25 kWh/m² per cm of snowfall × 479 cm |
+
+## CO₂ factors and policy scenarios
+
+Checked on 2026-11-25. The carbon prices and subsidy rates are scenario values for the model. They are listed here to show where the scenario levels come from; they do not state that a scheme applies to a given project.
+
+| Item | Value | Source |
+|---|---|---|
+| CO₂ from kerosene | 2.50 t-CO₂/kL (36.5 GJ/kL × 0.0187 t-C/GJ × 44/12). The earlier edition gave 2.49 | 環境省, 算定・報告・公表制度における算定方法・排出係数一覧 (current edition): https://policies.env.go.jp/earth/ghg-santeikohyo/files/calc/ichiran_2025r.pdf |
+| Electricity, Hokkaido Electric Power, FY2024 results | 0.526 kg-CO₂/kWh for the standard plans (menu F); 0.518 for the company as a whole; plans A–E are 0 | 環境省・経済産業省, 電気事業者別排出係数（特定排出者の温室効果ガス排出量算定用）R6年度実績, published 2026-01-09: https://policies.env.go.jp/earth/ghg-santeikohyo/files/calc/r08_denki_coefficient_rev4.pdf |
+| Electricity, national level for FY2030 | 0.25 kg-CO₂/kWh | 地球温暖化対策計画（2025-02-18 閣議決定）関連資料2, p. 77: https://www.env.go.jp/content/000290553.pdf |
+| Emissions trading scheme (GX-ETS), reference prices for FY2026 | upper 4,300 yen/t-CO₂; lower 1,700 yen/t-CO₂. Later years are not fixed yet | 経済産業省告示第27号 (2026-03-30): https://www.meti.go.jp/policy/energy_environment/global_warming/torihikikakaku.pdf |
+| J-Credit prices, Tokyo Stock Exchange carbon credit market | last trades: energy saving 4,399 yen/t (2026-11-18); renewable electricity 4,700 yen/t (2026-11-24); renewable heat 5,300 yen/t (2026-10-01) | 日本取引所グループ, カーボン・クレジット市場日報: https://www.jpx.co.jp/equities/carbon-credit/daily/index.html |
+| Tax for climate change mitigation | 289 yen/t-CO₂, levied upstream as 760 yen/kL on petroleum; about 0.76 yen/L of kerosene | 環境省: https://www.env.go.jp/policy/tax/about.html |
+| Fossil-fuel levy | from FY2028; the unit price is not set yet | GX推進機構: https://www.gxa.go.jp/carbon-trade-levy/ |
+| Subsidy for decarbonization equipment at data centers (FY2025 supplementary budget) | rate 1/2 (storage 1/3), up to 1 billion yen per project. Equipment that supplies waste heat from a data center to users outside it is eligible: heat exchangers, heat pumps, heat pipes, storage tanks. The three rounds of FY2026 are closed | 環境省, 地域共生を目指したデータセンター脱炭素化設備導入支援事業: https://www.env.go.jp/content/000356389.pdf ; guidelines: https://rcespa.jp/wordpress/wp-content/uploads/1_R07hosei_DC2_kouboyouryou_20260901.pdf |
+| Grant for decarbonization-leading areas (Ishikari City is one, with Tokyu Land) | as a rule 2/3; heat-use equipment and heat pipes up to 2/3. Data-center waste heat is not named in its list of unused heat | 環境省, 地域脱炭素推進交付金 (FY2026): https://policies.env.go.jp/policy/roadmap/assets/grants/chiiki-datsutanso-kofukin-R8.pdf |
+| Subsidy for zero-emission data centers (FY2026) | rate 1/3; waste-heat supply is not among its items | 環境省 (via 地域循環共生社会連携協会): https://rcespa.jp/wordpress/wp-content/uploads/1_R08_DC2_kouboyouryou_20260917-2.pdf |
 
 ## Climate
 
@@ -71,8 +88,10 @@ Generated from `dcopt.heat.network.assumptions_table(Params())`. Values with two
 | Kerosene price | 115 / 156.8 | yen/L | assumption (conservative bulk) / source: ANRE survey 2026-11-16, Hokkaido (https://www.enecho.meti.go.jp/statistics/petroleum_and_lpgas/pl007/xlsx/261118.xlsx) |
 | Boiler efficiency replaced | 0.85 |  | assumption (as v1) |
 | Electricity price | 25.0 | yen/kWh | assumption (as v1) |
-| Kerosene CO2 factor | 2.49 | kg/L | source: https://ghg-santeikohyo.env.go.jp/calc |
-| Grid electricity CO2 | 0.55 | t/MWh | assumption (as v1) |
+| Kerosene CO2 factor | 2.50 | kg/L | source: https://policies.env.go.jp/earth/ghg-santeikohyo/files/calc/ichiran_2025r.pdf |
+| Grid electricity CO2 | 0.526 | t/MWh | source: Hokkaido Electric Power, standard plans, FY2024 results (https://policies.env.go.jp/earth/ghg-santeikohyo/files/calc/r08_denki_coefficient_rev4.pdf) |
+| Carbon price (scenario) | 0 | yen/t | scenario, zero by default: a price on the CO2 avoided, on top of today's fuel taxes |
+| Investment subsidy (scenario) | 0 | | scenario, zero by default: share of the pipe and heat-pump investment |
 | Pipe life, discount rate | 30 / 3% |  | assumption (as v1) |
 | Heat-pump life | 20 | years | assumption |
 | Heat-pump investment | 0 / 0 | yen/MW | user / central; off by default (to verify with makers) |

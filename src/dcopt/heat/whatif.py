@@ -25,6 +25,8 @@ KNOBS = [
     ("renewable_power", "ヒートポンプは再エネ電力", "heat pumps on renewable power", "bool", None, None, None, "-"),
     ("assumed_sites", "仮定の候補地も含める（温室新設・陸上養殖・融雪）", "include assumed sites", "bool", None, None, None, "-"),
     ("k_pipes", "候補の導管（近い順に何本）", "candidate pipes per site", "int", 2, 4, 1, "count"),
+    ("carbon_yen_t", "炭素価格（円/t-CO2）", "carbon price (yen per t-CO2)", "int", 0, 20000, 500, "yen per tonne of CO2"),
+    ("subsidy_pct", "設備費の補助率（%）", "investment subsidy (%)", "int", 0, 75, 1, "percent of the investment"),
 ]
 BY_ID = {k[0]: k for k in KNOBS}
 

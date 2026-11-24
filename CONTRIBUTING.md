@@ -16,6 +16,8 @@
 - The repository is under the MIT license. Commit only data that may be shared under MIT, such as our own compilations of facts with their sources.
 - Scripts download OpenStreetMap (ODbL) and other licensed data into `data/raw/` and `data/cache/`, which git ignores. Any output that shows OSM data credits "© OpenStreetMap contributors".
 - Never commit solver license files, API keys or `.env` files.
+- Every dataset has an entry in `data/register.toml` (where it is stored, its terms, how it is made and processed, what checks it). After changing committed data, run `uv run python -m dcopt.common.provenance --write` and say why in the commit. See `docs/data-accountability.md`.
+- `data/jma/` is the one committed dataset not under MIT: JMA's terms allow it with credit (see `data/jma/README.md`).
 
 ## Solvers
 

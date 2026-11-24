@@ -82,6 +82,34 @@ With the ambient loop, the two-stage stochastic plan earns 93.8 in expectation, 
 
 The stochastic plan with an ambient loop earns **93.8** in expectation, against **81.5** for a central heat pump feeding a 60 °C network. The ambient loop runs at about 30 °C with heat pumps at the users, and the fish farm and the road heating take the heat directly. At today's kerosene price, the ambient plan connects 16 sites with 10.7 km of pipe and earns 140.3 per year; this is the plan in the animation above.
 
+### CO₂: the plan pays for itself, and a subsidy moves it more than a carbon price
+
+The stochastic plan above (13 sites, 7.8 km) avoids about **3,900 t of CO₂ a year** when the users' heat pumps run on Hokkaido Electric's standard power (0.526 kg/kWh [54]). It avoids 4,300 t at the national level for FY2030 (0.25 kg/kWh [55]) and 4,600 t on renewable power; kerosene emits 2.50 kg per litre [53]. The plan earns money while it cuts, about 24,000 yen per tonne, so it needs no carbon price.
+
+We then re-optimized the plan under two scenarios: a price on the CO₂ avoided, and a subsidy on the investment.
+
+| Policy (scenario) | Sites | Pipe (km) | CO₂ avoided (t/yr) | Investment (100 M yen) | Net benefit to the project | Net benefit without policy money | Cost of the extra tonnes (yen/t) |
+|---|---|---|---|---|---|---|---|
+| none | 13 | 7.8 | 3,927 | 23.0 | 93.8 | 93.8 | — |
+| carbon price 1,700 yen/t | 13 | 7.8 | 3,927 | 23.0 | 100.5 | 93.8 | — |
+| carbon price 4,300 yen/t | 14 | 9.8 | 4,874 | 32.8 | 111.3 | 90.4 | 3,600 |
+| carbon price 10,000 yen/t | 16 | 10.7 | 5,198 | 36.6 | 139.6 | 87.6 | 4,800 |
+| carbon price 20,000 yen/t | 19 | 11.9 | 5,725 | 43.0 | 195.6 | 81.1 | 7,100 |
+| subsidy of 1/3 | 19 | 11.9 | 5,725 | 43.0 | 160.6 | 81.1 | 7,100 |
+| subsidy of 1/2 | 30 | 24.2 | 7,922 | 79.0 | 227.4 | 9.8 | 21,000 |
+| subsidy of 2/3 | 33 | 27.8 | 8,107 | 84.2 | 301.0 | −7.6 | 24,200 |
+
+- **A carbon price moves the plan slowly.** 1,700 and 4,300 yen per tonne are the lower and upper reference prices of Japan's emissions trading scheme for FY2026 [56]. The lower one changes nothing, and the upper one adds one site. Even 20,000 yen per tonne reaches only 19 sites and 46 % more CO₂ avoided.
+- **A subsidy moves it much more.** With half of the investment subsidized, the plan reaches 30 sites on 24 km of pipe and avoids twice the CO₂. One half is the rate of a Ministry of the Environment programme that names waste-heat supply from data centers [57]. Two thirds, the usual rate of the grant for decarbonization-leading areas (Ishikari is one) [58], reaches 33 sites.
+- **The extra tonnes cost real resources.** The no-policy plan already holds everything that pays. Each additional tonne costs 3,600 to 7,100 yen under a carbon price and 21,000 to 24,000 yen under the larger subsidies. With two thirds subsidized, the network as a whole no longer covers its cost without the subsidy (−7.6).
+- **In the proposals and the app.** Each proposal's calculation sheet lists the CO₂ avoided under the three electricity scenarios, the cost of a tonne, and the payback at subsidy rates of 1/3, 1/2 and 2/3. The *Warm Ishikari* page has both policies as sliders.
+
+Notes on the table:
+- CO₂ is with heat pumps on Hokkaido Electric's standard power. *Cost of the extra tonnes* is the net benefit the no-policy plan gives up, divided by the extra CO₂ avoided.
+- The carbon prices and subsidy rates are scenarios. They do not state how an actual scheme applies to a project.
+- These are the best plans found, with Gurobi (gaps of 4–11 % to its bound after 300 s per policy). HiGHS alone finds plans within 3.4 % of them and the same picture, except that it keeps the 13-site plan at 4,300 yen/t.
+- Every policy was given the same candidate links, and every plan found was evaluated under every policy, so the plans differ because of the policy and not because of the search ([method](docs/formulations/heat-model.md#12-co2-and-policy-scenarios), [both tables](docs/formulations/heat.md)).
+
 ### Caveats
 
 - **Optimality.** The plans come from an LP-guided kernel search with HiGHS.
@@ -127,6 +155,7 @@ uv run pytest                                          # tests; those that need 
 **Experiments**
 - Model v1 against v2: `uv run python experiments/heat_v2_compare/run.py`
 - Robust sweep: `uv run python experiments/heat_ccg/run.py ambient`
+- Carbon price and subsidy scenarios: `uv run python experiments/heat_policy/run.py`
 
 **Live simulation (the app's Warm Ishikari page)**
 - Type a what-if in either language ("電気料金を2倍にして" / "double the electricity price"); the LLM
@@ -157,6 +186,7 @@ tests/              unit tests on synthetic instances and app tests
 ## Data and sources
 
 - **Every number has a source or is marked as an assumption.** The list, with URLs, is in [docs/data-sources.md](docs/data-sources.md). It covers the data centers in Ishikari, prices, pipe and heat-pump costs, climate normals and precedents.
+- **Every dataset is registered, pinned and tested.** [docs/data-accountability.md](docs/data-accountability.md) shows where each dataset is stored, under which terms, how it is processed, which tests keep the calculations accurate, and how a result is traced to its code and data.
 - **Map data.**
   - Scripts download OpenStreetMap data (© OpenStreetMap contributors, ODbL [18]) into `data/raw/` and `data/cache/`. This data is not committed.
   - The animation is a produced work from OpenStreetMap data and is credited as such.
@@ -182,7 +212,7 @@ tests/              unit tests on synthetic instances and app tests
 
 ## References
 
-Facts and parameters [1–22], then related literature: waste-heat networks and data-center heat reuse [23–30], robust optimization [31–36], grid hosting capacity [37–47], siting and flexible loads [48–52].
+Facts and parameters [1–22], then related literature: waste-heat networks and data-center heat reuse [23–30], robust optimization [31–36], grid hosting capacity [37–47], siting and flexible loads [48–52]. CO₂ factors and policy sources [53–58].
 
 1. Hack × Hokkaido Build Week 2026, AI build week in Sapporo, 23–27 November 2026. https://www.hackhokkaido.com/ (accessed 2026-11-24).
 2. Broadband Tower (2025-11-28). Press release on Ishikari Renewable Energy Data Center No. 1 (in Japanese). https://www.bbtower.co.jp/ir/pr/docs/20251128_ishikari_release.pdf
@@ -236,6 +266,12 @@ Facts and parameters [1–22], then related literature: waste-heat networks and 
 50. Kim, K., Yang, F., Zavala, V.M., Chien, A.A. (2017). Data Centers as Dispatchable Loads to Harness Stranded Power. *IEEE Transactions on Sustainable Energy*, 8(1), 208-218. https://doi.org/10.1109/TSTE.2016.2593607
 51. Norris, T. H., Profeta, T., Patino-Echeverri, D., Cowie-Haskell, A. (2025). Rethinking Load Growth: Assessing the Potential for Integration of Large Flexible Loads in US Power Systems. Nicholas Institute, Duke University, NI R 25-01. https://nicholasinstitute.duke.edu/publications/rethinking-load-growth (figures as cited in the lead author's testimony of 2025-03-05)
 52. Onodera, H., Shiraki, H., Matsuhashi, K. (2026). Strategic data center siting can mitigate trade-offs between decarbonization and digitalization in Japan. *Cell Reports Sustainability*, 3(9), 100823. https://doi.org/10.1016/j.crsus.2026.100823
+53. 環境省. 算定・報告・公表制度における算定方法・排出係数一覧 (Ministry of the Environment, list of calculation methods and emission factors): kerosene 2.50 t-CO₂/kL. https://policies.env.go.jp/earth/ghg-santeikohyo/files/calc/ichiran_2025r.pdf (accessed 2026-11-25).
+54. 環境省・経済産業省 (2026). 電気事業者別排出係数（特定排出者の温室効果ガス排出量算定用）R6年度実績, published 2026-01-09 (emission factors by electricity retailer, FY2024 results): Hokkaido Electric Power. https://policies.env.go.jp/earth/ghg-santeikohyo/files/calc/r08_denki_coefficient_rev4.pdf
+55. 日本政府 (2025). 地球温暖化対策計画 関連資料2, Cabinet decision of 2025-02-18 (Plan for Global Warming Countermeasures, annex 2): 0.25 kg-CO₂/kWh in FY2030. https://www.env.go.jp/content/000290553.pdf
+56. 経済産業省 (2026). 告示第27号, 2026-03-30: 令和8年度の参考上限取引価格及び調整基準取引価格 (METI notification No. 27: reference prices of the emissions trading scheme for FY2026). https://www.meti.go.jp/policy/energy_environment/global_warming/torihikikakaku.pdf
+57. 環境省 (2026). 地域共生を目指したデータセンター脱炭素化設備導入支援事業 (subsidy for decarbonization equipment at data centers, FY2025 supplementary budget): rate 1/2, waste-heat supply equipment eligible. https://www.env.go.jp/content/000356389.pdf
+58. 環境省 (2026). 地域脱炭素推進交付金 事業概要, FY2026 (grant for regional decarbonization): as a rule 2/3 for decarbonization-leading areas. https://policies.env.go.jp/policy/roadmap/assets/grants/chiiki-datsutanso-kofukin-R8.pdf
 
 ## Team
 

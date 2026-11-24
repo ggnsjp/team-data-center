@@ -20,6 +20,7 @@ def test_page_without_the_weather_csvs_says_what_to_run(monkeypatch, tmp_path):
     monkeypatch.setattr("dcopt.heat.weather.year_csv", lambda year: tmp_path / "missing.csv")
     monkeypatch.setattr("dcopt.heat.weather._get", offline)
     monkeypatch.setattr("dcopt.common.geo.use_overpass_mirror", lambda *a, **k: None)
+    monkeypatch.setattr("dcopt.common.geo.missing_map_data", lambda *a, **k: [])   # the synthetic network stands in
     monkeypatch.setattr("dcopt.heat.v1.ishikari_sites", lambda: (inst.users[0], inst.users))
     monkeypatch.setattr("dcopt.heat.network.build_instance", lambda *a, **k: inst)
     st.cache_resource.clear()

@@ -16,6 +16,7 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
+from dcopt.common.geo import fetch_command, missing_map_data
 from dcopt.common.style import FONT, GRID, INK, INK2, SURFACE
 from dcopt.heat import weather as W
 from dcopt.heat.network import Params, Scenario, build_instance, ishikari_sources, plan_for
@@ -297,6 +298,15 @@ else:
                     f"Annual mean {sum(w.t_day) / len(w.t_day):.1f} °C, snowfall {sum(w.snow_day):.0f} cm, "
                     f"coldest-month mean {min(w.t_month):.1f} °C. Heating-degree-day index {w.hdd18_index:.2f}, "
                     f"snow index {w.snow_index:.2f} (normals = 1.00)."))
+if missing := missing_map_data():
+    st.warning(pick(f"導管網を作り直すには石狩市の地図データが必要ですが、まだありません（未取得: "
+                    f"{', '.join(f.name for f in missing)}）。上の気象の数字はそのまま使えます。地図データを取得してから、"
+                    "このページを開き直してください（数分かかります）。",
+                    f"Re-optimizing the network needs Ishikari's map data, which is not here yet (not fetched: "
+                    f"{', '.join(f.name for f in missing)}). The weather figures above still apply. Fetch the map "
+                    "data, then reload this page (it takes a few minutes)."))
+    st.code(fetch_command(), language="bash")
+    st.stop()
 with st.spinner(pick("その年の気象で導管網を最適化中…", "Optimizing the network for this year…")):
     plan = solve_year(shown, it_level, price, w)
 hedge = rp_net(res, shown)

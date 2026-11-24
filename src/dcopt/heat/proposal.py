@@ -724,7 +724,8 @@ def _kpis(data: dict, lang: str) -> list[tuple[str, str, str, list[int]]]:
         ((f'{pr["payback"]:.1f}<small>{("年", "years")[L]}</small>' if pr["payback"] else "—"),
          ("単純回収年数", "Simple payback")[L], ("投資額÷年間の節約", "investment / annual saving")[L], [no["payback"]]),
         (f'{_num(pr["co2"])}<small>t</small>', ("CO₂削減（年）", "CO₂ avoided a year")[L],
-         ("灯油の削減分から", "from the kerosene not burned")[L], [no["co2"]]),
+         (("電気の分を引いた値", "net of heat-pump electricity") if data["mode"] == "ambient" and pr["hp"] > 0 else
+          ("灯油の削減分から", "from the kerosene not burned"))[L], [no["co2"]]),
     ]
 
 
