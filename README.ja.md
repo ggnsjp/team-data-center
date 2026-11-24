@@ -4,7 +4,7 @@
 
 [English](README.md)
 
-![石狩の2つのデータセンターの排熱が、月ごとに16か所へ流れる様子](docs/img/heat-network-map.gif)
+![石狩の2つのデータセンターの排熱が、月ごとに16か所へ流れる様子](docs/img/heat-network-map-ja.gif)
 
 *改良版モデル（v2）で、今の灯油価格（156.8円/L [11]）・ヒートポンプ費込みの計画です。1本の共同の導管網で、石狩湾新港の2つのデータセンターの排熱を19か所（公共施設、プール、学校、ホテル、病院、陸上養殖、温室の新設候補、道路融雪）に届けます。線の太さは管の太さ、明るさと粒の速さは月ごとの流量を表し、雪の多い月には雪が降ります。下の棒グラフは月ごとに届けた熱です。施設とデータセンターの位置には、仮定や仮置きのものが含まれます（[データと出典](#データと出典)）。地図データ © OpenStreetMap contributors（ODbL）。*
 
@@ -130,7 +130,7 @@ uv run pytest                                          # テスト（地図デ�
 
 **上のアニメーションの作り直し方**
 1. `uv run python scripts/export_heat_network_v2.py`
-2. `uv run python scripts/render_readme_animation.py`
+2. `uv run python scripts/render_readme_animation.py --plan current --lang ja`（日本語版。Noto Sans CJK JPなどの日本語フォントが必要。英語版は `--lang ja` なし）
 
 ## 構成
 

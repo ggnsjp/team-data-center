@@ -128,7 +128,7 @@ uv run pytest                                          # tests; those that need 
 
 **Redrawing the animation above**
 1. `uv run python scripts/export_heat_network_v2.py`
-2. `uv run python scripts/render_readme_animation.py`
+2. `uv run python scripts/render_readme_animation.py --plan current` (add `--lang ja` for the Japanese version; it needs a Japanese font such as Noto Sans CJK JP)
 
 ## Repository layout
 

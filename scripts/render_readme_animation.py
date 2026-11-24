@@ -3,9 +3,10 @@
 Inputs (not committed, rebuilt by scripts):
   out/heat_story/base.json          base map from scripts/export_heat_story.py (OpenStreetMap, ODbL)
   out/heat_network_v2/plans.json    model v2 plans from scripts/export_heat_network_v2.py
-Output: docs/img/heat-network-map.gif (and a still, docs/img/heat-network.png)
+Output: docs/img/heat-network-map.gif (and a still, docs/img/heat-network.png); with --lang ja,
+docs/img/heat-network-map-ja.gif and docs/img/heat-network-ja.png (needs a Japanese font, e.g. Noto Sans CJK JP)
 
-Run: uv run python scripts/render_readme_animation.py [--plan expected|robust]
+Run: uv run python scripts/render_readme_animation.py [--plan expected|robust|current] [--lang en|ja]
 """
 from __future__ import annotations
 
@@ -51,6 +52,39 @@ KIND_WORDS = {"public": ("a public building", "public buildings"), "hotel": ("a 
 DC_LABEL = {"isrd1": "No. 1", "sakura": "Sakura", "zed": "ZED", "nttme": "NTT-ME (planned)"}
 MONTHS_LONG = ["January", "February", "March", "April", "May", "June", "July", "August", "September",
                "October", "November", "December"]
+LANG = "en"
+JA_FONTS = ["Noto Sans CJK JP", "IPAexGothic", "DejaVu Sans"]       # first one installed is used
+JA = {
+    "dc": {"isrd1": "第1号", "sakura": "さくら", "zed": "ZED", "nttme": "NTT-ME（計画）"},
+    "kind": {"public": "公共施設", "hotel": "ホテル", "factory": "工場", "pool": "プール", "school": "学校",
+             "hospital": "病院", "onsen": "浴場", "aquaculture": "養殖場", "greenhouse": "温室",
+             "new_greenhouse": "新設の温室", "snow": "ロードヒーティング"},
+    "group": {"farm": "温室・養殖場", "building": "建物：公共施設・プール・学校・ホテル", "snow": "融雪（ロードヒーティング）"},
+    "plan": {"expected": "期待値の計画（確率計画）、低温方式", "robust": "ロバスト計画（予算1）、低温方式",
+             "current": "現在の灯油価格（156.8円/L）での計画、低温方式"},
+}
+
+
+def use_japanese_fonts() -> None:
+    """Prefer Noto Sans CJK JP. Matplotlib skips .ttc collections when it scans the system fonts, so
+    register them here; without them the next font in JA_FONTS is used."""
+    from matplotlib import font_manager
+    for path in sorted(Path("/usr/share/fonts").rglob("NotoSansCJK-*.ttc")):
+        font_manager.fontManager.addfont(str(path))
+    plt.rcParams["font.family"] = JA_FONTS
+
+
+def reach_text(counts: dict[str, int]) -> str:
+    """Who the network reaches, in one or two lines ("16 sites\\n4 public buildings, 3 pools, ...")."""
+    order = sorted(counts.items(), key=lambda kv: -kv[1])
+    if LANG == "ja":
+        words = [f"{JA['kind'][k]}{n}か所" if n > 1 else JA["kind"][k] for k, n in order]
+        return f"{sum(counts.values())}か所\n" + "、".join(words[:3]) + ("など" if len(words) > 3 else "")
+    words = [(KIND_WORDS[k][1] if n > 1 else KIND_WORDS[k][0]) if n < 3 or k == "snow" else f"{n} {KIND_WORDS[k][1]}"
+             for k, n in order]
+    if len(words) > 4:                                                 # many kinds: name the three largest groups
+        return f"{sum(counts.values())} sites\n" + ", ".join(words[:3]) + " and more"
+    return ", ".join(words[:-1]) + " and " + words[-1] if len(words) > 1 else words[0]
 
 
 def decode(seq: list[int], ext: list[float], scale: int) -> np.ndarray:
@@ -117,7 +151,8 @@ def draw_base(ax, base: list[dict], pr: Proj) -> None:
         if r["layer"] == "label":
             x, y = pr(r["lon"], r["lat"])
             style = "italic" if r["kind"] in ("water", "sea") else "normal"
-            ax.text(float(x), float(y), r["en"], color=C["label"], fontsize=8.5, ha="center", va="center",
+            ax.text(float(x), float(y), r["ja"] if LANG == "ja" else r["en"], color=C["label"], fontsize=8.5,
+                    ha="center", va="center",
                     style=style, alpha=0.85, zorder=3, clip_on=True)
 
 
@@ -130,8 +165,9 @@ def point_at(xy: np.ndarray, cl: np.ndarray, s: np.ndarray) -> np.ndarray:
 
 
 def main() -> None:
-    global W_PX, H_PX, DPI, OUT
+    global W_PX, H_PX, DPI, OUT, LANG
     ap = argparse.ArgumentParser()
+    ap.add_argument("--lang", default="en", choices=["en", "ja"])
     ap.add_argument("--plan", default="expected", choices=["expected", "robust", "current"])
     ap.add_argument("--frames", type=int, default=12, help="frames per month")
     ap.add_argument("--width", type=int, default=W_PX, help="pixels; 1920 with --height 1080 --dpi 192 for slides")
@@ -139,7 +175,11 @@ def main() -> None:
     ap.add_argument("--dpi", type=int, default=DPI)
     ap.add_argument("--out", default=str(OUT), help="folder for heat-network.gif and .png")
     args = ap.parse_args()
-    W_PX, H_PX, DPI, OUT = args.width, args.height, args.dpi, Path(args.out)
+    W_PX, H_PX, DPI, OUT, LANG = args.width, args.height, args.dpi, Path(args.out), args.lang
+    ja = LANG == "ja"
+    if ja:
+        use_japanese_fonts()
+    suffix = "-ja" if ja else ""
     base = json.loads(BASE.read_text(encoding="utf-8"))
     data = json.loads(PLANS.read_text(encoding="utf-8"))
     plan, dcs = data["plans"][args.plan], data["dcs"]
@@ -171,12 +211,7 @@ def main() -> None:
     for s in sites:
         if s["dc"]:
             counts[s["kind"]] = counts.get(s["kind"], 0) + 1
-    words = [(KIND_WORDS[k][1] if n > 1 else KIND_WORDS[k][0]) if n < 3 or k == "snow" else f"{n} {KIND_WORDS[k][1]}"
-             for k, n in sorted(counts.items(), key=lambda kv: -kv[1])]
-    if len(words) > 4:                                                 # many kinds: name the three largest groups
-        reach = f"{sum(counts.values())} sites\n" + ", ".join(words[:3]) + " and more"
-    else:
-        reach = ", ".join(words[:-1]) + " and " + words[-1] if len(words) > 1 else words[0]
+    reach = reach_text(counts)
     rng = np.random.default_rng(7)
     for p in pipes:
         p["phase"], p["pos"] = rng.uniform(0, 0.2), 0.0
@@ -259,7 +294,8 @@ def main() -> None:
             ax.scatter([x], [y], s=70, marker="s", c="none" if planned else C["core"],
                        edgecolors=C["heat"], lw=1.4, linestyle="--" if planned else "-", zorder=10)
             dx, dy, ha = LABEL_AT.get(d["key"], (0.15, 0.12, "left"))
-            ax.text(float(x) + dx, float(y) + dy, DC_LABEL.get(d["key"], d["key"]), fontsize=8.5, ha=ha, va="center",
+            label = (JA["dc"] if ja else DC_LABEL).get(d["key"], d["key"])
+            ax.text(float(x) + dx, float(y) + dy, label, fontsize=8.5, ha=ha, va="center",
                     color=C["ink"] if d["key"] in active else C["muted"], zorder=11,
                     bbox=dict(boxstyle="round,pad=0.2", fc=C["night"], ec="none", alpha=0.75))
 
@@ -267,17 +303,21 @@ def main() -> None:
         fig.patches.append(Rectangle((0, 0), 0.40, 1, transform=fig.transFigure, color=C["night"], alpha=0.62,
                                      zorder=1))
         tx = 0.025
-        fig.text(tx, 0.94, "Waste heat from Ishikari's data centers", color=C["ink"], fontsize=15, weight="bold")
+        fig.text(tx, 0.94, "石狩のデータセンターの排熱" if ja else "Waste heat from Ishikari's data centers",
+                 color=C["ink"], fontsize=15, weight="bold")
         first, _, rest = reach.partition("\n")
-        fig.text(tx, 0.905, f"One shared network to {first}, month by month", color=C["ink2"], fontsize=9.5)
+        fig.text(tx, 0.905, f"共有の導管網で{first}へ、月ごとに" if ja else f"One shared network to {first}, month by month",
+                 color=C["ink2"], fontsize=9.5)
         if rest:
             fig.text(tx, 0.875, rest[0].upper() + rest[1:], color=C["ink2"], fontsize=9.5)
-        fig.text(tx, 0.80, MONTHS_LONG[m], color=C["heat"], fontsize=26, weight="bold")
-        fig.text(tx, 0.755, f"Sapporo normals: {data['temp'][m]:+.1f} °C, {SNOW[m]} cm of snow",
-                 color=C["ink2"], fontsize=9)
-        fig.text(tx, 0.70, f"Heat delivered  {delivered[m]:,.0f} MWh", color=C["ink"], fontsize=11)
+        fig.text(tx, 0.80, f"{m + 1}月" if ja else MONTHS_LONG[m], color=C["heat"], fontsize=26, weight="bold")
+        fig.text(tx, 0.755, f"札幌の平年値：{data['temp'][m]:+.1f} ℃、降雪 {SNOW[m]} cm" if ja else
+                 f"Sapporo normals: {data['temp'][m]:+.1f} °C, {SNOW[m]} cm of snow", color=C["ink2"], fontsize=9)
+        fig.text(tx, 0.70, f"届けた熱  {delivered[m]:,.0f} MWh" if ja else f"Heat delivered  {delivered[m]:,.0f} MWh",
+                 color=C["ink"], fontsize=11)
         used = delivered[m] / waste[m] if waste[m] else 0
-        fig.text(tx, 0.665, f"Share of available waste heat used  {used:.0%}", color=C["ink2"], fontsize=9.5)
+        fig.text(tx, 0.665, f"使った排熱の割合  {used:.0%}" if ja else f"Share of available waste heat used  {used:.0%}",
+                 color=C["ink2"], fontsize=9.5)
 
         # Monthly bars at the bottom left.
         bx, by, bw, bh = 0.025, 0.12, 0.30, 0.16
@@ -286,37 +326,41 @@ def main() -> None:
         bar_ax.set_zorder(2)
         colors = [C["heat"] if j == m else C["bar"] for j in range(12)]
         bar_ax.bar(range(12), delivered, color=colors, width=0.72)
-        bar_ax.set_xticks(range(12), [s[0] for s in data["months"]], color=C["muted"], fontsize=7.5)
+        bar_ax.set_xticks(range(12), [str(j + 1) for j in range(12)] if ja else [s[0] for s in data["months"]],
+                          color=C["muted"], fontsize=7.5)
         bar_ax.set_yticks([])
         for sp in bar_ax.spines.values():
             sp.set_visible(False)
         bar_ax.tick_params(length=0)
-        fig.text(bx, by + bh + 0.012, "Heat delivered per month (MWh)", color=C["ink2"], fontsize=8.5)
+        fig.text(bx, by + bh + 0.012, "月ごとに届けた熱（MWh）" if ja else "Heat delivered per month (MWh)",
+                 color=C["ink2"], fontsize=8.5)
 
         # Legend at the bottom right.
         lx, ly = 0.025, 0.56
-        fig.text(lx, ly + 0.04, "Legend", color=C["ink2"], fontsize=8.5, weight="bold")
-        for j, (g, label) in enumerate(GROUP_LABEL.items()):
+        fig.text(lx, ly + 0.04, "凡例" if ja else "Legend", color=C["ink2"], fontsize=8.5, weight="bold")
+        for j, (g, label) in enumerate((JA["group"] if ja else GROUP_LABEL).items()):
             yy = ly - 0.035 * j
             fig.text(lx, yy, "●", color=GROUP_COLOR[g], fontsize=10)
             fig.text(lx + 0.022, yy, label, color=C["ink2"], fontsize=8.5)
         yy = ly - 0.035 * 3
-        fig.text(lx, yy, "○ assumed site   ■ data center   □ planned", color=C["ink2"], fontsize=8.5)
-        fig.text(lx, yy - 0.035, "Line width: pipe size DN80 to DN250", color=C["ink2"], fontsize=8.5)
+        fig.text(lx, yy, "○ 仮定の候補地　■ データセンター　□ 計画中" if ja else "○ assumed site   ■ data center   □ planned",
+                 color=C["ink2"], fontsize=8.5)
+        fig.text(lx, yy - 0.035, "線の太さ：管の太さ DN80〜DN250" if ja else "Line width: pipe size DN80 to DN250",
+                 color=C["ink2"], fontsize=8.5)
 
-        fig.text(0.5, 0.04, f"Model v2: {plan['label']}, heat pumps included. Climate: JMA normals 1991-2020.",
-                 color=C["muted"], fontsize=7.5,
-                 ha="center")
-        fig.text(0.5, 0.016, "Some sites and data-center positions are assumptions or placeholders.  "
-                 "Map data © OpenStreetMap contributors (ODbL).",
+        fig.text(0.5, 0.04, f"モデルv2：{JA['plan'][args.plan]}、ヒートポンプの費用を含む。気候：気象庁の平年値（1991〜2020年）。"
+                 if ja else f"Model v2: {plan['label']}, heat pumps included. Climate: JMA normals 1991-2020.",
                  color=C["muted"], fontsize=7.5, ha="center")
+        fig.text(0.5, 0.016, "一部の候補地とデータセンターの位置は仮定または仮置きです。地図データ © OpenStreetMap contributors (ODbL)"
+                 if ja else "Some sites and data-center positions are assumptions or placeholders.  "
+                 "Map data © OpenStreetMap contributors (ODbL).", color=C["muted"], fontsize=7.5, ha="center")
         fig.canvas.draw()
         img = Image.frombuffer("RGBA", fig.canvas.get_width_height(), fig.canvas.buffer_rgba(), "raw", "RGBA", 0, 1)
         frames.append(img.convert("RGB"))
         plt.close(fig)
 
     OUT.mkdir(parents=True, exist_ok=True)
-    frames[n_per - 1].save(OUT / "heat-network.png", optimize=True)
+    frames[n_per - 1].save(OUT / f"heat-network{suffix}.png", optimize=True)
     sample = Image.new("RGB", (W_PX, H_PX * 4 + 80))
     for j, idx in enumerate([n_per - 1, 3 * n_per - 1, 6 * n_per - 1, 9 * n_per - 1]):
         sample.paste(frames[idx], (0, H_PX * j))
@@ -326,10 +370,10 @@ def main() -> None:
     palette = sample.quantize(colors=255, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
     pal_frames = [fr.quantize(palette=palette, dither=Image.Dither.NONE) for fr in frames]
     durations = [90] * len(pal_frames)
-    pal_frames[0].save(OUT / "heat-network-map.gif", save_all=True, append_images=pal_frames[1:], duration=durations,
+    gif = OUT / f"heat-network-map{suffix}.gif"
+    pal_frames[0].save(gif, save_all=True, append_images=pal_frames[1:], duration=durations,
                        loop=0, optimize=True, disposal=1)
-    print("wrote", OUT / "heat-network-map.gif", f"{(OUT / 'heat-network-map.gif').stat().st_size / 1e6:.1f} MB,",
-          len(frames), "frames")
+    print("wrote", gif, f"{gif.stat().st_size / 1e6:.1f} MB,", len(frames), "frames")
 
 
 if __name__ == "__main__":
