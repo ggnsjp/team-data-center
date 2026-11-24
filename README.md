@@ -72,9 +72,9 @@ A calculation sheet follows. It marks every number as a published source, an ass
 - **The robust plan** allows at most one data center at its low IT load and is solved by column-and-constraint generation [31, 33]. It serves the same five sites from No. 1 and keeps **59.7 in every case**, giving up 9.7 % of the nominal value.
 - **Central heat pump.** The nominal plan hangs twelve sites on ZED and loses money if ZED runs low (−1.4). The robust plan keeps 37.3, at a price of 1.8 %.
 
-### Planning for uncertainty pays
+### Planning for uncertainty: a positive value that depends on the search
 
-With the ambient loop, the two-stage stochastic plan earns 93.8 in expectation. A plan built for the average scenario earns 79.0 on the same scenarios. The value of the stochastic solution is **14.8 per year**.
+With the ambient loop, the two-stage stochastic plan earns 93.8 in expectation, and this reproduces exactly. What a plan built for the average scenario earns on the same scenarios depends on the candidate links its search uses: 89.4 with the seeded links and 65.1 without them. The value of the stochastic solution is therefore **4.4 to 28.7 per year**. An earlier run reported 79.0 (a value of 14.8); it came from a different search draw ([details](docs/formulations/heat.md)).
 
 ### The low-temperature loop wins once heat pumps are paid for
 

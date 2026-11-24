@@ -110,7 +110,7 @@ Four scenarios with equal weights: IT load low or high, crossed with kerosene at
 | central | min-max regret | 17 | 8.4 | 81.1 | 32.2 | 5.1 | 10.8 y |
 
 - **Without heat-pump investment,** the stochastic plans reach 149.5 (ambient, 19 sites) and 152.1 (central, 25 sites).
-- **Value of the stochastic solution:** 14.8 (ambient) and 0.0 (central). **Expected value of perfect information:** 10.0 and 3.9.
+- **Value of the stochastic solution:** ambient 4.4 with the seeded candidate links and 28.7 without them (an earlier run reported 14.8, a different search draw; see the replication note under the weather years); central 0.0. **Expected value of perfect information:** ambient 8.3 with the committed recipe (10.0 reported earlier); central 3.9.
 - **At today's kerosene price** (156.8 yen/L), the ambient plan connects 16 sites with 10.7 km and earns 140.3.
 - **Check against v1:** v2 restricted to v1 gives 159.3, against 159.8 for v1, within the solver's 5.6 % gap (24 sites, 18.6 km).
 
@@ -174,7 +174,7 @@ The published mean-scenario plan scores within 0.5 of the published stochastic p
 
 **What the results say.**
 - Small or planned data centers are where uncertainty bites. A robust plan moves users to the large, operating center at a small price.
-- Planning for the average scenario costs 14.8 a year against the stochastic plan in ambient mode.
+- Planning for the average scenario costs 4.4 to 28.7 a year against the stochastic plan in ambient mode, depending on the candidate links of the search; the earlier 14.8 was a single search draw.
 - With heat pumps paid for, the ambient loop beats the central heat pump (93.8 against 81.5).
 
 **Caveats.**
