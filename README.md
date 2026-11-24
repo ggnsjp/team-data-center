@@ -51,6 +51,20 @@ Three effects explain the gap:
 2. **Users that lose money alone pay off on a branch.** A pool 2.8 km from data center No. 1 loses about 8.5 M yen a year with its own pipe. Its heat is worth about 8.6 M yen a year after heat-pump costs, so it pays off on any branch shorter than about 1.4 km.
 3. **Large pipes are cheaper per unit of heat.** Per megawatt carried, a metre of DN250 pipe costs about one seventh of a metre of DN80 (cost line from [15]).
 
+### From ranked partners to a one-page proposal
+
+The app keeps the idea starter's demo flow. Pick a data center, see five partners ranked by what each adds to the regional plan, and open a one-page proposal for any of them (page *Warm Ishikari Proposals*; data from `scripts/export_proposals.py`). The proposal shows:
+- the dedicated pipe on the street map, and the shared network around it;
+- the heat delivered month by month;
+- what the partner adds to the shared network;
+- a range of heat prices at which both sides gain.
+
+A calculation sheet follows. It marks every number as a published source, an assumption or a calculation, and a test checks that no number is left unmarked.
+
+- **No. 1's best partner is the fish farm** (an assumed site). A DN150 pipe of 2.5 km delivers 5,000 MWh a year, replaces 606 kL of kerosene and pays back in 6.3 years. In the regional plan the farm adds 82.4 M yen a year.
+- **A price that works for both sides.** Suppose the supplier owns the pipe. Then any heat price between 5,280 and 16,483 yen/MWh leaves both sides better off. Splitting the gain equally gives 10,881 yen/MWh, against 19,018 yen/MWh for heat from kerosene at 156.8 yen/L. Such a range exists exactly when the pair pays for itself ([formulas](docs/formulations/heat-model.md#11-a-heat-price-for-a-pair)).
+- **Some partners pay only inside the network.** A hospital and a hotel among No. 1's five partners lose 16.6 M and 7.8 M yen a year with a dedicated pipe. In the shared network they add 9.8 M and 8.6 M yen a year.
+
 ### Robust planning avoids leaning on uncertain data centers
 
 - **The nominal plan (ambient loop, kerosene 115 yen/L).** With every data center at its nominal IT load, the best plan earns 66.0. It serves five sites from the small ZED and road heating from the planned NTT-ME center.
@@ -87,7 +101,7 @@ flowchart LR
   CAND --> MILP["Network-design MILP<br/>(HiGHS)"]
   PAR --> MILP
   MILP --> PLANS["Plans: expected, worst case,<br/>minimum regret, robust"]
-  PLANS --> APP["App and animated map"]
+  PLANS --> APP["App, animated map<br/>and one-page proposals"]
 ```
 
 **The model in one paragraph** (related work: [23–26]; robust methods: [31–36]).
@@ -103,6 +117,7 @@ flowchart LR
 uv sync
 uv run python scripts/fetch_data.py --area ishikari    # map data from OpenStreetMap into data/cache (not committed)
 uv run python scripts/export_heat_story.py             # base map and data for the animated map page
+uv run python scripts/export_proposals.py              # ranked partners and proposals per data center (a few minutes)
 uv run streamlit run app/streamlit_app.py              # the demo app
 uv run pytest                                          # tests; those that need map data skip without it
 ```
@@ -118,7 +133,7 @@ uv run pytest                                          # tests; those that need 
 ## Repository layout
 
 ```
-src/dcopt/heat      theme 1: model v1 (v1.py) and v2 (network.py)
+src/dcopt/heat      theme 1: model v1 (v1.py), v2 (network.py), proposals (proposal.py)
 src/dcopt/grid      theme 2
 src/dcopt/siting    theme 3
 src/dcopt/common    shared code: road network, styles

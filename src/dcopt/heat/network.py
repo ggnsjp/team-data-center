@@ -1058,6 +1058,22 @@ def worst_case(plan: Plan, uset: BudgetSet) -> tuple[float, str]:
     return min(vals)
 
 
+def seeded_plan(inst: Instance, P: Params, scens: list[Scenario]) -> tuple[Plan, list[tuple[int, int]]]:
+    """The regional plan behind the published results: kernel search with extra candidate links taken from
+    each data center's own plan, seeded once under `scens` and once under the nominal scenario; the
+    better of the two plans and its extra links."""
+    candidates = []
+    for seed_scens in (scens, [BudgetSet(0).nominal(inst.sources)]):
+        extra: set = set()
+        for d in range(inst.D):
+            one = inst.subset([d], list(range(inst.U)))
+            o = solve_kernel(one, P, seed_scens)
+            extra |= set(one.lift([(a, b) for a, b, _, _ in o.built]))
+        links = sorted(extra)
+        candidates.append((solve_kernel(inst, P, scens, extra_edges=links), links))
+    return max(candidates, key=lambda c: c[0].expected_net)
+
+
 # ------------------------------------------------------------------- matchmaker and the calculator
 def smallest_size(P: Params, q_mw: float) -> int | None:
     for k, s in enumerate(P.sizes):

@@ -7,7 +7,7 @@ st.markdown("石狩（北海道）のデータセンターの最適化  \nOptimi
 st.markdown("""
 | | テーマ / Theme | ページ / Page |
 |---|---|---|
-| 1 | 排熱の導管網 / Waste-heat networks | Warm Ishikari, Warm Ishikari Map |
+| 1 | 排熱の導管網 / Waste-heat networks | Warm Ishikari, Warm Ishikari Map, Warm Ishikari Proposals |
 | 2 | 系統の受け入れ余地 / Grid hosting capacity | 作成中 / in progress |
 | 3 | 次のデータセンターの立地 / Siting | 作成中 / in progress |
 """)

@@ -16,7 +16,7 @@ import numpy as np
 
 from dcopt.common.geo import road_path, use_overpass_mirror
 from dcopt.heat.network import (KEROSENE_SURVEY, BudgetSet, Params, build_instance, ccg, default_scenarios,
-                                evaluate, ishikari_sources, solve_kernel)
+                                evaluate, ishikari_sources, seeded_plan, solve_kernel)
 from dcopt.heat.v1 import MONTHS_EN, TEMP, ishikari_sites
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -73,16 +73,7 @@ def main() -> None:
     inst = build_instance(ishikari_sources(sakura), sites)
     P = Params(mode="ambient", time_limit=60)
     scens = default_scenarios()
-    candidates = []
-    for seed_scens in (scens, [BudgetSet(0).nominal(inst.sources)]):
-        extra: set = set()
-        for d in range(inst.D):                              # seed links: each data center's own plan
-            one = inst.subset([d], list(range(inst.U)))
-            o = solve_kernel(one, P, seed_scens)
-            extra |= set(one.lift([(a, b) for a, b, _, _ in o.built]))
-        extra = sorted(extra)
-        candidates.append((solve_kernel(inst, P, scens, extra_edges=extra), extra))
-    expected, extra = max(candidates, key=lambda c: c[0].expected_net)   # best plan the heuristic found
+    expected, extra = seeded_plan(inst, P, scens)        # seed links: each data center's own plan
     robust = evaluate(ccg(inst, P, BudgetSet(budget=1), extra_edges=extra)["plan"], scens)
     today = [replace(s, prob=0.5) for s in scens if s.kerosene_yen_l == KEROSENE_SURVEY]
     current = solve_kernel(inst, P, today, extra_edges=extra)                # at today's kerosene price

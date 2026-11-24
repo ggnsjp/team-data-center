@@ -339,7 +339,33 @@ The shared network beats this baseline because it avoids duplicated pipes, lets 
 | CO₂ avoided | 1,510 t/yr | $5{,}000 \times 0.302$ |
 | Simple payback | 6.3 years | $517 / 82.4$ |
 
-## 11. Limitations
+## 11. A heat price for a pair
+
+Each proposal (`dcopt.heat.proposal`, app page *Warm Ishikari Proposals*) gives the range of heat prices at which both sides of a pair gain. For data center $d$ and user $u$ with the dedicated pipe of Section 9, let
+- $S_{du} = \sum_\omega p_\omega \sum_t \min\!\big(\bar s_{ut}, W_{dt\omega}/r_u\big)$ be the expected heat delivered per year (MWh),
+- $F_{du}$ be the expected cost of the kerosene it replaces (yen per year),
+- $C^{\mathrm{el}}_{du}$ be the expected cost of the heat pumps' electricity, so that $F_{du} - C^{\mathrm{el}}_{du}$ is the expected value of the heat in the score.
+
+The supplier (the data center or a heat company) owns the pipe. Operation and maintenance are left out, as in the model.
+
+| Mode | Supplier pays | Partner pays | Lowest price for the supplier, $\underline p_{du}$ | Highest price at which the partner gains, $\overline p_{du}$ |
+|---|---|---|---|---|
+| Ambient loop | the pipe | its heat pump and the electricity | $\mathrm{CRF}_p\, c_k\, \ell_{du} / S_{du}$ | $\big(F_{du} - C^{\mathrm{el}}_{du} - \mathrm{CRF}_{hp}\, H_u\big) / S_{du}$ |
+| Central | the pipe, the central heat pump and its electricity | only the price | $\big(\mathrm{CRF}_p\, c_k\, \ell_{du} + \mathrm{CRF}_{hp}\, H_u + C^{\mathrm{el}}_{du}\big) / S_{du}$ | $F_{du} / S_{du}$ |
+
+In both modes
+
+```math
+\overline p_{du} - \underline p_{du} = \frac{\text{score}_{du}}{S_{du}} ,
+```
+
+so a price that leaves both sides better off exists exactly when the pair's score is positive. The proposal also shows the midpoint $(\underline p_{du} + \overline p_{du})/2$. It splits the gain equally, which is the Nash bargaining price for two parties with linear utilities and no deal as the fallback.
+
+**Worked pair (Section 10).** $\underline p = 0.0510 \times 517\ \text{M yen} / 5{,}000\ \text{MWh} = 5{,}280$ yen/MWh. The fish farm uses the heat directly, so $\overline p = 82.41\ \text{M yen} / 5{,}000\ \text{MWh} = 16{,}483$ yen/MWh. The midpoint is 10,881 yen/MWh, against 19,018 yen/MWh for heat from kerosene at 156.8 yen/L.
+
+This is a price for one pair. In a shared network the cost of the common pipes must also be split among the partners. Whether a split exists that no group of partners would leave (the core of the network-design game) is an open question for this model; see the next research questions in the README.
+
+## 12. Limitations
 
 - **Monthly energy balances.** The model has no hourly operation, no storage and no pumping energy. Peaks enter only through $P_u$, $\alpha$ and the duration curve.
 - **Heat loss.** Losses are a flat share $\lambda$. A length-, size- and temperature-dependent loss, fixed per built pipe, is the next step.
