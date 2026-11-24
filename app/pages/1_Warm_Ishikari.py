@@ -14,6 +14,8 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from dcopt.common.geo import paths
+from dcopt.common import llm
+from dcopt.heat import whatif
 from dcopt.heat.v1 import (JMA_SOURCE, KINDS, MONTHS_EN, MONTHS_JA, Assumptions, design,
                          ishikari_sites, pairwise, standalone_and_shared)
 from dcopt.common.style import FONT, GRID, INK, INK2, SLOTS, SURFACE
@@ -29,6 +31,27 @@ ASSUMED = {"new_greenhouse", "aquaculture", "snow"}
 
 def pick(a, b):
     return a if ja else b
+
+
+# The live what-if panel: a submitted question is parsed on the NEXT run, before the sidebar
+# widgets exist, so their session keys can take the parsed values and this run's solve uses them.
+KNOB_TO_KEY = {"it_load_mw": "it_load", "recovery": "recovery", "cop": "hp_cop",
+               "kerosene_yen_l": "kerosene", "power_yen_kwh": "power_price",
+               "pipe_cost": "pipe_cost", "years": "lifetime", "rate": "discount_rate",
+               "renewable_power": "renewable", "assumed_sites": "assumed_sites",
+               "k_pipes": "k_pipes"}
+pending = st.session_state.pop("pending_whatif", None)
+if pending:
+    try:
+        with st.spinner(pick("リクエストを解析中…", "Parsing the request…")):
+            applied = whatif.parse_patch(pending["question"], pending["current"], llm_chat=llm.chat)
+    except (whatif.WhatifError, llm.LLMError) as e:
+        st.error(pick(f"その条件は読み取れませんでした：{e}", f"Could not read that request: {e}"))
+    else:
+        for kid, value in applied.items():
+            st.session_state[KNOB_TO_KEY[kid]] = value
+        st.session_state["pending_explain"] = {"question": pending["question"],
+                                               "changed": applied, "before": pending["before"]}
 
 
 @st.cache_resource(show_spinner=False)
@@ -89,6 +112,45 @@ st.caption(pick(f"差分は「1件ずつ採算順に上位5件を選ぶ」方法
                 f"Deltas against picking the top five users one by one. Investment {opt.capex / 1e8:,.1f} "
                 f"hundred-million yen; optimized in {opt.seconds:.1f} s."))
 
+# ---- live simulation: the LLM chooses the knobs, the model computes the numbers ----
+summary = {pick("つながる需要家（件）", "connected sites"): len(opt.connected),
+           pick("導管（km）", "pipes (km)"): round(opt.pipe_m / 1000, 1),
+           pick("年間の純便益（百万円/年）", "expected net (M yen/yr)"): round(opt.annual_net / 1e6, 1),
+           pick("回収年数", "payback (years)"): round(opt.payback_years, 1),
+           pick("CO2削減（t/年）", "CO2 cut (t/yr)"): int(opt.co2_t),
+           pick("投資額（億円）", "investment (100M yen)"): round(opt.capex / 1e8, 1)}
+st.session_state["last_summary"] = summary
+
+st.markdown("**" + pick("ライブ・シミュレーション（文章で試す）", "Live simulation (ask in plain language)") + "**")
+if not llm.settings()["has_key"]:
+    st.info(pick("環境変数 CF_API_KEY を設定すると、この欄で文章からシナリオを変えられます。"
+                 "数値はすべて左のモデルが計算します。",
+                 "Set the CF_API_KEY environment variable to change scenarios in plain language here. "
+                 "Every number is still computed by the model."))
+    st.chat_input(pick("例：電気料金を2倍にして", "e.g. double the electricity price"), disabled=True)
+else:
+    q = st.chat_input(pick("例：電気料金を2倍にして、仮定の候補地も除いて",
+                           "e.g. double the electricity price and drop the assumed sites"))
+    if q:
+        st.session_state["pending_whatif"] = {
+            "question": q,
+            "current": {kid: st.session_state[wkey] for kid, wkey in KNOB_TO_KEY.items()},
+            "before": st.session_state.get("last_summary")}
+        st.rerun()
+
+explained = st.session_state.pop("pending_explain", None)
+if explained:
+    try:
+        with st.spinner(pick("結果を説明中…", "Explaining the results…")):
+            answer = llm.chat([{"role": "user", "content": whatif.explain_prompt(
+                explained["question"], explained["changed"], explained["before"] or {},
+                summary, "ja" if ja else "en")}], max_tokens=1600)
+    except llm.LLMError as e:
+        st.error(pick(f"説明を生成できませんでした：{e}", f"Could not explain: {e}"))
+    else:
+        with st.chat_message("assistant"):
+            st.markdown(answer)
+
 left, right = st.columns([7, 5], gap="medium")
 with left:
     view = st.radio(pick("地図に表示", "Show on the map"),
@@ -105,7 +167,8 @@ with left:
     top = max(shown.edge_flow.values(), default=1.0)
     for (a, b, metres) in shown.edges:
         flow = shown.edge_flow.get((a, b), 0.0)
-        folium.PolyLine(shown.paths[a, b], color="#c0392b", weight=2 + 8 * math.sqrt(flow / top), opacity=0.85,
+        folium.PolyLine(shown.paths[a, b], color="#c0392b",
+                        weight=2 + 8 * math.sqrt(flow / top) if top > 0 else 2, opacity=0.85,
                         tooltip=pick(f"導管 {metres / 1000:.2f} km・年 {flow:,.0f} MWh",
                                      f"Pipe {metres / 1000:.2f} km, {flow:,.0f} MWh/yr")).add_to(m)
     connected = set(shown.connected)

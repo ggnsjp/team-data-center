@@ -126,6 +126,12 @@ uv run pytest                                          # tests; those that need 
 - Model v1 against v2: `uv run python experiments/heat_v2_compare/run.py`
 - Robust sweep: `uv run python experiments/heat_ccg/run.py ambient`
 
+**Live simulation (the app's Warm Ishikari page)**
+- Type a what-if in either language ("電気料金を2倍にして" / "double the electricity price"); the LLM
+  (carbonforge-flash, OpenAI-compatible via `CF_API_KEY`, override endpoint with `CARBONFORGE_BASE_URL`
+  and model with `LLM_MODEL`) maps it onto the page's knobs, the deterministic model re-runs, and the
+  LLM explains the result. The model never computes numbers; it chooses inputs and explains outputs.
+
 **Redrawing the animation above**
 1. `uv run python scripts/export_heat_network_v2.py`
 2. `uv run python scripts/render_readme_animation.py --plan current` (add `--lang ja` for the Japanese version; it needs a Japanese font such as Noto Sans CJK JP)
