@@ -35,13 +35,13 @@ from __future__ import annotations
 import argparse
 import csv
 import json
-import subprocess
 import time
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import replace
 from datetime import datetime
 from pathlib import Path
 
+from dcopt.common import provenance
 from dcopt.common.geo import use_overpass_mirror
 from dcopt.heat.network import (
     Params,
@@ -187,10 +187,9 @@ def main() -> None:
 
     out = ROOT / "results" / "heat_policy" / datetime.now().strftime("%Y%m%d-%H%M%S")
     out.mkdir(parents=True, exist_ok=True)
-    commit = subprocess.run(["git", "rev-parse", "--short", "HEAD"], cwd=ROOT, capture_output=True, text=True,
-                            check=False).stdout.strip()
     (out / "policy.json").write_text(json.dumps(
-        {"mode": args.mode, "solver": solver_name(P), "commit": commit, "candidate_links": len(edges),
+        {"mode": args.mode, "solver": solver_name(P), "provenance": provenance.stamp(solver=solver_name(P)),
+         "candidate_links": len(edges),
          "published_net": published.expected_net, "polish_seconds": args.polish,
          "seconds": time.perf_counter() - t0, "rows": rows}, indent=1, ensure_ascii=False), encoding="utf-8")
     with open(out / "policy.csv", "w", newline="", encoding="utf-8") as f:
