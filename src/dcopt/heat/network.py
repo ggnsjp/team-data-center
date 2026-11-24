@@ -53,7 +53,8 @@ from typing import TYPE_CHECKING
 import numpy as np
 import scipy.sparse as sp
 
-from dcopt.heat.v1 import DAYS, KEROSENE_KG_CO2_PER_L, KEROSENE_KWH_PER_L, KINDS, Site, _offset
+from dcopt.heat.v1 import (DAYS, GRID_KG_CO2_PER_KWH, GRID_SCENARIOS, KEROSENE_KG_CO2_PER_L, KEROSENE_KWH_PER_L, KINDS,
+                           Site, _offset)
 
 if TYPE_CHECKING:
     from dcopt.heat.weather import WeatherYear
@@ -110,6 +111,7 @@ PEAK_BASIS = ("assumption: greenhouses heat mostly at night (2.5); snow melting 
               "fish farms and factories very steady (1.2)")
 
 RHO, CP = 990.0, 4.18          # water at 30-60 C: kg/m3, kJ/(kg K)
+SUBSIDY_RATES = (1 / 3, 1 / 2, 2 / 3)   # scenario rates shown on the proposals (no claim about a scheme)
 
 
 @dataclass(frozen=True)
@@ -169,7 +171,9 @@ class Params:
     cop_override: float | None = None   # one COP for every user (validation against v1)
     loss_override: float | None = None
     renewable_central: bool = True   # assumption (as v1): the central heat pump runs on the data center's renewable power
-    grid_t_per_mwh: float = 0.55     # assumption (as v1): Hokkaido grid electricity, t CO2 per MWh
+    grid_t_per_mwh: float = GRID_KG_CO2_PER_KWH   # Hokkaido grid electricity, t CO2 per MWh (as v1)
+    carbon_yen_t: float = 0.0        # scenario: a price on the CO2 avoided, on top of today's fuel taxes
+    subsidy: float = 0.0             # scenario: share of the pipe and heat-pump investment paid by a subsidy
     k: int = 3                       # candidate links: k nearest neighbours of every node
     dc_links: int = 1                # and each user's nearest data center(s); data centers link to each other
     max_link_m: float = 8_000.0      # no candidate link longer than this
@@ -188,6 +192,11 @@ class Params:
     def crf_hp(self) -> float:
         r, n = self.rate, self.hp_years
         return r * (1 + r) ** n / ((1 + r) ** n - 1)
+
+    @property
+    def own(self) -> float:
+        """Share of the investment left to the project after the subsidy."""
+        return 1.0 - self.subsidy
 
     @property
     def loss(self) -> float:
@@ -466,8 +475,8 @@ def user_data(inst: Instance, P: Params, scens: list[Scenario],
             hp[u] = P.hp_yen_per_mw_central * c[u]
         elif k["hp_user"]:
             hp[u] = P.hp_yen_per_mw_user * c[u]
-    v = np.array([[P.fuel_yen_per_mwh(s.kerosene_yen_l) - P.power_yen_kwh * 1000 * elec[u] for s in scens]
-                  for u in range(U)]).reshape(U, len(scens))
+    v = np.array([[P.fuel_yen_per_mwh(s.kerosene_yen_l) - P.power_yen_kwh * 1000 * elec[u] + P.carbon_yen_t * co2[u]
+                   for s in scens] for u in range(U)]).reshape(U, len(scens))
     return UserData(dem, peak, peak_w, cap, r, elec, q, v, co2, hp,
                     [P.per_kind(u.kind)["cop"] for u in inst.users])
 
@@ -524,8 +533,17 @@ class Plan:
         return self.capex_pipes + self.capex_hp
 
     @property
+    def own_capex(self) -> float:
+        """The investment left to the project after the subsidy."""
+        return self.P.own * self.capex
+
+    @property
+    def subsidy_yen(self) -> float:
+        return self.P.subsidy * self.capex
+
+    @property
     def annual_cost(self) -> float:
-        return self.P.crf * self.capex_pipes + self.P.crf_hp * self.capex_hp
+        return self.P.own * (self.P.crf * self.capex_pipes + self.P.crf_hp * self.capex_hp)
 
     @property
     def delivered(self) -> np.ndarray:        # W
@@ -549,11 +567,38 @@ class Plan:
 
     @property
     def payback(self) -> float:
-        return self.capex / self.expected_value if self.expected_value > 0 else math.inf
+        return self.own_capex / self.expected_value if self.expected_value > 0 else math.inf
 
     @property
     def co2(self) -> np.ndarray:              # W, t per year
         return np.einsum("udtw,u->w", self.s, self.ud.co2)
+
+    @property
+    def carbon_value(self) -> np.ndarray:     # W, yen per year: the part of `value` that is the carbon price
+        return self.P.carbon_yen_t * self.co2
+
+    @property
+    def electricity(self) -> np.ndarray:      # W, MWh per year drawn by the heat pumps
+        return np.einsum("udtw,u->w", self.s, self.ud.elec)
+
+    def co2_at(self, grid_t_per_mwh: float) -> np.ndarray:
+        """W, t per year avoided if every heat pump drew electricity of this emission factor."""
+        fuel_t = KEROSENE_KG_CO2_PER_L / (KEROSENE_KWH_PER_L * self.P.boiler_eff)
+        return fuel_t * self.delivered - grid_t_per_mwh * self.electricity
+
+    def co2_scenarios(self) -> dict[str, float]:
+        """Expected t per year avoided under each electricity scenario of GRID_SCENARIOS."""
+        return {key: float(self.p @ self.co2_at(f)) for key, (_, _, f) in GRID_SCENARIOS.items()}
+
+    @property
+    def abatement_yen_t(self) -> float:
+        """Expected cost of a tonne of CO2 avoided with no carbon price and no subsidy: the full annual
+        cost minus the fuel saving, per tonne. Negative when the plan pays for itself."""
+        co2 = float(self.p @ self.co2)
+        if co2 <= 0:
+            return math.inf
+        full_cost = self.P.crf * self.capex_pipes + self.P.crf_hp * self.capex_hp
+        return (full_cost - float(self.p @ (self.value - self.carbon_value))) / co2
 
     @property
     def connected(self) -> list[int]:
@@ -633,8 +678,8 @@ def build_model(inst: Instance, P: Params, scens: list[Scenario], *, edges: list
     nv = osv + U * D * T * Wn
 
     cost = np.zeros((Wn, nv))
-    cost[:, oy:ox] = P.crf * np.outer(length, cost_k).ravel()
-    cost[:, ox:oz] = P.crf_hp * ud.hp
+    cost[:, oy:ox] = P.own * P.crf * np.outer(length, cost_k).ravel()
+    cost[:, ox:oz] = P.own * P.crf_hp * ud.hp
     for w in range(Wn):
         blockv = np.zeros((U, D, T, Wn))
         blockv[..., w] = -ud.v[:, w][:, None, None]
@@ -765,6 +810,13 @@ def solver_name(P: Params) -> str:
     return name
 
 
+def solver_threads() -> int:
+    """Threads per solve from DCOPT_THREADS (0 or unset: the solver's default). Set it when several
+    solves run side by side, so that their time limits mean the same thing on a busy machine."""
+    import os
+    return max(0, int(os.environ.get("DCOPT_THREADS", "0") or 0))
+
+
 def _run(c, A, lo, hi, lb, ub, integ, P: Params, start: np.ndarray | None, relax: bool = False) -> dict:
     """Solve min c.v s.t. lo <= A v <= hi, lb <= v <= ub; returns v, status, gap and bound (minimisation)."""
     integ = np.zeros_like(integ) if relax else integ
@@ -785,6 +837,8 @@ def _run(c, A, lo, hi, lb, ub, integ, P: Params, start: np.ndarray | None, relax
             if dn.any():
                 g.addMConstr(A[dn], v, ">", lo[dn])
             g.Params.TimeLimit, g.Params.MIPGap = P.time_limit, P.mip_rel_gap
+            if solver_threads():
+                g.Params.Threads = solver_threads()
             if start is not None and not relax:
                 v.Start = start
             g.optimize()
@@ -810,6 +864,8 @@ def _run(c, A, lo, hi, lb, ub, integ, P: Params, start: np.ndarray | None, relax
     h.setOptionValue("time_limit", float(P.time_limit))
     h.setOptionValue("mip_rel_gap", float(P.mip_rel_gap))
     h.setOptionValue("mip_heuristic_effort", float(P.heuristic_effort))
+    if solver_threads():
+        h.setOptionValue("threads", solver_threads())
     h.passModel(lp)
     if start is not None and not relax:
         sol = highspy.HighsSolution()
@@ -1133,7 +1189,7 @@ def pair_score(inst: Instance, P: Params, scens: list[Scenario], d: int, u: int,
     pipe = P.sizes[k].yen_m * dist
     return {"u": u, "d": d, "dist_m": dist, "size": P.sizes[k].dn, "capex": pipe + ud.hp[u],
             "heat_mwh": float(prob @ heat), "value": value,
-            "score": value - P.crf * pipe - P.crf_hp * ud.hp[u]}
+            "score": value - P.own * (P.crf * pipe + P.crf_hp * ud.hp[u])}
 
 
 def pairwise(inst: Instance, P: Params, scens: list[Scenario], d: int, top: int = 5) -> Plan:
@@ -1226,8 +1282,31 @@ def pair_calculator(inst: Instance, P: Params, scens: list[Scenario], d: int, u:
         ("saving", "年間の節約（期待値）", "Annual saving (expected)", round(exp_save), "yen", "calculated", "probability-weighted"),
         ("co2", "CO2削減（期待値）", "CO2 avoided (expected)", round(float(prob @ heat_w) * ud.co2[u], 1), "t/yr", "calculated",
          f"kerosene {KEROSENE_KG_CO2_PER_L} kg/L ({URL['co2']}); grid {P.grid_t_per_mwh} t/MWh for user heat pumps (assumption)"),
-        ("payback", "単純回収年数", "Simple payback", round((pipe + ud.hp[u]) / exp_save, 1) if exp_save > 0 else None,
+        ("payback", "単純回収年数", "Simple payback",
+         round(P.own * (pipe + ud.hp[u]) / exp_save, 1) if exp_save > 0 else None,
          "years", "calculated", "investment / expected annual saving"),
+    ]
+    # Policy scenarios for the pair: other electricity for the heat pump, the cost of a tonne, a subsidy.
+    heat, elec = float(prob @ heat_w), float(prob @ heat_w) * ud.elec[u]
+    fuel_t = KEROSENE_KG_CO2_PER_L / (KEROSENE_KWH_PER_L * P.boiler_eff)
+    co2_by = [heat * fuel_t - elec * f for _, _, f in GRID_SCENARIOS.values()]
+    co2_own = heat * ud.co2[u]
+    full_cost = P.crf * pipe + P.crf_hp * ud.hp[u]
+    save_plain = exp_save - P.carbon_yen_t * co2_own             # the saving without any carbon price
+    rows += [
+        ("co2_power", "CO2削減：ヒートポンプの電気が再エネ100%／2030年度目標／系統電力の場合",
+         "CO2 avoided if the heat pump runs on renewable power / the FY2030 target mix / grid power",
+         " / ".join(f"{x:,.0f}" for x in co2_by), "t/yr", "calculated",
+         ("kerosene not burned minus heat-pump electricity x "
+          + ", ".join(f"{f:g}" for _, _, f in GRID_SCENARIOS.values())
+          + " t/MWh (scenarios; the same in every case when the heat is used directly)")),
+        ("abatement", "CO2を1トン減らす費用（補助・炭素価格なし）", "Cost of a tonne of CO2 avoided (no subsidy, no carbon price)",
+         round((full_cost - save_plain) / co2_own) if co2_own > 0 else None, "yen/t", "calculated",
+         ("(annual cost of pipe and heat pump - expected annual saving) / CO2 avoided; negative when the pair "
+          "pays for itself, otherwise the carbon price at which it breaks even")),
+        ("payback_subsidy", "回収年数：補助率が1/3・1/2・2/3の場合", "Payback with a subsidy of 1/3, 1/2 or 2/3",
+         " / ".join(f"{(1 - r) * (pipe + ud.hp[u]) / save_plain:.1f}" for r in SUBSIDY_RATES) if save_plain > 0 else None,
+         "years", "calculated", "investment x (1 - subsidy rate) / expected annual saving (scenarios)"),
     ]
     return [{"key": a, "ja": b, "en": c_, "value": v, "unit": un, "tag": tg, "basis": bs}
             for a, b, c_, v, un, tg, bs in rows]
