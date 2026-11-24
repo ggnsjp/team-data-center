@@ -26,7 +26,7 @@ We took the idea starter **"Warm Ishikari"**: a matchmaker and calculator for da
 |---|---|---|---|
 | 1. Waste-heat networks | Which users connect to which data center, along which streets, with which pipes? | Network-design MILP with monthly heat balances; stochastic and robust versions [23–26, 31–36] | Models v1 and v2, app and animated map |
 | 2. Grid hosting capacity | How much data-center and heat-pump load can each grid location take? | AC optimal power flow with convex (SDP/SOCP) relaxations: certified upper bounds plus feasible points [37–47, 59–64] | Method and app page; checked on benchmark systems |
-| 3. Siting | Where should the next data center go? | Facility location using the results of themes 1 and 2 [48–52] | Planned |
+| 3. Siting | Where should the next data center go? | Facility location using the results of themes 1 and 2 [48–52] | First screen: heat value by site, distance to the grid, app page |
 
 ## Results so far (theme 1)
 
@@ -152,6 +152,26 @@ The app's *Grid hosting capacity* page solves one bus at a time and shows the br
 
 **Caveats.** Generators redispatch freely, which is the best case for the network; an operator's own dispatch rules leave less room. One operating condition at a time, no stability limits. The upper bounds are certified up to the conic solver's tolerance. The AC method is local, so a lower bound need not be the best one unless the bracket is closed.
 
+## Results so far (theme 3)
+
+> **A first screen, not a site search.** The candidate sites are grid points. Zoning, land, fibre and hazards are not considered, and the grid enters as a distance, because there is no network model of the Hokkaido grid yet.
+
+For each of 56 candidate sites in Ishikari (a 1.5 km grid, each point moved to the nearest road), the heat-network model of theme 1 is solved again with a new 10 MW data center there. The gain over today's regional plan is the value of that data center's waste heat. The distance to the nearest substation comes from OpenStreetMap.
+
+| Site | Near | Heat value (M yen/yr) | Sites served from it | To a 66 kV substation | To a 187 kV substation |
+|---|---|---|---|---|---|
+| g07 | 新港西一丁目 | 45.2 | 10 | 1.4 km | 5.2 km |
+| g08 | 花川北四条一丁目 | 44.9 | 16 | 1.7 km | 5.5 km |
+| g09 | 花川北七条三丁目 | 25.2 | 14 | 1.8 km | 4.8 km |
+| g38 | 弁天町 | 19.9 | 2 | 8.2 km | 8.3 km |
+
+- **The heat has value at 19 of the 56 sites.** At the best one it is 45.2 M yen a year, almost half of what the whole regional plan earns today (93.8).
+- **What counts is being nearer to the heat users.** The best sites are 1 to 2 km from the existing data centers, on the town side. At the port itself heat is already in surplus: the regional plan uses about 15 % of what the existing data centers could supply, so one more data center there adds nothing.
+- **The grid connection decides how much is left.** With a connection line at 100 M yen/km (an assumption), the best site keeps 37.9 of its 45.2 if it connects at the 66 kV substation 1.4 km away, and 18.5 if it has to connect at 187 kV, 5.2 km away.
+- **A second new data center is worth about a third of the first:** 16.6 of heat value on top, and 3.3 after its own connection cost.
+
+The app's *Siting* page shows the map and solves the location model for a chosen number of data centers, connection level and cost. The values are lower bounds from a heuristic search, computed one site at a time. They are from the run with Gurobi; HiGHS alone gives the same values at the four best sites and lower ones at 17 others. Formulation, method and limits: [docs/formulations/siting.md](docs/formulations/siting.md).
+
 ## How it works
 
 ```mermaid
@@ -178,6 +198,7 @@ uv sync
 uv run python scripts/fetch_data.py --area ishikari    # map data from OpenStreetMap into data/cache (not committed)
 uv run python scripts/export_heat_story.py             # base map and data for the animated map page
 uv run python scripts/export_proposals.py              # ranked partners and proposals per data center (a few minutes)
+uv run python scripts/export_siting.py                 # theme 3: heat value of a new data center at every candidate site (15 minutes)
 uv run streamlit run app/streamlit_app.py              # the demo app
 uv run pytest                                          # tests; those that need map data skip without it
 ```
@@ -203,7 +224,7 @@ uv run pytest                                          # tests; those that need 
 ```
 src/dcopt/heat      theme 1: model v1 (v1.py), v2 (network.py), proposals (proposal.py)
 src/dcopt/grid      theme 2: networks (cases.py), relaxations (relax.py), AC points (ac.py), brackets (hosting.py)
-src/dcopt/siting    theme 3
+src/dcopt/siting    theme 3: candidate sites (candidates.py), heat value (heat_value.py), grid distances (gridmap.py), location model (model.py)
 src/dcopt/common    shared code: road network, styles
 app/                Streamlit app
 web/heat_story/     animated map page
@@ -241,7 +262,7 @@ tests/              unit tests on synthetic instances and app tests
 - Two-stage robust design when it is uncertain which planned data centers will be built [32–35].
 - A network model for Ishikari: HEPCO Network's published data for 187 kV and above, the IEEJ standard models, or OpenStreetMap.
 - Tighter relaxations where voltage limits bind [42, 63], and flexible data-center loads as curtailable connections [50, 51].
-- Siting that combines heat reuse, grid capacity, renewables, fiber and hazards [29, 30, 48–52].
+- Siting with the hosting capacity as a constraint, with candidate data centers chosen inside the heat-network model, and with land, hazard and fibre layers [29, 30, 48–52].
 
 ## References
 

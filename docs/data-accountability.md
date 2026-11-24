@@ -145,14 +145,25 @@ flowchart LR
   n46{"tests/test_grid_hosting.py"}
   n47[("Built-in illustrative power systems: a two-bus line, a five-bus ring and an eight-bus feeder")]
   n49{"tests/test_grid_app.py"}
-  n50[("Generated results: experiment outputs, proposal exports and map exports")]
-  n51(["MIT + ODbL-1.0 where maps are drawn"])
-  n54["scripts/export_proposals.py"]
-  n55["scripts/export_heat_story.py"]
-  n56["app/pages/3_Warm_Ishikari_Proposals.py"]
-  n57{"tests/test_proposal.py"}
-  n58{"tests/test_properties.py"}
-  n59{"tests/test_bruteforce.py"}
+  n50[("OpenStreetMap: transmission lines, substations and power plants around the study area")]
+  n52["src/dcopt/siting/gridmap.py"]
+  n53["scripts/export_siting.py"]
+  n54["app/pages/6_Siting.py"]
+  n55{"tests/test_siting.py"}
+  n56[("Siting study: candidate sites, the heat value of each and its distance to the grid")]
+  n57(["MIT + ODbL-1.0"])
+  n59["src/dcopt/siting/candidates.py"]
+  n60["src/dcopt/siting/heat_value.py"]
+  n61["src/dcopt/siting/model.py"]
+  n62{"tests/test_siting_app.py"}
+  n63[("Generated results: experiment outputs, proposal exports and map exports")]
+  n64(["MIT + ODbL-1.0 where maps are drawn"])
+  n67["scripts/export_proposals.py"]
+  n68["scripts/export_heat_story.py"]
+  n69["app/pages/3_Warm_Ishikari_Proposals.py"]
+  n70{"tests/test_proposal.py"}
+  n71{"tests/test_properties.py"}
+  n72{"tests/test_bruteforce.py"}
   n0 -->|under| n1
   n2 -->|feeds| n0
   n0 -->|used_by| n4
@@ -207,14 +218,28 @@ flowchart LR
   n45 -->|checks| n47
   n46 -->|checks| n47
   n49 -->|checks| n47
-  n50 -->|under| n51
-  n14 -->|makes| n50
-  n54 -->|makes| n50
-  n55 -->|makes| n50
-  n50 -->|used_by| n56
-  n57 -->|checks| n50
-  n58 -->|checks| n50
-  n59 -->|checks| n50
+  n50 -->|under| n28
+  n29 -->|feeds| n50
+  n52 -->|makes| n50
+  n50 -->|used_by| n53
+  n50 -->|used_by| n54
+  n55 -->|checks| n50
+  n56 -->|under| n57
+  n53 -->|makes| n56
+  n59 -->|makes| n56
+  n60 -->|makes| n56
+  n61 -->|makes| n56
+  n56 -->|used_by| n54
+  n55 -->|checks| n56
+  n62 -->|checks| n56
+  n63 -->|under| n64
+  n14 -->|makes| n63
+  n67 -->|makes| n63
+  n68 -->|makes| n63
+  n63 -->|used_by| n69
+  n70 -->|checks| n63
+  n71 -->|checks| n63
+  n72 -->|checks| n63
 ```
 <!-- lineage:end -->
 

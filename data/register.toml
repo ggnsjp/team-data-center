@@ -119,6 +119,36 @@ checks = ["tests/test_grid_cases.py", "tests/test_grid_hosting.py", "tests/test_
 refresh = "None: they are examples."
 
 [[dataset]]
+id = "osm-power-ishikari"
+title = "OpenStreetMap: transmission lines, substations and power plants around the study area"
+storage = "local"
+paths = ["data/cache/ishikari/power.geojson"]
+terms = "ODbL-1.0"
+licence = "ODbL 1.0, © OpenStreetMap contributors. Never committed; outputs that show it credit OSM."
+sources = ["https://www.openstreetmap.org/copyright"]
+made_by = "downloaded on first use by dcopt.siting.gridmap.load_power, for example through uv run python scripts/export_siting.py"
+code = ["src/dcopt/siting/gridmap.py"]
+processing = "Features tagged power=line, minor_line, cable, substation or plant inside the study area's bounding box plus a margin, saved as GeoJSON. The highest value of the voltage tag becomes the voltage class. Not checked against the grid operator's records."
+used_by = ["scripts/export_siting.py", "app/pages/6_Siting.py"]
+checks = ["tests/test_siting.py"]
+refresh = "Delete the file and run again before a run whose results are published, and record the date."
+
+[[dataset]]
+id = "siting-study"
+title = "Siting study: candidate sites, the heat value of each and its distance to the grid"
+storage = "local"
+paths = ["out/siting/"]
+terms = "MIT + ODbL-1.0"
+licence = "MIT for our numbers; site positions and the map layers come from OpenStreetMap (ODbL) and are credited where shown"
+sources = []
+made_by = "uv run python scripts/export_siting.py"
+code = ["scripts/export_siting.py", "src/dcopt/siting/candidates.py", "src/dcopt/siting/heat_value.py", "src/dcopt/siting/model.py"]
+processing = "Grid points inside the municipal boundary are moved to the nearest road node. For each, the regional heat plan is solved with a new data center there; the gain over the plan without it is stored with the distances to the nearest substations."
+used_by = ["app/pages/6_Siting.py"]
+checks = ["tests/test_siting.py", "tests/test_siting_app.py"]
+refresh = "Re-run after any change to the heat model or its data."
+
+[[dataset]]
 id = "results"
 title = "Generated results: experiment outputs, proposal exports and map exports"
 storage = "local"

@@ -65,6 +65,15 @@ Checked on 2026-11-25. The carbon prices and subsidy rates are scenario values f
 | Built-in systems (two buses, a five-bus ring, an eight-bus feeder) | illustrative values in a realistic per-unit range; not a real network | Our own data, in `src/dcopt/grid/cases.py` |
 | A network model of the Hokkaido grid | none found in public. HEPCO Network publishes configuration data for 187 kV and above and 30-minute supply and demand; OpenStreetMap has the lines and substations around Ishikari with their voltage classes | to be built: see the open questions in `docs/formulations/grid.md` |
 
+## Siting (theme 3)
+
+| Item | Value | Source or assumption |
+|---|---|---|
+| Transmission lines, voltage classes and substations around Ishikari | as mapped; 275, 187 and 66 kV classes | OpenStreetMap (© OpenStreetMap contributors, ODbL), downloaded into `data/cache/ishikari/power.geojson`; not checked against HEPCO Network's records |
+| Cost of a grid connection line | 100 M yen per km, turned into an annuity at 3 % over 30 years | Assumption (a slider in the app); to be replaced by published standard unit costs |
+| IT load of a new data center | 10 MW, and 60 % of it in the low-load scenarios | Assumption; the ratio is that of data center No. 1 in the model |
+| Candidate sites | points of a 1.5 km grid inside the municipal boundary, moved to the nearest road | Generated; not a land survey |
+
 ## Climate
 
 | Item | Source |
