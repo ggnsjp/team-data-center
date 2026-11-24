@@ -42,6 +42,18 @@ def test_dc_screening_on_two_buses_is_the_line_rating_or_the_generator():
     assert h.dc == pytest.approx(120.0) and h.ac < 120.0 and h.limit == "thermal"   # losses and Q use the rating
 
 
+def test_a_network_without_load_keeps_its_ac_point_under_tiny_perturbations():
+    """The two-bus example has no existing load, where the interior-point method is ill-conditioned:
+    a run on another machine once returned no AC point. The base point no longer depends on it."""
+    rng = np.random.default_rng(0)
+    for _ in range(25):
+        case = cases.two_bus(rate=120.0)
+        eps = 1e-10 * rng.standard_normal(3)
+        case = replace(case, x=case.x * (1 + eps[0]), pmax=case.pmax * (1 + eps[1]), rate=case.rate * (1 + eps[2]))
+        h = hosting_capacity(case, 1, pf=1.0)
+        assert h.ac == pytest.approx(119.1329, abs=1e-3) and h.gap < 1e-6
+
+
 @pytest.mark.parametrize("name", ["ring5", "feeder8"])
 def test_bounds_are_ordered_and_the_ac_point_is_verified(name):
     case = cases.load(name)

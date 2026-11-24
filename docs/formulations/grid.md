@@ -65,7 +65,7 @@ The conic problems are solved with Clarabel, an open-source interior-point solve
 
 `dcopt.grid.ac` solves the AC problem in rectangular coordinates $V = e + jf$. The lifted products are exact quadratics there ($c_i = e_i^2 + f_i^2$, $w^r_{ij} = e_i e_j + f_i f_j$, $w^i_{ij} = f_i e_j - e_i f_j$), so Jacobians and the Hessian of the Lagrangian are exact and sparse.
 
-1. **Base point.** One optimal power flow without added load (least total generation) gives a feasible operating point of the network as it is. It is reused for every bus.
+1. **Base point.** One optimal power flow without added load (least total generation) gives a feasible operating point of the network as it is. It is reused for every bus. A network without any load is a special case: the flat start is already feasible there and is used as it is, because the interior-point method is ill-conditioned on that problem (on the two-bus example it failed for about half of 200 copies whose data were perturbed by $10^{-10}$; on the systems with load, 357 perturbed solves all returned the same value).
 2. **Direct run.** A primal-dual interior-point method in the style of MIPS (Wang et al. 2007) maximizes $\lambda$ from the base point.
 3. **Proximal-point climb.** On the larger systems the direct run often stalls: at maximum loading the Newton systems become ill-conditioned. Then each round solves $\max\ \lambda - \rho\,\lVert x - x_k\rVert^2$ from the last verified point $x_k$. The added load never decreases between verified points. $\rho$ shrinks after a successful round and grows after a failed one.
 4. **Independent check.** A point counts only if a separate routine, working from the complex voltages alone, finds every balance and limit satisfied within $10^{-6}$ per unit.

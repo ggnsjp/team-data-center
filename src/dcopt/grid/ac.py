@@ -303,15 +303,40 @@ class ACProblem:
         return best
 
     def base_point(self, relaxed_voltages: np.ndarray | None = None) -> ACPoint:
-        """A feasible operating point of the case as it is (no added load): the least-generation
-        dispatch, from a flat start and, if that fails, from the given voltage estimate."""
+        """A feasible operating point of the case as it is (no added load). Tried in this order, and
+        the first point that passes the check is returned:
+          1. the flat start itself, with every generator at the output nearest to zero (a network
+             without load is feasible there, and the interior-point method is ill-conditioned on it);
+          2. the least-generation dispatch from the flat start;
+          3. the same from a start whose total generation matches the load;
+          4. the same with a proximal term, and from the given voltage estimate."""
+        case, lf = self.case, self.lifted
+        w = np.zeros(case.n)
+        x = self.start()
+        x[lf.i_pg], x[lf.i_qg] = np.clip(0.0, case.pmin, case.pmax), np.clip(0.0, case.qmin, case.qmax)
+        v = x[self.ny:self.ny + case.n] + 1j * x[self.ny + case.n:]
+        chk = check_point(case, w, 0.0, 0.0, x[lf.i_pg], x[lf.i_qg], v)
+        if chk["max"] < FEAS_TOL:
+            return ACPoint(0.0, chk["max"], True, 0, 0.0, "base (flat start is feasible)", 0.0, x[lf.i_pg], x[lf.i_qg], v,
+                           None, {"x": x, "check": {k: val for k, val in chk.items() if k not in ("sf", "st")}})
         cost = np.zeros(self.ny)
-        cost[self.lifted.i_lam] = 1.0
-        cost[self.lifted.i_pg] = 1.0
-        w = np.zeros(self.case.n)
+        cost[lf.i_lam] = 1.0
+        cost[lf.i_pg] = 1.0
         point = self.solve(w, 0.0, start="base (flat)", cost=cost)
-        if point.value is None and relaxed_voltages is not None:
-            point = self.solve(w, 0.0, x0=self.start(relaxed_voltages), start="base (relaxation)", cost=cost)
+        if point.value is not None:
+            return point
+        matched = self.start()
+        span = case.pmax - case.pmin
+        share = float(np.clip((1.02 * case.pd.sum() - case.pmin.sum()) / max(float(span.sum()), 1e-9), 0.02, 0.98))
+        matched[lf.i_pg] = case.pmin + share * span
+        attempts = [("base (matched dispatch)", matched, 0.0), ("base (proximal)", self.start(), 1e-2),
+                    ("base (matched, proximal)", matched, 1e-2)]
+        if relaxed_voltages is not None:
+            attempts.append(("base (relaxation)", self.start(relaxed_voltages), 0.0))
+        for name, x0, prox in attempts:
+            trial = self.solve(w, 0.0, x0=x0, start=name, cost=cost, prox=prox)
+            if trial.value is not None:
+                return trial
         return point
 
     def climb(self, w: np.ndarray, tan_phi: float, base: ACPoint, upper: float, steps: int = 14) -> ACPoint | None:
