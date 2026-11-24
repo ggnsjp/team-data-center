@@ -1930,6 +1930,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "altair" },
+    { name = "clarabel" },
     { name = "folium" },
     { name = "geopandas" },
     { name = "highspy" },
@@ -1963,6 +1964,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "altair", specifier = ">=5" },
+    { name = "clarabel", specifier = ">=0.11" },
     { name = "clarabel", marker = "extra == 'conic'", specifier = ">=0.9" },
     { name = "folium", specifier = ">=1.0.0" },
     { name = "geopandas", specifier = ">=1.2.0" },
