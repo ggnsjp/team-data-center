@@ -290,7 +290,7 @@ const T = {
     kCapex: "投資額（億円）", kPayback: "回収年数（年）", kCo2: "CO2削減（t）", kUsed: "廃熱の利用率",
     pairsNote: "ペア上位5件：施設ごとにデータセンターから専用管を引く前提で採点し、上位5件をつないだ場合です。",
     legend: "凡例",
-    farm: "農業・水産（温室・陸上養殖）", building: "建物（病院・学校・プール・温泉）", snow: "融雪",
+    farm: "農業・水産（温室・陸上養殖）", building: "建物（病院・学校・プール・温泉・公共施設・ホテル・工場）", snow: "融雪",
     lDc: "データセンター（熱源）", lPipe: "導管（太さはその月の熱量）", lOn: "白い縁：つながる施設",
     lAssumed: "点線の縁：仮定の候補地", lSize: "円の大きさは年間の熱需要",
     dcShort: "データセンター", play: "再生", pause: "一時停止",
@@ -344,7 +344,7 @@ const T = {
     kCapex: "Investment (100M yen)", kPayback: "Payback (years)", kCo2: "CO2 cut (t)", kUsed: "Waste heat used",
     pairsNote: "Top five pairs: each user scored alone, with its own pipe from the data center, and the best five connected.",
     legend: "Legend",
-    farm: "Farms and fish (greenhouses, fish farm)", building: "Buildings (hospitals, schools, pools, bath)", snow: "Snow melting",
+    farm: "Farms and fish (greenhouses, fish farm)", building: "Buildings (hospitals, schools, pools, baths, public buildings, hotels, factories)", snow: "Snow melting",
     lDc: "Data center (heat source)", lPipe: "Pipe (width = that month's heat)", lOn: "White ring: connected",
     lAssumed: "Dashed ring: assumed site", lSize: "Circle size = yearly heat demand",
     dcShort: "Data center", play: "Play", pause: "Pause",
@@ -385,7 +385,10 @@ const T = {
     pipeTip: (km, v) => `Pipe ${km} km, ${v} MWh a year`,
   },
 };
-const GROUP_OF = { greenhouse: "farm", new_greenhouse: "farm", aquaculture: "farm", hospital: "building", school: "building", pool: "building", onsen: "building", snow: "snow" };
+// the same grouping as scripts/render_readme_animation.py; a kind added to the model later draws as a building
+// instead of stopping the page (an unknown kind used to throw before the map was drawn)
+const GROUP_OF = { greenhouse: "farm", new_greenhouse: "farm", aquaculture: "farm", hospital: "building", school: "building", pool: "building", onsen: "building", public: "building", hotel: "building", factory: "building", snow: "snow" };
+const groupOf = (kind) => GROUP_OF[kind] ?? "building";
 const GROUPS = ["farm", "building", "snow"];
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const $ = (id) => document.getElementById(id);
@@ -557,7 +560,7 @@ function drawNet() {
     const r = 3 + 2.1 * Math.sqrt(s.annual / 250);
     const served = net.served[s.id];
     const now = served ? served[S.month] : 0;
-    const col = C[GROUP_OF[s.kind]];
+    const col = C[groupOf(s.kind)];
     ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
     ctx.fillStyle = rgba(col, served ? (now > 0 ? 0.92 : 0.4) : 0.18); ctx.fill();
     if (s.assumed) ctx.setLineDash([2.5, 2.5]);
@@ -695,7 +698,7 @@ function renderPanel() {
   ];
   $("kpi").innerHTML = `<thead><tr><th></th><th class="${on === "opt" ? "on" : ""}">${esc(t("colOpt"))}</th><th class="${on === "pairs" ? "on" : ""}">${esc(t("colPairs"))}</th></tr></thead><tbody>` +
     rows.map(([a, x, y]) => `<tr><td>${esc(a)}</td><td class="num${on === "opt" ? " on" : ""}">${x}</td><td class="num${on === "pairs" ? " on" : ""}">${y}</td></tr>`).join("") + "</tbody>";
-  const groups = GROUPS.filter((g) => sc.kinds.some((k) => GROUP_OF[k] === g));
+  const groups = GROUPS.filter((g) => sc.kinds.some((k) => groupOf(k) === g));
   $("legend").innerHTML =
     `<span><i class="sw dc"></i>${esc(t("lDc"))}</span><span><i class="sw pipe"></i>${esc(t("lPipe"))}</span>` +
     groups.map((g) => `<span><i class="sw" style="background:var(--g-${g})"></i>${esc(t(g))}</span>`).join("") +
@@ -707,7 +710,7 @@ function renderPanel() {
 /* ---------- chart ---------- */
 function monthlyByGroup(net) {
   const out = Object.fromEntries(GROUPS.map((g) => [g, Array(12).fill(0)]));
-  for (const [id, arr] of Object.entries(net.served)) arr.forEach((v, i) => (out[GROUP_OF[sitesById[id].kind]][i] += v));
+  for (const [id, arr] of Object.entries(net.served)) arr.forEach((v, i) => (out[groupOf(sitesById[id].kind)][i] += v));
   return out;
 }
 function candidatesDemand(sc) {

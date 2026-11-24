@@ -4,9 +4,10 @@ from pathlib import Path
 import pytest
 from streamlit.testing.v1 import AppTest
 
+from dcopt.common.geo import missing_map_data
+
 ROOT = Path(__file__).resolve().parents[1]
-pytestmark = pytest.mark.skipif(not (ROOT / "data/cache/ishikari/heat_candidates.geojson").exists(),
-                                reason="run the Ishikari data fetch first")
+pytestmark = pytest.mark.skipif(bool(missing_map_data()), reason="run the Ishikari data fetch first")
 
 
 def test_heat_page_renders():

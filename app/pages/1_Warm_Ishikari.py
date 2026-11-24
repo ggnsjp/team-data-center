@@ -15,7 +15,7 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-from dcopt.common.geo import geocode, paths
+from dcopt.common.geo import fetch_command, geocode, missing_map_data, paths
 from dcopt.common import llm
 from dcopt.heat import whatif
 from dcopt.heat.network import ishikari_sources
@@ -117,6 +117,17 @@ A = Assumptions(it_load_mw=float(it), recovery=float(rec), cop=float(cop), keros
                 renewable_power=renew, carbon_yen_t=float(carbon), subsidy=subsidy_pct / 100)
 A0 = replace(A, carbon_yen_t=0.0, subsidy=0.0)          # the same assumptions with no policy
 
+
+if missing := missing_map_data():
+    st.title("Warm Ishikari · " + pick("データセンターの排熱を、まちの熱に", "Data-center heat for the town"))
+    st.warning(pick(f"石狩市の地図データがありません（{len(missing)} 件のファイルが未取得: "
+                    f"{', '.join(f.name for f in missing)}）。OpenStreetMap から取得してから、このページを開き直してください"
+                    "（数分かかります）。",
+                    f"Ishikari's map data is missing ({len(missing)} file(s) not fetched yet: "
+                    f"{', '.join(f.name for f in missing)}). Fetch it from OpenStreetMap, then reload this page "
+                    "(it takes a few minutes)."))
+    st.code(fetch_command(), language="bash")
+    st.stop()
 
 with st.spinner(pick("石狩市の地図と施設を読み込み中…", "Loading Ishikari's map and facilities…")):
     dc, _ = load_sites()

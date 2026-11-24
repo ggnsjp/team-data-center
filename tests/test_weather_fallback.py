@@ -201,6 +201,7 @@ def page(tmp_path, monkeypatch) -> Path:
     shutil.copy(PAGE, copy)
     inst = tiny()
     monkeypatch.setattr(geo, "use_overpass_mirror", lambda *a, **k: None)
+    monkeypatch.setattr(geo, "missing_map_data", lambda *a, **k: [])      # the synthetic network stands in
     monkeypatch.setattr(v1, "ishikari_sites", lambda: (inst.users[0], inst.users))
     monkeypatch.setattr(network, "build_instance", lambda sources, users, area="ishikari": inst)
     st.cache_resource.clear()
