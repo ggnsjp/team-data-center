@@ -13,9 +13,10 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-from dcopt.common.geo import paths
+from dcopt.common.geo import geocode, paths
 from dcopt.common import llm
 from dcopt.heat import whatif
+from dcopt.heat.network import ishikari_sources
 from dcopt.heat.v1 import (JMA_SOURCE, KINDS, MONTHS_EN, MONTHS_JA, Assumptions, design,
                          ishikari_sites, pairwise, standalone_and_shared)
 from dcopt.common.style import FONT, GRID, INK, INK2, SLOTS, SURFACE
@@ -44,19 +45,41 @@ pending = st.session_state.pop("pending_whatif", None)
 if pending:
     try:
         with st.spinner(pick("リクエストを解析中…", "Parsing the request…")):
-            applied = whatif.parse_patch(pending["question"], pending["current"], llm_chat=llm.chat)
+            parsed = whatif.parse_patch(pending["question"], pending["current"], llm_chat=llm.chat)
     except (whatif.WhatifError, llm.LLMError) as e:
         st.error(pick(f"その条件は読み取れませんでした：{e}", f"Could not read that request: {e}"))
     else:
-        for kid, value in applied.items():
-            st.session_state[KNOB_TO_KEY[kid]] = value
-        st.session_state["pending_explain"] = {"question": pending["question"],
-                                               "changed": applied, "before": pending["before"]}
+        if parsed["changes"]:
+            for kid, value in parsed["changes"].items():
+                st.session_state[KNOB_TO_KEY[kid]] = value
+            st.session_state["pending_explain"] = {"question": pending["question"],
+                                                   "changed": parsed["changes"],
+                                                   "before": pending["before"]}
+        elif parsed["new_dc"]:
+            st.session_state["pending_newdc"] = parsed["new_dc"]
+        else:
+            st.session_state["pending_clarify"] = parsed["clarify"] or pick(
+                "変えられる項目が見つかりませんでした。「電気料金を2倍」のように具体的に書いてください。",
+                "I could not map that to a knob. Try naming one, like 'double the electricity price'.")
+            if parsed["clarify"]:
+                st.session_state["clarify_context"] = {"question": pending["question"],
+                                                       "clarify": parsed["clarify"]}
 
 
 @st.cache_resource(show_spinner=False)
 def load_sites():
     return ishikari_sites()
+
+
+@st.cache_resource(show_spinner=False)
+def solve_with_new_dc(mw: float, lat: float, lon: float):
+    """The multi-DC engine (the experiments' machinery) with and without one assumed data center.
+
+    Cached on the proposal itself; each solve is a kernel search over the four default scenarios
+    (kerosene 115/156.8 yen per litre, IT low/high), labelled as such in the UI.
+    """
+    sakura, sites = load_sites()
+    return whatif.new_dc_summary(ishikari_sources(sakura), sites, mw, lat, lon)
 
 
 @st.cache_resource(show_spinner=False)
@@ -132,13 +155,18 @@ else:
     q = st.chat_input(pick("例：電気料金を2倍にして、仮定の候補地も除いて",
                            "e.g. double the electricity price and drop the assumed sites"))
     if q:
+        # the panel is one thread: after a clarify question, the next input continues it
+        ctx = st.session_state.pop("clarify_context", None)
+        question = (f"{ctx['question']}\n(clarify asked: {ctx['clarify']})\n(user answers: {q})"
+                    if ctx else q)
         st.session_state["pending_whatif"] = {
-            "question": q,
+            "question": question,
             "current": {kid: st.session_state[wkey] for kid, wkey in KNOB_TO_KEY.items()},
             "before": st.session_state.get("last_summary")}
         st.rerun()
 
 explained = st.session_state.pop("pending_explain", None)
+clarify = st.session_state.pop("pending_clarify", None)
 if explained:
     try:
         with st.spinner(pick("結果を説明中…", "Explaining the results…")):
@@ -150,6 +178,41 @@ if explained:
     else:
         with st.chat_message("assistant"):
             st.markdown(answer)
+if clarify:
+    with st.chat_message("assistant"):
+        st.markdown(clarify)
+
+proposed = st.session_state.pop("pending_newdc", None)
+if proposed:
+    st.session_state.pop("clarify_context", None)       # the thread resolves here
+    try:
+        with st.spinner(pick("場所を探しています…", "Finding the place…")):
+            lat, lon, label = geocode(proposed["place"])
+    except (LookupError, OSError) as e:
+        st.error(pick(f"場所を読み取れませんでした（「141.3, 43.2」のように緯度経度でも書けます）：{e}",
+                      f"Could not find that place (lat,lon like '141.3, 43.2' works too): {e}"))
+    else:
+        with st.spinner(pick("マルチDCモデルで解いています（実験と同じ装置、1〜2分）…",
+                             "Solving on the multi-DC engine (the experiments' machinery, 1-2 min)…")):
+            ndc = solve_with_new_dc(proposed["mw"], lat, lon)
+        st.caption(pick(f"仮定のデータセンター：{proposed['mw']:g} MW @ {label}（緯度経度 "
+                        f"{lat:.4f}, {lon:.4f}）。シナリオは実験と同じ（灯油115円と156.8円、IT高低）。",
+                        f"Assumed data center: {proposed['mw']:g} MW at {label} ({lat:.4f}, {lon:.4f}). "
+                        "Scenarios as in the experiments (kerosene 115 and 156.8 yen/L, IT low/high)."))
+        rows = [{pick("項目", "metric"): k, pick("新設なし", "without"): v,
+                 pick("新設あり", "with"): ndc["after"][k]} for k, v in ndc["before"].items()]
+        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+        try:
+            with st.spinner(pick("結果を説明中…", "Explaining the results…")):
+                answer = llm.chat([{"role": "user", "content": whatif.explain_prompt(
+                    pending["question"] if pending else proposed["place"],
+                    {ndc["new_dc"]: pick("新設（仮定）", "built (assumption)")},
+                    ndc["before"], ndc["after"], "ja" if ja else "en")}], max_tokens=1600)
+        except llm.LLMError as e:
+            st.error(pick(f"説明を生成できませんでした：{e}", f"Could not explain: {e}"))
+        else:
+            with st.chat_message("assistant"):
+                st.markdown(answer)
 
 left, right = st.columns([7, 5], gap="medium")
 with left:

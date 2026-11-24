@@ -57,6 +57,10 @@ def chat(messages: list[dict], *, max_tokens: int = 1600, json_mode: bool = Fals
         raise LLMError(f"the chat endpoint returned HTTP {status}")
     try:
         data = json.loads(raw.decode("utf-8"))
-        return data["choices"][0]["message"].get("content") or ""
+        choice = data["choices"][0]
+        content = choice["message"].get("content") or ""
+        if not content and choice.get("finish_reason") == "length":
+            raise LLMError("the model spent its whole budget on reasoning")
+        return content
     except (KeyError, IndexError, ValueError, TypeError):
         raise LLMError("the chat endpoint returned an unexpected shape") from None

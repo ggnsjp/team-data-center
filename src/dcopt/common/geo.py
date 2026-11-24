@@ -162,3 +162,24 @@ def travel_time_matrix(nodes: list[int], winter: bool = True, area: str = DEFAUL
     D = dijkstra(M, directed=True, indices=idx)          # seconds, one row per source
     factor = WINTER_FACTOR if winter else 1.0
     return D[:, idx] / 60.0 * factor
+
+
+def geocode(place: str, *, transport=None) -> tuple[float, float, str]:
+    """One place name -> (lat, lon, display label) via OSM Nominatim, biased to Ishikari city.
+
+    The viewbox bounds results to the Ishikari area so short names ("新港", "手稲") resolve nearby;
+    the app caption credits OpenStreetMap, which also covers Nominatim's attribution requirement.
+    Transport injectable for tests; raises LookupError when nothing matches.
+    """
+    import json as _json
+    import urllib.parse
+    import urllib.request
+    url = ("https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&bounded=1"
+           "&viewbox=141.05,43.40,141.75,43.05&q=" + urllib.parse.quote(place))
+    send = transport or (lambda u: urllib.request.urlopen(
+        urllib.request.Request(u, headers={"User-Agent": "team-data-center demo app"}), timeout=30))
+    with send(url) as res:  # noqa: SIM115 - the context manager closes the real response
+        rows = _json.loads(res.read().decode("utf-8"))
+    if not rows:
+        raise LookupError(f"Nominatim found no place for {place!r} in the Ishikari area")
+    return float(rows[0]["lat"]), float(rows[0]["lon"]), rows[0]["display_name"]
