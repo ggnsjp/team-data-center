@@ -8,10 +8,11 @@ A data center can say that it runs on renewable electricity because, over a year
 
 ## 1. The records
 
-Hokkaido Electric Power Network publishes the area's supply and demand for every 30-minute slot from April 2024 [65]: the mean power in MW at the sending end, for the area demand and for each kind of supply (nuclear; thermal by fuel: LNG, coal, oil, other; hydro; geothermal; biomass; solar; wind; pumped storage; batteries; the interconnection with Honshu), and the output that solar and wind plants were told not to produce (curtailment). `dcopt.matching.records` downloads the monthly files into `data/cache/hepco_area/`, reads them by their column headings and checks them. The files are not part of this repository.
+Hokkaido Electric Power Network publishes the area's supply and demand for every 30-minute slot from April 2024 [66]: the mean power in MW at the sending end, for the area demand and for each kind of supply (nuclear; thermal by fuel: LNG, coal, oil, other; hydro; geothermal; biomass; solar; wind; pumped storage; batteries; the interconnection with Honshu), and the output that solar and wind plants were told not to produce (curtailment). `dcopt.matching.records` downloads the monthly files into `data/cache/hepco_area/`, reads them by their column headings and checks them. The files are not part of this repository.
 
 - **Signs.** The kinds of supply add up to the area demand in every slot, to the published integer. Pumped storage and batteries are positive when they generate and negative when they charge; the interconnection is positive when the area imports.
-- **Checks.** Each fiscal year has 17,520 slots with no gap and no missing value, and supply equals demand in every slot.
+- **Checks.** Each fiscal year has 17,520 slots with no gap and no missing value, and supply equals demand in every slot. The solar and wind curtailment summed from the records, 2.69 GWh (0.04 %) in FY2024 and 16.24 GWh (0.25 %) in FY2025, equals the figures the government publishes for the area [67].
+- **Preliminary values.** The operator publishes the records as preliminary values that include estimates, and may revise them.
 - **Curtailment.** The records give how much output was curtailed, not why. In FY2025 biomass and thermal plants were also told to reduce output in some slots (8.1 and 1.3 GWh); that is not counted here as unused renewable energy, because their fuel is kept.
 - **Earlier years** are published as hourly values in another layout and are not used here.
 
@@ -159,27 +160,49 @@ From `scripts/export_matching.py` on 2026-11-26.
 | ×2 | 656 / 668 MW | 657 / 678 MW | 9.2 / 7.5 % | 12.3 / 9.7 % |
 | ×3 | 1,201 / 1,231 MW | 1,199 / 1,245 MW | 23.9 / 21.6 % | 27.5 / 24.0 % |
 
+**The cheapest portfolio for a target** (section 5; solar 10.9 and wind 16.3 yen/kWh [70], battery 60,000 yen per kWh of capacity [71]; FY2024 / FY2025).
+
+| Target match | Solar and wind contracted (times the yearly use) | Battery (hours of the load) | Cost (yen per kWh used) |
+|---|---|---|---|
+| 80 % | 0.94 / 0.93 | 4.5 / 4.0 | 15.6 / 15.3 |
+| 90 % | 1.13 / 1.10 | 8.9 / 8.7 | 20.1 / 19.6 |
+| 95 % | 1.29 / 1.24 | 11.8 / 11.6 | 23.2 / 22.7 |
+| 99 % | 1.65 / 1.60 | 14.2 / 13.8 | 29.8 / 28.3 |
+| 100 % | 1.86 / 2.16 | 23.4 / 16.0 | 38.0 / 35.8 |
+| 80 %, no battery | 1.19 / 1.15 | none | 17.9 / 17.2 |
+| 90 %, no battery | 2.13 / 2.12 | none | 32.5 / 32.2 |
+| 95 %, no battery | 3.86 / 4.09 | none | 60.0 / 63.8 |
+| 99 %, no battery | 15.0 / 18.2 | none | 237 / 289 |
+| 100 %, no battery | not reachable | | |
+
+The cost is what the contract and the battery cost in a year, divided by the energy the data center uses; the energy that is not matched still has to be bought. For comparison, a contract for exactly the yearly use with the area's mix and no battery costs 13.5 yen per kWh used and matches 68 to 69 %.
+
 What the numbers say:
 
 1. **"100 % by the year" is about two thirds by the slot.** A contract for the yearly use, shaped like the area's fleets, covers 68 to 69 % of the energy in the slot it is used. Solar alone covers 41 %, wind alone 72 to 73 %, and the best mix (about 80 % wind) 76 to 77 %. The two years agree within one point.
 2. **Every lever has diminishing returns.** Twice the volume gives 84 to 85 %, five times 94 %. A battery of four hours gives 80 to 81 % and a full day 88 to 89 %: the days of weak wind in a row are beyond a battery. Moving a fifth of the day's work, with a quarter more equipment, gives 75 to 76 %, and the equipment is then used 80 % of the time.
-3. **Buying from existing plants changes nothing on the grid.** With no new plant, thermal plants cover 98.9 to 99.9 % of what the data center uses. The curtailed output a 100 MW load could have used was 0.1 % of its use in FY2024 and 1.1 % in FY2025: there is little unused renewable energy in the area today.
-4. **Today, new plants matter more than the slot match.** If the contract causes solar and wind of the same yearly volume to be built, thermal generation in the area rises by only 0.2 to 2.4 % of what the data center uses, although the slot match is still 69 %. When the contract has a surplus, thermal plants turn down for everyone else.
-5. **That stops being true as solar and wind grow.** With twice today's solar and wind and no added load, 8 to 12 % of their output would be curtailed in this replay, and with three times, 22 to 28 %. Then a surplus is wasted more often, and the slot match (storage, shifting, mix) starts to decide what a contract achieves.
-6. **Growth on both sides.** Twice today's solar and wind makes room for about 660 to 680 MW of round-the-clock load before thermal generation is back at today's level; one and a half times, for about 340 to 350 MW; three times, for about 1,200 to 1,250 MW. Data-center growth beyond that raises thermal generation unless other carbon-free supply is added.
+3. **The last percent costs most.** With a battery, a 90 % match costs about 20 yen per kWh used and a 100 % match 36 to 38. Without a battery, 90 % takes more than twice the yearly volume, 99 % fifteen to eighteen times, and 100 % cannot be reached at all.
+4. **Buying from existing plants changes nothing on the grid.** With no new plant, thermal plants cover 98.9 to 99.9 % of what the data center uses. The curtailed output a 100 MW load could have used was 0.1 % of its use in FY2024 and 1.1 % in FY2025: there is little unused renewable energy in the area today.
+5. **Today, new plants matter more than the slot match.** If the contract causes solar and wind of the same yearly volume to be built, thermal generation in the area rises by only 0.2 to 2.4 % of what the data center uses, although the slot match is still 69 %. When the contract has a surplus, thermal plants turn down for everyone else.
+6. **That stops being true as solar and wind grow.** With twice today's solar and wind and no added load, 8 to 12 % of their output would be curtailed in this replay, and with three times, 22 to 28 %. Then a surplus is wasted more often, and the slot match (storage, shifting, mix) starts to decide what a contract achieves.
+7. **Growth on both sides.** Twice today's solar and wind makes room for about 660 to 680 MW of round-the-clock load before thermal generation is back at today's level; one and a half times, for about 340 to 350 MW; three times, for about 1,200 to 1,250 MW. Data-center growth beyond that raises thermal generation unless other carbon-free supply is added.
 
 ## 7. Inputs and where they come from
 
 | Input | Value | Kind | Basis |
 |---|---|---|---|
-| Area demand and supply by kind, 30-minute | FY2024 and FY2025, 17,520 slots each | Published measurement | Hokkaido Electric Power Network [65]; used unchanged; checked for gaps and for supply = demand |
+| Area demand and supply by kind, 30-minute | FY2024 and FY2025, 17,520 slots each | Published measurement | Hokkaido Electric Power Network [66]; used unchanged; checked for gaps and for supply = demand |
 | Data-center load | constant; 100 MW in the tables | Assumption | No public load profile of a commercial data center was found. A constant load is the reference case; results scale with the size except where curtailment is involved |
 | Shape of contracted solar and wind | the area's fleets, slot by slot | Derived from the records | Optimistic for a single plant, which varies more than the whole area |
 | Solar share of the area's mix | 51 % (FY2024), 52 % (FY2025) | Derived from the records | Solar energy / (solar + wind energy) |
-| Battery round-trip efficiency | 85 % | Assumption | see [docs/data-sources.md](../data-sources.md#renewable-matching-theme-4) |
+| Battery round-trip efficiency | 85 % | Assumption | no value checked against a source yet |
 | Battery power in the counting tables | equal to the load | Assumption | A battery sized to carry the whole load |
 | Thermal floor | 514 MW (FY2024), 540 MW (FY2025); second case 364 and 325 MW | Derived from the records | 10th percentile of thermal output in the slots with curtailed solar or wind; second case: the lowest output of the year |
-| Contract prices, battery cost and life | see the cost table | Published figures and assumptions | [docs/data-sources.md](../data-sources.md#renewable-matching-theme-4) |
+| Price of solar and wind energy (linear program) | 10.9 and 16.3 yen/kWh | Published figure | generation cost of utility-scale solar and onshore wind built in 2023, policy costs included [70] |
+| Battery cost (linear program) | 60,000 yen per kWh of capacity | Assumption based on a published figure | 54,000 yen/kWh for the system in subsidy projects of fiscal 2024 [71], plus installation |
+| Battery life, shortest duration | 15 years, 3 hours | Assumption | no value checked against a source yet |
+
+The same table with the reading of each input against published values is in [docs/input-evidence.md](../input-evidence.md) ([日本語](../input-evidence.ja.md)).
 
 ## 8. Limits
 
@@ -191,6 +214,7 @@ What the numbers say:
 - **No nuclear in the records.** If a nuclear unit returns, the room for solar and wind and the response to added load both change.
 - **Two years.** FY2024 and FY2025 agree closely on the counts, but curtailment differs by a factor of six between them.
 - **Costs.** The linear program's result depends on the prices put in; the volumes and battery sizes are more robust than the yen figures.
+- **No investment response.** Studies that model how other investment responds to voluntary procurement find that matching by the year changes a system's emissions little, while matching by the hour lowers them at a higher cost [68, 69]. The replay here keeps everything else as recorded, so it cannot show that effect; it shows what one year's slots allow.
 
 ## 9. Next
 

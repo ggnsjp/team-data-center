@@ -36,6 +36,7 @@ VERDICT = {
 THEMES = {
     1: ("テーマ1：排熱の導管網", "Theme 1: waste-heat networks"),
     3: ("テーマ3：立地", "Theme 3: siting"),
+    4: ("テーマ4：再エネの一致", "Theme 4: renewable matching"),
 }
 
 
@@ -91,6 +92,15 @@ S_JDCC = ("日本データセンター協会 (2026). データセンター・電
           "https://www.meti.go.jp/shingikai/enecho/denryoku_gas/saisei_kano/smart_power_grid_wg/pdf/010_01_01.pdf")
 S_IEA = ("International Energy Agency (2025). Energy and AI, table A.1",
          "https://build-up.ec.europa.eu/system/files/2025-04/PChtNmAZVk_11_04_2025_145800.pdf")
+
+S_RECORDS = ("北海道電力ネットワーク. 北海道エリアの需給実績（2024年4月以降は30分値）",
+             "https://www.hepco.co.jp/network/con_service/public_document/supply_demand_results/index.html")
+S_CURTAILMENT = ("資源エネルギー庁 (2026). 再生可能エネルギー出力制御の長期見通し等について（第12回 次世代電力系統ワーキンググループ 資料1-1）",
+                 "https://www.meti.go.jp/shingikai/enecho/denryoku_gas/saisei_kano/smart_power_grid_wg/pdf/012_01_01.pdf")
+S_GENERATION_COST = ("発電コスト検証ワーキンググループ (2025). 発電コスト検証に関するとりまとめ",
+                     "https://www.enecho.meti.go.jp/committee/council/basic_policy_subcommittee/mitoshi/cost_wg/pdf/cost_wg_20250206_01.pdf")
+S_STORAGE = ("経済産業省 (2025). 2024年度 定置用蓄電システム普及拡大検討会の結果とりまとめ",
+             "https://www.meti.go.jp/shingikai/energy_environment/storage_system/pdf/20250307_1.pdf")
 
 ITEMS: list[Item] = [
     # ------------------------------------------------------------------ theme 1: who takes the heat
@@ -363,6 +373,69 @@ ITEMS: list[Item] = [
           "middle (the best site keeps 15.3 M yen a year), none at the high end (670). With the earlier 100 M yen/km it "
           "was 9 sites (37.9). For a 187 kV connection no site does anywhere in the range"),
          (S_OCCTO,)),
+    # ------------------------------------------------------------------ theme 4
+    Item(4, (),
+         ("エリアの需要と電源別の供給（30分値）", "Area demand and supply by source, 30-minute values"),
+         ("2024年度・2025年度、各17,520コマ。値は変えずに使用", "fiscal 2024 and 2025, 17,520 slots each, used unchanged"),
+         ("送電端の実績（速報値）。欠けはなく、どのコマでも供給の合計が需要と一致する。実績から集計した太陽光・風力の抑制量"
+          "（2024年度2.69 GWh・0.04 %、2025年度16.24 GWh・0.25 %）は、国の資料の値（269万kWh・0.04 %、1,624万kWh・0.25 %）と一致",
+          "sending-end records (preliminary values); no gaps, and supply adds up to demand in every slot. The solar and wind "
+          "curtailment summed from the records (2.69 GWh and 0.04 % in fiscal 2024, 16.24 GWh and 0.25 % in fiscal 2025) "
+          "equals the government's figures (2.69 and 16.24 million kWh; 0.04 and 0.25 %)"),
+         "measured",
+         ("", ""),
+         (S_RECORDS, S_CURTAILMENT)),
+    Item(4, (),
+         ("データセンターの負荷の形", "Shape of the data-center load"),
+         ("1年を通して一定", "constant through the year"),
+         ("一般のデータセンターは「基本的に24時間365日変動のない電力利用」（スパコン・AI学習用は別）。時間ごとの負荷を公表している"
+          "商用データセンターは見つかっていない",
+          "ordinary data centers draw power \"basically without variation, 24 hours a day and 365 days a year\" "
+          "(supercomputers and AI training apart). No commercial data center was found that publishes its load by the hour"),
+         "inside",
+         ("一致率は負荷の大きさによらない（抑制分を使える割合だけが大きさで変わる）",
+          "the matched share does not depend on the size of the load (only the share of curtailed output it can use does)"),
+         (S_JDCC,)),
+    Item(4, (),
+         ("契約した太陽光・風力の発電の形", "Shape of the contracted solar and wind output"),
+         ("エリア全体の太陽光・風力の実績と同じ形（30分ごと）", "the same as the area's whole solar and wind fleets, slot by slot"),
+         ("実績から求めた値。1つの発電所はエリア全体より変動が大きいので、実際の契約の一致率はこれより低くなる",
+          "derived from the records. One plant varies more than the whole area, so a real contract matches less"),
+         ("実績から計算（楽観的な側）", "derived from the records (on the optimistic side)"),
+         ("エリアの構成比で68〜69 %、太陽光だけで41 %、風力だけで72〜73 %", "68-69 % with the area's mix, 41 % with solar only, 72-73 % with wind only"),
+         (S_RECORDS,)),
+    Item(4, (),
+         ("火力がこれ以上は下げられない出力", "Level below which thermal plants cannot turn down"),
+         ("514 MW（2024年度）、540 MW（2025年度）。もう1つの場合として年間の最小値364 MW・325 MW",
+          "514 MW (fiscal 2024) and 540 MW (fiscal 2025); second case: the lowest output of the year, 364 and 325 MW"),
+         ("実績から求めた値：太陽光・風力が抑制されていたコマの火力出力のうち、下から10 %の位置。2025年度は火力が325〜2,104 MWの幅で"
+          "抑制が起きており、エリア全体の余剰以外の理由も含まれるとみられる（実績には理由の記載がない）",
+          "derived from the records: the 10th percentile of thermal output in the slots where solar or wind was curtailed. In "
+          "fiscal 2025 curtailment occurred at thermal outputs between 325 and 2,104 MW, so causes other than an area-wide "
+          "surplus seem to be included (the records do not give the cause)"),
+         ("実績から計算", "derived from the records"),
+         ("新しい発電所を建てる場合の火力の増減は、2つの下限で使用量の+0.2〜+2.4 %。太陽光・風力2倍のときの抑制は8〜12 %",
+          "with new plants, thermal generation changes by +0.2 to +2.4 % of the energy used across the two floors; with "
+          "twice the solar and wind, 8 to 12 % of their output is curtailed"),
+         (S_RECORDS,)),
+    Item(4, (),
+         ("太陽光・風力の単価（LPの入力）", "Price of solar and wind energy (input of the linear program)"),
+         ("太陽光10.9円/kWh、風力16.3円/kWh", "10.9 yen/kWh for solar, 16.3 yen/kWh for wind"),
+         ("2023年に新設する場合の発電コスト（政策経費を含む）：事業用太陽光10.9円/kWh、陸上風力16.3円/kWh。政策経費を除くと10.0円と12.1円",
+          "generation cost of a plant built in 2023, policy costs included: utility-scale solar 10.9, onshore wind 16.3 "
+          "yen/kWh; 10.0 and 12.1 without policy costs"),
+         "inside",
+         ("", ""),
+         (S_GENERATION_COST,)),
+    Item(4, (),
+         ("蓄電池の費用・寿命・効率（LPの入力）", "Battery cost, life and efficiency (inputs of the linear program)"),
+         ("容量1 kWhあたり6万円、15年、往復効率85 %、容量は出力の3時間分以上", "60,000 yen per kWh of capacity, 15 years, 85 % round trip, at least 3 hours of its power"),
+         ("補助事業での系統用蓄電システムの価格は平均5.4万円/kWh（2024年度、工事費は別）。寿命・効率・時間数は、原資料で確かめた値がまだない",
+          "grid-scale battery systems in subsidy projects cost 54,000 yen/kWh on average (fiscal 2024, installation extra). "
+          "No value checked against a source yet for the life, the efficiency and the duration"),
+         ("価格は公表値にもとづく。ほかは仮定", "the price follows a published value; the rest are assumptions"),
+         ("", ""),
+         (S_STORAGE,)),
 ]
 
 

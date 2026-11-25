@@ -156,20 +156,33 @@ flowchart LR
   n59["scripts/export_siting.py"]
   n60["app/pages/6_Siting.py"]
   n61{"tests/test_siting.py"}
-  n62[("Siting study: candidate sites, the heat value of each and its distance to the grid")]
-  n63(["MIT + ODbL-1.0"])
-  n65["src/dcopt/siting/candidates.py"]
-  n66["src/dcopt/siting/heat_value.py"]
-  n67["src/dcopt/siting/model.py"]
-  n68{"tests/test_siting_app.py"}
-  n69[("Generated results: experiment outputs, proposal exports and map exports")]
-  n70(["MIT + ODbL-1.0 where maps are drawn"])
-  n73["scripts/export_proposals.py"]
-  n74["scripts/export_heat_story.py"]
-  n75["app/pages/3_Warm_Ishikari_Proposals.py"]
-  n76{"tests/test_proposal.py"}
-  n77{"tests/test_properties.py"}
-  n78{"tests/test_bruteforce.py"}
+  n62[("Hokkaido area supply and demand records, 30-minute values (from April 2024)")]
+  n63(["HEPCO-NW-site-terms"])
+  n64>"www.hepco.co.jp/network/con_service/public_do…"]
+  n65>"www.hepco.co.jp/network/using/legal.html"]
+  n67["src/dcopt/matching/records.py"]
+  n68["src/dcopt/matching/score.py"]
+  n69["src/dcopt/matching/system.py"]
+  n70["src/dcopt/matching/portfolio.py"]
+  n71["app/pages/7_Matching.py"]
+  n72["scripts/export_matching.py"]
+  n73["scripts/render_matching_figure.py"]
+  n74{"tests/test_matching.py"}
+  n75{"tests/test_matching_app.py"}
+  n76[("Siting study: candidate sites, the heat value of each and its distance to the grid")]
+  n77(["MIT + ODbL-1.0"])
+  n79["src/dcopt/siting/candidates.py"]
+  n80["src/dcopt/siting/heat_value.py"]
+  n81["src/dcopt/siting/model.py"]
+  n82{"tests/test_siting_app.py"}
+  n83[("Generated results: experiment outputs, proposal exports and map exports")]
+  n84(["MIT + ODbL-1.0 where maps are drawn"])
+  n87["scripts/export_proposals.py"]
+  n88["scripts/export_heat_story.py"]
+  n89["app/pages/3_Warm_Ishikari_Proposals.py"]
+  n90{"tests/test_proposal.py"}
+  n91{"tests/test_properties.py"}
+  n92{"tests/test_bruteforce.py"}
   n0 -->|under| n1
   n2 -->|feeds| n0
   n0 -->|used_by| n4
@@ -238,23 +251,35 @@ flowchart LR
   n56 -->|used_by| n50
   n61 -->|checks| n56
   n62 -->|under| n63
-  n59 -->|makes| n62
-  n65 -->|makes| n62
-  n66 -->|makes| n62
+  n64 -->|feeds| n62
+  n65 -->|feeds| n62
   n67 -->|makes| n62
-  n62 -->|used_by| n60
-  n62 -->|used_by| n50
-  n61 -->|checks| n62
-  n68 -->|checks| n62
-  n69 -->|under| n70
-  n14 -->|makes| n69
-  n73 -->|makes| n69
-  n74 -->|makes| n69
-  n69 -->|used_by| n75
-  n69 -->|used_by| n50
-  n76 -->|checks| n69
-  n77 -->|checks| n69
-  n78 -->|checks| n69
+  n62 -->|used_by| n68
+  n62 -->|used_by| n69
+  n62 -->|used_by| n70
+  n62 -->|used_by| n71
+  n62 -->|used_by| n72
+  n62 -->|used_by| n73
+  n74 -->|checks| n62
+  n75 -->|checks| n62
+  n76 -->|under| n77
+  n59 -->|makes| n76
+  n79 -->|makes| n76
+  n80 -->|makes| n76
+  n81 -->|makes| n76
+  n76 -->|used_by| n60
+  n76 -->|used_by| n50
+  n61 -->|checks| n76
+  n82 -->|checks| n76
+  n83 -->|under| n84
+  n14 -->|makes| n83
+  n87 -->|makes| n83
+  n88 -->|makes| n83
+  n83 -->|used_by| n89
+  n83 -->|used_by| n50
+  n90 -->|checks| n83
+  n91 -->|checks| n83
+  n92 -->|checks| n83
 ```
 <!-- lineage:end -->
 

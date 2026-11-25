@@ -33,16 +33,16 @@ from dcopt.matching.records import SLOT_H
 
 @dataclass(frozen=True)
 class Costs:
-    """Prices for the program. The defaults and where they come from are in docs/data-sources.md."""
-    solar_yen_kwh: float = 12.0            # contract price of solar energy
-    wind_yen_kwh: float = 16.0             # contract price of wind energy
-    battery_yen_kwh: float = 60_000.0      # installed cost per kWh of capacity
+    """Prices for the program. Sources and reasons: docs/data-sources.md, "Renewable matching"."""
+    solar_yen_kwh: float = 10.9            # generation cost of utility-scale solar, 2023 plant, policy costs included
+    wind_yen_kwh: float = 16.3             # the same for onshore wind (Power Generation Cost Verification WG, 2025)
+    battery_yen_kwh: float = 60_000.0      # assumption: 54,000 yen/kWh for the system (METI study group, FY2024) plus installation
     battery_yen_kw: float = 0.0            # installed cost per kW of power, when quoted separately
-    battery_life_years: float = 15.0
-    discount_rate: float = 0.03
-    battery_efficiency: float = 0.85       # round trip
-    battery_min_hours: float = 3.0         # capacity is at least this many hours of the battery's power
-    surplus_value_yen_kwh: float = 0.0     # what the energy not used in its slot earns
+    battery_life_years: float = 15.0       # assumption
+    discount_rate: float = 0.03            # as in theme 1
+    battery_efficiency: float = 0.85       # assumption: round trip
+    battery_min_hours: float = 3.0         # assumption: capacity is at least this many hours of the battery's power
+    surplus_value_yen_kwh: float = 0.0     # assumption: the energy not used in its slot earns nothing (cautious)
 
     @property
     def crf(self) -> float:

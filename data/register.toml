@@ -134,6 +134,24 @@ checks = ["tests/test_siting.py"]
 refresh = "Delete the file and run again before a run whose results are published, and record the date."
 
 [[dataset]]
+id = "hepco-area-records"
+title = "Hokkaido area supply and demand records, 30-minute values (from April 2024)"
+storage = "local"
+paths = ["data/cache/hepco_area/"]
+terms = "HEPCO-NW-site-terms"
+licence = "Website terms of Hokkaido Electric Power Network: no copying, sending or passing on without the operator's consent, except for private use. Never committed; each user downloads the files from the operator's site. Not MIT."
+attribution = "出典：北海道電力ネットワーク「北海道エリアの需給実績」 / Source: Hokkaido Electric Power Network, area supply and demand records"
+sources = ["https://www.hepco.co.jp/network/con_service/public_document/supply_demand_results/index.html",
+           "https://www.hepco.co.jp/network/using/legal.html"]
+made_by = "uv run python -m dcopt.matching.records 2024 2025"
+code = ["src/dcopt/matching/records.py"]
+processing = "Each monthly CSV file is saved unchanged. On loading, columns are found by their headings, a column a file lacks is zero, and the table is checked for gaps and for supply adding up to demand in every slot. Values are unchanged. They are preliminary values of the operator."
+used_by = ["src/dcopt/matching/score.py", "src/dcopt/matching/system.py", "src/dcopt/matching/portfolio.py",
+           "app/pages/7_Matching.py", "scripts/export_matching.py", "scripts/render_matching_figure.py"]
+checks = ["tests/test_matching.py", "tests/test_matching_app.py"]
+refresh = "When the operator publishes a new month: run made_by again. A new fiscal year is added to YEARS in the page and in the export script."
+
+[[dataset]]
 id = "siting-study"
 title = "Siting study: candidate sites, the heat value of each and its distance to the grid"
 storage = "local"

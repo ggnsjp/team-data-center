@@ -27,7 +27,7 @@ We took the idea starter **"Warm Ishikari"**: a matchmaker and calculator for da
 | 1. Waste-heat networks | Which users connect to which data center, along which streets, with which pipes? | Network-design MILP with monthly heat balances; stochastic and robust versions [23–26, 31–36] | Models v1 and v2, app and animated map |
 | 2. Grid hosting capacity | How much data-center and heat-pump load can each grid location take? | AC optimal power flow with convex (SDP/SOCP) relaxations: certified upper bounds plus feasible points [37–47, 59–64] | Method and app page; checked on benchmark systems |
 | 3. Siting | Where should the next data center go? | Facility location using the results of themes 1 and 2 [48–52] | First screen: heat value by site, distance to the grid, app page |
-| 4. Renewable matching | How much of a data center's electricity is renewable in the 30 minutes it is used, and what changes on the grid? | Counting on the area's 30-minute supply and demand records; a linear program for the cheapest contract and battery [66] | First version: two fiscal years of records, app page |
+| 4. Renewable matching | How much of a data center's electricity is renewable in the 30 minutes it is used, and what changes on the grid? | Counting on the area's 30-minute supply and demand records; a linear program for the cheapest contract and battery [66–71] | First version: two fiscal years of records, app page |
 
 ## Results so far (theme 1)
 
@@ -212,7 +212,7 @@ The app's *Siting* page shows the map and solves the location model for a chosen
 
 *A data center drawing a constant 100 MW buys solar and wind energy equal to its yearly use, with the shape of the Hokkaido area's fleets. Left: the week of fiscal 2025 with the lowest match. Right: the share of its electricity that is renewable, counted in three ways.*
 
-A data center can say that it runs on renewable electricity because, over a year, it bought as much renewable energy as it used. Hokkaido Electric Power Network publishes the area's supply and demand for every 30-minute slot [66]. On fiscal years 2024 and 2025 (17,520 slots each), the same year is counted in three ways for a constant load of 100 MW (876 GWh a year):
+A data center can say that it runs on renewable electricity because, over a year, it bought as much renewable energy as it used. Hokkaido Electric Power Network publishes the area's supply and demand for every 30-minute slot [66]. The curtailment summed from these records equals the figures the government publishes for the area [67]. On fiscal years 2024 and 2025 (17,520 slots each), the same year is counted in three ways for a constant load of 100 MW (876 GWh a year):
 
 | Way of counting | FY2024 | FY2025 |
 |---|---|---|
@@ -224,11 +224,14 @@ A data center can say that it runs on renewable electricity because, over a year
 
 - **"100 % by the year" is about two thirds by the slot.** The rest is supplied by other plants, and the same amount of contracted energy goes to other users at other times.
 - **Every lever has diminishing returns.** Twice the volume gives 84 to 85 %. A battery of four hours gives 80 to 81 % and a full day 88 to 89 %: days of weak wind in a row are beyond a battery. Moving a fifth of each day's work, with a quarter more equipment, gives 75 to 76 %, and the equipment is then used 80 % of the time.
+- **The last percent costs most.** With published generation costs and battery prices [70, 71], the cheapest contract and battery for a 90 % match cost about 20 yen per kWh used (1.1 times the yearly volume and a battery of about nine hours of the load), and for a 100 % match 36 to 38 yen. Without a battery, 90 % takes more than twice the yearly volume.
 - **Buying from existing plants changes nothing on the grid.** With no new plant, thermal plants cover 99 % or more of what the data center uses. The curtailed solar and wind output that a 100 MW load could have used was 0.1 % of its use in FY2024 and 1.1 % in FY2025.
 - **Today, new plants matter more than the slot match.** If the contract causes solar and wind of the same yearly volume to be built, thermal generation rises by only 0.2 to 2.4 % of what the data center uses, because thermal plants turn down for everyone when the contract has a surplus. With two to three times today's solar and wind, 8 to 28 % of their output would be curtailed in this replay, and the slot match starts to decide what a contract achieves.
 - **Growth on both sides.** Twice today's solar and wind makes room for about 660 to 680 MW of round-the-clock load before thermal generation is back at today's level; one and a half times, for about 340 to 350 MW.
 
-The app's *Renewable matching* page lets you set the load, the contract, a battery and the share of work that can move within the day, and solves a linear program for the cheapest contract and battery that reach a target match. Formulation, inputs and limits: [docs/formulations/matching.md](docs/formulations/matching.md).
+Studies that model how other investment responds find that matching by the year changes a system's emissions little, while matching by the hour lowers them at a higher cost [68, 69]. The replay here keeps everything else as recorded and cannot show that response.
+
+The app's *Renewable matching* page lets you set the load, the contract, a battery and the share of work that can move within the day, and solves a linear program for the cheapest contract and battery that reach a target match (prices from [70, 71]). Formulation, inputs and limits: [docs/formulations/matching.md](docs/formulations/matching.md).
 
 ## How it works
 
