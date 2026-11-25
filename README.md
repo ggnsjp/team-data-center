@@ -178,7 +178,7 @@ The app's *Siting* page shows the map and solves the location model for a chosen
 flowchart LR
   OSM["OpenStreetMap<br/>roads, buildings, farmland"] --> CAND["Candidate users<br/>and road distances"]
   SRC["Public sources<br/>data centers, prices, climate"] --> PAR["Parameters, each sourced<br/>or marked as an assumption"]
-  CAND --> MILP["Network-design MILP<br/>(HiGHS)"]
+  CAND --> MILP["Network-design MILP<br/>(HiGHS / Gurobi)"]
   PAR --> MILP
   MILP --> PLANS["Plans: expected, worst case,<br/>minimum regret, robust"]
   PLANS --> APP["App, animated map<br/>and one-page proposals"]

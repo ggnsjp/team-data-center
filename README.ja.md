@@ -178,7 +178,7 @@ PGLib-OPF [45] の6つの系統の全母線、合計558母線で計算しまし�
 flowchart LR
   OSM["OpenStreetMap<br/>道路・建物・農地"] --> CAND["候補施設と<br/>道路距離"]
   SRC["公開情報<br/>データセンター・価格・気象"] --> PAR["パラメータ<br/>（出典付き、または仮定と明記）"]
-  CAND --> MILP["ネットワーク設計MILP<br/>（HiGHS）"]
+  CAND --> MILP["ネットワーク設計MILP<br/>（HiGHS / Gurobi）"]
   PAR --> MILP
   MILP --> PLANS["計画：期待値、最悪ケース、<br/>後悔最小、ロバスト"]
   PLANS --> APP["アプリ、アニメーション地図<br/>1枚の提案書"]
