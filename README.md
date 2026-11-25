@@ -235,6 +235,24 @@ The app's *Renewable matching* page lets you set the load, the contract, a batte
 
 ## How it works
 
+Each theme has its own data, model and output. The first diagram shows how the four connect; the others show one theme each.
+
+```mermaid
+flowchart LR
+  T1["1. Waste-heat network<br/>who gets heat, through which pipes"]
+  T2["2. Grid hosting capacity<br/>how much load a bus can take"]
+  T3["3. Siting<br/>where the next data center goes"]
+  T4["4. Renewable matching<br/>how renewable the electricity is"]
+  T1 -->|"value of the heat at a site"| T3
+  T2 -.->|"room at a connection point, once a network model exists"| T3
+  T4 -.->|"when and how much renewable output is left over"| T3
+  T1 -.->|"fuel replaced by waste heat, next to the electricity used"| T4
+```
+
+Solid arrow: in the code today. Dotted arrows: planned links.
+
+### Theme 1: waste-heat network
+
 ```mermaid
 flowchart LR
   OSM["OpenStreetMap<br/>roads, buildings, farmland"] --> CAND["Candidate users<br/>and road distances"]
@@ -251,6 +269,62 @@ flowchart LR
 - *Monthly balances.* Deliveries are limited by each user's demand and by each data center's waste heat.
 - *Objective.* Maximize the value of the heat minus annualized costs.
 - *Uncertainty.* The stochastic version shares one build across scenarios. The robust versions maximize the worst case, minimize the largest regret, or protect against a budgeted uncertainty set on IT loads.
+
+### Theme 2: grid hosting capacity
+
+```mermaid
+flowchart LR
+  NET["Network data<br/>public test systems and<br/>small built-in examples"] --> ACP["AC problem<br/>the largest load a bus can take"]
+  ACP --> LOW["Checked AC operating point<br/>lower end"]
+  ACP --> UP["Convex relaxations, SDP and SOCP<br/>upper end (Clarabel)"]
+  ACP --> DC["DC screening<br/>linear, not a bound"]
+  LOW --> BR["Bracket for every bus<br/>and the limit that binds"]
+  UP --> BR
+  DC --> BR
+  BR --> APP2["App page and tables"]
+  BR -.-> GLOB["Cross-check with a global solver<br/>(Gurobi, optional)"]
+```
+
+- *Problem.* Maximize the load added at one bus subject to the AC power-flow equations and the limits on voltages, lines and generators [37–44].
+- *Bracket.* An interior-point method finds an operating point and a separate routine checks it: that much can be hosted. Semidefinite and second-order cone relaxations give a value no operating point can exceed. When the two meet, the answer is exact.
+- *Scope.* Public test systems, not the Hokkaido grid: there is no network model of this area yet.
+
+### Theme 3: siting
+
+```mermaid
+flowchart LR
+  GRID["Candidate sites<br/>1.5 km grid, moved to roads"] --> HV["Heat value of each site<br/>regional plan with a new data center there<br/>minus the plan without it"]
+  PLAN["Regional heat plan of theme 1<br/>(HiGHS / Gurobi)"] --> HV
+  OSMP["OpenStreetMap<br/>lines and substations"] --> DIST["Distance to a substation<br/>66 kV or 187 kV"]
+  UNIT["Published unit costs<br/>of connection lines"] --> CONN["Yearly connection cost"]
+  DIST --> CONN
+  HV --> LOC["Location model (MILP, HiGHS)<br/>number of sites, spacing, headroom"]
+  CONN --> LOC
+  LOC --> APP3["App page and map"]
+```
+
+- *Heat value.* For each candidate site the heat-network model of theme 1 is solved again with a new data center there; the gain over today's plan is the value of its waste heat.
+- *Grid connection.* The distance to the nearest substation on the public map, times a published unit cost, as a yearly amount.
+- *Choice.* A small location model picks the sites with the best heat value minus connection cost, keeps them apart, and can cap the load per connection point [48–52].
+
+### Theme 4: renewable matching
+
+```mermaid
+flowchart LR
+  REC["Area supply and demand records<br/>30-minute values from the operator"] --> CHK["Read and check<br/>no gaps, supply equals demand"]
+  LOAD["Data-center load<br/>constant, an assumption"] --> CNT["Three counts<br/>by the year, by the slot, on the grid"]
+  CHK --> CNT
+  CHK --> RPL["Replay of the records<br/>added load, added solar and wind"]
+  CHK --> LP["Linear program (HiGHS / Gurobi)<br/>cheapest contract and battery<br/>for a target match"]
+  PRC["Published generation costs<br/>and battery prices"] --> LP
+  CNT --> APP4["App page, figure<br/>and document"]
+  RPL --> APP4
+  LP --> APP4
+```
+
+- *Counting.* The contract delivers the area's solar and wind shape scaled to the volume bought. By the year: energy bought over energy used. By the slot: the part generated in the same 30 minutes.
+- *On the grid.* A replay of the published slots: an added load first uses output that was being curtailed and thermal plants cover the rest; added solar and wind first turn thermal plants down to a floor and are curtailed beyond it.
+- *Cheapest portfolio.* A linear program over the 17,520 slots of a year chooses the solar and wind volumes and the battery for a target share of matched energy [68–71].
 
 ## Quick start
 
@@ -319,8 +393,15 @@ tests/              unit tests on synthetic instances and app tests
 
 ## Solvers
 
-- **Open source by default.** HiGHS solves the MILPs and LPs. Clarabel [64] solves the conic relaxations of theme 2, and the AC points come from our own interior-point code.
-- **Optional commercial solver.** Gurobi can be used when installed (`DCOPT_SOLVER=gurobi`), but no part of the code requires it. On this model it certifies plans that HiGHS cannot within the same time (see Caveats).
+Everything runs with open-source solvers. Gurobi is optional: no part of the code needs it. Where it is installed (`DCOPT_SOLVER=gurobi`), the same models solve faster, and the largest one is solved with a proof of optimality.
+
+| Theme | Without Gurobi (the default) | With Gurobi (optional) |
+|---|---|---|
+| 1. Waste-heat network | HiGHS with an LP-guided kernel search. Its plans are within 0.2 to 0.8 % of the optimum; on the full model HiGHS alone still has gaps of 18 to 26 % after 300 s | Proves the optimum of the full model in 71 s (ambient loop) and 255 s (central network) |
+| 2. Grid hosting capacity | Clarabel [64] for the SDP and SOCP relaxations, and our own interior-point code for the AC points | A global solve of the non-convex AC problem as a cross-check of the bracket (`experiments/grid_global`) |
+| 3. Siting | HiGHS, for the heat value of every site and for the location model | The same values at the four best sites, and better plans at 17 of the 56 sites |
+| 4. Renewable matching | HiGHS: the linear program of one year in 26 to 44 s | The same result in 2 to 4 s |
+
 - **Checked with both solvers.** The test suite passes with `DCOPT_SOLVER=gurobi` as it does with HiGHS, and the exports give the same regional plan with either (93.8 M yen a year, 13 sites, the same pipes). Where two neighbouring data centers can serve a site at the same cost, the two solvers may break the tie differently, so a data center's list of partners can differ in a few entries.
 
 ## Next research questions

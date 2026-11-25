@@ -14,7 +14,7 @@ import streamlit as st
 
 from dcopt.common.style import AXIS, FONT, GRID, INK, INK2, SLOTS, SURFACE
 from dcopt.matching import records, score, system
-from dcopt.matching.portfolio import Costs, cheapest
+from dcopt.matching.portfolio import Costs, cheapest, solver_name
 
 lang = st.session_state.get("app_lang", "日本語")
 ja = lang == "日本語"
@@ -50,7 +50,7 @@ def solve(fy: int, stamp: float, target: float, battery: bool, costs: Costs):
     df = table(fy, stamp)
     load = score.flat_load(len(df), 1.0)
     r = cheapest(load, score.shaped(df["solar"], load), score.shaped(df["wind"], load), target, costs, battery)
-    return r.feasible, r.solar, r.wind, r.battery_mw, r.battery_h, r.yen_per_kwh_used
+    return r.feasible, r.solar, r.wind, r.battery_mw, r.battery_h, r.yen_per_kwh_used, r.solver
 
 
 def stamp_of() -> float:
@@ -319,14 +319,16 @@ with st.expander(pick("費用の前提（変更できます）", "Cost inputs (e
 t1, t2 = st.columns([3, 2], gap="medium")
 target = t1.slider(pick("目標とする30分ごとの一致（%）", "Target slot-by-slot match (%)"), 50, 100, 90, 5, key="match_target") / 100.0
 use_battery = t2.toggle(pick("蓄電池を使ってよい", "A battery may be used"), True, key="match_lp_battery")
-if st.button(pick("最適化を解く（30秒〜1分）", "Solve (half a minute to a minute)"), key="match_solve"):
+fast = solver_name() == "gurobi"
+if st.button(pick("最適化を解く（数秒）", "Solve (a few seconds)") if fast else
+             pick("最適化を解く（30秒〜1分）", "Solve (half a minute to a minute)"), key="match_solve"):
     with st.spinner(pick("線形計画を解いています…", "Solving the linear program…")):
         st.session_state["match_result"] = (fy, target, use_battery) + solve(
             fy, stamp, target, use_battery, Costs(solar_yen_kwh=c_solar, wind_yen_kwh=c_wind, battery_yen_kwh=c_batt,
                                                   surplus_value_yen_kwh=c_sell))
 res = st.session_state.get("match_result")
 if res:
-    r_fy, r_target, r_batt, ok, x_s, x_w, b_mw, b_h, yen = res
+    r_fy, r_target, r_batt, ok, x_s, x_w, b_mw, b_h, yen, used = res
     if not ok:
         st.warning(pick("この目標は、この条件では満たせません。", "This target cannot be met under these inputs."))
     else:
@@ -339,9 +341,13 @@ if res:
             pick("蓄電池の容量（使用電力の時間分）", "Battery capacity (hours of the load)"): round(b_h, 1),
             pick("契約と蓄電池の費用（円/使用kWh）", "Contract and battery (yen per kWh used)"): round(yen, 1)}]),
             hide_index=True, width="stretch")
-        st.caption(pick("費用は、契約した再エネの全量と蓄電池の年額を、データセンターの年間使用量で割った値です。一致しなかった分の電力の購入費は含みません。",
+        name = {"highs": "HiGHS", "gurobi": "Gurobi"}[used]
+        st.caption(pick("費用は、契約した再エネの全量と蓄電池の年額を、データセンターの年間使用量で割った値です。一致しなかった分の電力の購入費は含みません。"
+                        f"この結果は {name} で解きました（Gurobiは任意で、なくても同じ結果が得られます。あれば数秒で解けます）。",
                         "The cost is the whole contracted energy plus the battery's yearly cost, divided by the energy "
-                        "the data center uses. Buying the unmatched energy is not included."))
+                        "the data center uses. Buying the unmatched energy is not included. "
+                        f"Solved with {name} (Gurobi is optional: the result is the same without it, and with it the "
+                        "program solves in a few seconds)."))
 
 with st.expander(pick("計算の中身、入力の根拠、限界", "What is computed, where the inputs come from, and the limits")):
     st.markdown(pick(

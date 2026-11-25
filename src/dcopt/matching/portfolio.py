@@ -17,11 +17,13 @@ cost of battery power and capacity; d is the shortest duration a battery is buil
 `surplus_value` per MWh, zero by default. The energy that is not matched is bought from the grid
 whatever the contract, so it does not change which portfolio is cheapest for a given target.
 
-Without prices the same program answers "how much must be contracted": set c_s = c_w = 1 and the
-battery costs to zero with a fixed battery size (min_volume()).
+Solving. HiGHS by default. With DCOPT_SOLVER=gurobi (or solver="gurobi") and gurobipy installed the
+same program is passed to Gurobi, which is optional: nothing here needs it. On a full year (about
+70,000 variables) HiGHS takes half a minute to a minute and Gurobi a few seconds.
 """
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 import numpy as np
@@ -29,6 +31,38 @@ import scipy.sparse as sp
 from scipy.optimize import linprog
 
 from dcopt.matching.records import SLOT_H
+
+
+def solver_name(solver: str | None = None) -> str:
+    """HiGHS by default; DCOPT_SOLVER=gurobi (or solver="gurobi") uses Gurobi when gurobipy is installed."""
+    name = (solver or os.environ.get("DCOPT_SOLVER", "highs")).lower()
+    if name not in ("highs", "gurobi"):
+        raise ValueError(f"solver must be highs or gurobi, got {name!r}")
+    return name
+
+
+def _linear_program(c, a_ub, b_ub, a_eq, b_eq, bounds, solver: str, interior: bool) -> np.ndarray | None:
+    """min c.x  s.t.  a_ub x <= b_ub, a_eq x = b_eq, bounds. The optimal x, or None when there is none."""
+    if solver == "gurobi":
+        try:
+            import gurobipy as gp
+        except ImportError as e:  # pragma: no cover - depends on the environment
+            raise RuntimeError("gurobipy is not installed: run `uv sync --extra gurobi`") from e
+        lb = np.array([0.0 if lo is None else lo for lo, _ in bounds])
+        ub = np.array([gp.GRB.INFINITY if hi is None else hi for _, hi in bounds])
+        with gp.Env(params={"OutputFlag": 0}) as env, gp.Model("matching", env=env) as g:
+            x = g.addMVar(len(c), lb=lb, ub=ub)
+            g.setObjective(c @ x)
+            g.addMConstr(a_ub, x, "<", b_ub)
+            if a_eq is not None:
+                g.addMConstr(a_eq, x, "=", b_eq)
+            g.Params.Method = 2 if interior else -1            # barrier on the year with a battery
+            g.optimize()
+            return np.array(x.X) if g.Status == gp.GRB.OPTIMAL else None
+    # the interior-point method is two to three times faster than simplex on the year with a battery
+    res = linprog(c, A_ub=a_ub, b_ub=b_ub, A_eq=a_eq, b_eq=b_eq, bounds=bounds,
+                  method="highs-ipm" if interior else "highs")
+    return res.x if res.status == 0 else None
 
 
 @dataclass(frozen=True)
@@ -69,6 +103,7 @@ class Portfolio:
     matched: float = 0.0
     yen_per_kwh_used: float = 0.0  # yearly cost of contract and battery / the load's energy
     delivered: np.ndarray | None = None   # MW reaching the load per slot
+    solver: str = "highs"
 
     @property
     def volume(self) -> float:
@@ -99,7 +134,8 @@ def _program(load, solar, wind, eff, with_battery):
 
 
 def cheapest(load: np.ndarray, solar: np.ndarray, wind: np.ndarray, target: float,
-             costs: Costs = Costs(), battery: bool = True, max_volume: float = 50.0) -> Portfolio:
+             costs: Costs = Costs(), battery: bool = True, max_volume: float = 50.0,
+             solver: str | None = None) -> Portfolio:
     """The cheapest solar and wind contract, with a battery if allowed, that covers `target` of the
     load's energy in the same slots. `solar` and `wind` are the shapes scaled to the load's energy
     (score.shaped). Infeasible when the target cannot be reached with `max_volume` times the load's
@@ -127,17 +163,15 @@ def cheapest(load: np.ndarray, solar: np.ndarray, wind: np.ndarray, target: floa
     a_ub, b_ub = sp.vstack(rows, format="csr"), np.concatenate(rhs)
     bounds = [(0, max_volume), (0, max_volume)] + ([(0, None), (0, None)] if battery else [])
     bounds += [(0, v) for v in load] + ([(0, None)] * (3 * T) if battery else [])
-    # the interior-point method is two to three times faster than simplex on the year with a battery
-    res = linprog(c / scale, A_ub=a_ub, b_ub=b_ub, A_eq=a_eq, b_eq=b_eq, bounds=bounds,
-                  method="highs-ipm" if battery else "highs")
-    if res.status != 0:
-        return Portfolio(target, False)
-    x = res.x
+    name = solver_name(solver)
+    x = _linear_program(c / scale, a_ub, b_ub, a_eq, b_eq, bounds, name, interior=battery)
+    if x is None:
+        return Portfolio(target, False, solver=name)
     m = x[first_m:first_m + T]
     p, e = (float(x[2]), float(x[3])) if battery else (0.0, 0.0)
     yen = float(c @ x) + costs.surplus_value_yen_kwh * 1000.0 * float(m.sum() * SLOT_H)
     return Portfolio(target, True, float(x[0]), float(x[1]), p / mean, e / mean if mean else 0.0,
-                     float(m.sum() / load.sum()), yen / (energy * 1000.0), m)
+                     float(m.sum() / load.sum()), yen / (energy * 1000.0), m, name)
 
 
 def best_delivery(load: np.ndarray, gen: np.ndarray, power_mw: float, energy_mwh: float,
@@ -152,7 +186,7 @@ def best_delivery(load: np.ndarray, gen: np.ndarray, power_mw: float, energy_mwh
     c[4:4 + T] = -1.0
     bounds = [(1, 1), (0, 0), (power_mw, power_mw), (energy_mwh, energy_mwh)]
     bounds += [(0, v) for v in load] + [(0, None)] * (3 * T)
-    res = linprog(c, A_ub=a_ub, b_ub=b_ub, A_eq=a_eq, b_eq=b_eq, bounds=bounds, method="highs")
-    if res.status != 0:
-        raise RuntimeError(res.message)
-    return float(-res.fun / load.sum())
+    x = _linear_program(c, a_ub, b_ub, a_eq, b_eq, bounds, "highs", interior=False)
+    if x is None:
+        raise RuntimeError("the delivery program has no solution")
+    return float(-(c @ x) / load.sum())

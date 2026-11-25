@@ -111,7 +111,7 @@ Which contract and battery reach a target share $\theta$ of matched energy at th
 \end{aligned}
 ```
 
-$E$ is the load's yearly energy, $c_s$ and $c_w$ are contract prices per MWh, $k_p$ and $k_e$ the yearly cost of battery power and capacity, and $\delta$ the shortest duration a battery is built for. The contract is paid for everything it generates; the surplus earns a set value (zero by default). The energy that is not matched is bought from the grid whatever the portfolio, so it does not change which portfolio is cheapest for a given target. A fiscal year is a linear program with about 70,000 variables and 88,000 rows; HiGHS solves it in half a minute to a minute.
+$E$ is the load's yearly energy, $c_s$ and $c_w$ are contract prices per MWh, $k_p$ and $k_e$ the yearly cost of battery power and capacity, and $\delta$ the shortest duration a battery is built for. The contract is paid for everything it generates; the surplus earns a set value (zero by default). The energy that is not matched is bought from the grid whatever the portfolio, so it does not change which portfolio is cheapest for a given target. A fiscal year is a linear program with about 70,000 variables and 88,000 rows. HiGHS solves it in 26 to 44 s; Gurobi, which is optional (`DCOPT_SOLVER=gurobi`), gives the same result in 2 to 4 s.
 
 ## 6. Results (a constant load of 100 MW, 876 GWh a year)
 

@@ -7,7 +7,7 @@ import pytest
 from synthetic_records import FLOOR, month_csv, write_year
 
 from dcopt.matching import records, score, system
-from dcopt.matching.portfolio import Costs, best_delivery, cheapest
+from dcopt.matching.portfolio import Costs, best_delivery, cheapest, solver_name
 
 
 @pytest.fixture()
@@ -206,3 +206,28 @@ def test_a_target_out_of_reach_is_reported(fortnight):
     s = score.shaped(fortnight["solar"], load)
     out = cheapest(load, s, np.zeros(len(load)), 0.95, battery=False)        # solar alone, no storage: the night
     assert not out.feasible
+
+
+def test_the_solver_is_highs_unless_gurobi_is_asked_for(monkeypatch):
+    monkeypatch.delenv("DCOPT_SOLVER", raising=False)
+    assert solver_name() == "highs" and solver_name("gurobi") == "gurobi"
+    monkeypatch.setenv("DCOPT_SOLVER", "gurobi")
+    assert solver_name() == "gurobi" and solver_name("highs") == "highs"
+    with pytest.raises(ValueError):
+        solver_name("simplex")
+
+
+def test_gurobi_and_highs_agree_on_the_program(fortnight):
+    gp = pytest.importorskip("gurobipy")
+    five_days = fortnight.iloc[: 5 * 48]                       # small enough for a size-limited licence
+    load = score.flat_load(len(five_days), 10.0)
+    s, w = score.shaped(five_days["solar"], load), score.shaped(five_days["wind"], load)
+    for battery in (False, True):
+        a = cheapest(load, s, w, 0.9, battery=battery, solver="highs")
+        try:
+            b = cheapest(load, s, w, 0.9, battery=battery, solver="gurobi")
+        except gp.GurobiError as err:
+            pytest.skip(f"no usable Gurobi licence: {err}")
+        assert a.solver == "highs" and b.solver == "gurobi" and a.feasible and b.feasible
+        assert b.yen_per_kwh_used == pytest.approx(a.yen_per_kwh_used, rel=1e-5)
+        assert b.matched == pytest.approx(0.9, abs=1e-6)
