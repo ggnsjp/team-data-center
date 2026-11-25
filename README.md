@@ -126,6 +126,10 @@ Details: the full mathematical model, with every coefficient and worked numbers,
 
 > **These are results on public benchmark networks, not on the Hokkaido grid.** We found no public network model of Hokkaido. The numbers show what the method does, and how far a simpler screening can be off.
 
+![The transmission lines around Ishikari's data centers appear one voltage class after another; then the hosting-capacity bracket of one bus of a public test system](docs/img/grid-hosting-map.gif)
+
+*The map shows the transmission lines and substations around the data centers as mapped in OpenStreetMap (not checked against the grid operator's data): 66 kV, 187 kV and 275 kV, with distances from the middle of the four data-center sites. This is the grid a model for Ishikari would have to represent; there is no such model yet. The bars are the bracket for one bus of the IEEE 118-bus test system: DC screening says 1,040 MW, while the capacity lies between 579 and 593 MW.*
+
 For one bus of a network, the hosting capacity is the largest added load (power factor 0.95) that the AC network can serve within its voltage, branch, angle and generator limits, with all generators free to redispatch. We bracket it from both sides:
 - **Upper bound.** A convex relaxation (semidefinite with chordal decomposition, or second-order cone) [39, 40, 59–61]. No operating point can host more.
 - **Lower bound.** An AC operating point found by an interior-point method [62], then confirmed by a separate check of every balance and limit.
@@ -155,6 +159,10 @@ The app's *Grid hosting capacity* page solves one bus at a time and shows the br
 ## Results so far (theme 3)
 
 > **A first screen, not a site search.** The candidate sites are grid points. Zoning, land, fibre and hazards are not considered, and the grid enters as a distance, because there is no network model of the Hokkaido grid yet.
+
+![A new data center is tried at 56 candidate sites in Ishikari and circles show the value of its waste heat; then the pipe networks of the three best sites and the grid connection of the best one](docs/img/siting-map.gif)
+
+*A new 10 MW data center is tried at each of the 56 candidate sites; the area of a circle is the value of its waste heat. Then the networks of the three best sites: light-blue pipes and users are supplied by the new data center, amber ones by the existing data centers. Last, the connection of the best site to the nearest 66 kV substation.*
 
 For each of 56 candidate sites in Ishikari (a 1.5 km grid, each point moved to the nearest road), the heat-network model of theme 1 is solved again with a new 10 MW data center there. The gain over today's regional plan is the value of that data center's waste heat. The distance to the nearest substation comes from OpenStreetMap.
 
@@ -215,9 +223,13 @@ uv run pytest                                          # tests; those that need 
   and model with `LLM_MODEL`) maps it onto the page's knobs, the deterministic model re-runs, and the
   LLM explains the result. The model never computes numbers; it chooses inputs and explains outputs.
 
-**Redrawing the animation above**
-1. `uv run python scripts/export_heat_network_v2.py`
-2. `uv run python scripts/render_readme_animation.py --plan current` (add `--lang ja` for the Japanese version; it needs a Japanese font such as Noto Sans CJK JP)
+**Redrawing the animations**
+1. Base map and theme-1 plans: `uv run python scripts/export_heat_story.py` and `uv run python scripts/export_heat_network_v2.py`
+2. Theme 1: `uv run python scripts/render_readme_animation.py --plan current`
+3. Theme 2: `uv run python scripts/render_theme_animations.py --theme grid` (the count over all buses appears once `experiments/grid_hosting/run.py` has run)
+4. Theme 3: `uv run python scripts/export_siting.py` (with `--networks-only` when the export is already there), then `uv run python scripts/render_theme_animations.py --theme siting`
+
+Add `--lang ja` for the Japanese versions; they need a Japanese font such as Noto Sans CJK JP.
 
 ## Repository layout
 

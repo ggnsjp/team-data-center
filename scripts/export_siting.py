@@ -5,9 +5,12 @@ a new data center there (dcopt.siting.heat_value). The script also measures each
 the nearest substation and lines in OpenStreetMap, and checks the pair of sites the location model
 picks with one joint solve. It writes
   out/siting/siting.json     read by the app page "Siting"
+  out/siting/networks.json   the pipe networks of today's plan and of the plans for the best sites,
+                             read by scripts/render_siting_animation.py
 
 Run: uv run python scripts/export_siting.py [--spacing 1500] [--mw 10] [--workers 8]
      DCOPT_SOLVER=gurobi uv run python scripts/export_siting.py --workers 4 --out results/siting/gurobi.json   # optional check
+     uv run python scripts/export_siting.py --networks-only    # redo networks.json for an export that is already there
 Takes about a quarter of an hour with 8 workers. Needs the Ishikari map data (scripts/fetch_data.py);
 the power lines are downloaded on first use, and the study runs without them if that fails.
 """
@@ -21,9 +24,10 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import geopandas as gpd
+import numpy as np
 
 from dcopt.common import provenance
-from dcopt.common.geo import paths, use_overpass_mirror
+from dcopt.common.geo import paths, road_path, use_overpass_mirror
 from dcopt.heat.network import Params, build_instance, default_scenarios, ishikari_sources, seeded_plan, solver_name
 from dcopt.heat.v1 import ishikari_sites
 from dcopt.siting import gridmap
@@ -42,12 +46,73 @@ def _init(base, links, users, P, scens) -> None:
     _W.update(base=base, links=links, users=users, P=P, scens=scens)
 
 
-def _value(task: tuple) -> dict:
-    cid, lon, lat, mw = task
-    v = heat_value(_W["base"], _W["links"], _W["users"], lon, lat, mw, _W["P"], _W["scens"])
+def _row(cid: str, mw: float, v) -> dict:
     return {"id": cid, "mw": mw, "value": v.value, "net": v.net, "sites": v.sites,
             "sites_from_candidate": v.sites_from_candidate, "pipe_km": v.pipe_km,
             "heat_from_candidate": v.heat_from_candidate, "seconds": v.seconds}
+
+
+def _value(task: tuple) -> dict:
+    cid, lon, lat, mw = task
+    return _row(cid, mw, heat_value(_W["base"], _W["links"], _W["users"], lon, lat, mw, _W["P"], _W["scens"]))
+
+
+def _pairs(plan) -> set:
+    """The built links of a plan as pairs of road nodes, which do not depend on the node numbering."""
+    nodes = [s.node for s in plan.inst.sources] + [u.node for u in plan.inst.users]
+    return {frozenset((nodes[a], nodes[b])) for e, (a, b) in enumerate(plan.E) if plan.y[e].max() > 0.5}
+
+
+def network(plan, base_pairs: set, d0: int) -> dict:
+    """The pipes of a plan as road paths, each drawn in the direction its heat flows, and the users it
+    connects. Data centers with an index of d0 or more are new: `new_heat` marks the pipes that
+    carry their heat and `from_new` the users they serve. `in_base` marks the pipes of today's plan."""
+    inst, nE = plan.inst, len(plan.E)
+    nodes = [s.node for s in inst.sources] + [u.node for u in inst.users]
+    heat = np.einsum("udtw,w->u", plan.s, plan.p)                      # expected MWh a year per user
+    new = (plan.assign >= d0) & (plan.x > 0.5)
+    pipes = []
+    for e, (a, b) in enumerate(plan.E):
+        if plan.y[e].max() <= 0.5:
+            continue
+        fwd, bwd = plan.g[:, e], plan.g[:, e + nE]
+        if float(heat @ bwd) > float(heat @ fwd):
+            a, b = b, a
+        path = road_path(nodes[a], nodes[b])
+        if len(path) < 2:
+            path = list(path) * 2
+        pipes.append({"path": [[round(float(lon), 5), round(float(lat), 5)] for lat, lon in path],
+                      "dn": plan.P.sizes[int(np.argmax(plan.y[e]))].dn, "km": round(float(inst.dist[a, b]) / 1000, 3),
+                      "from": int(a), "to": int(b), "in_base": frozenset((nodes[a], nodes[b])) in base_pairs,
+                      "new_heat": bool((np.abs(fwd - bwd)[new] > 1e-6).any())})   # net flow: a there-and-back loop carries nothing
+    return {"sources": inst.D, "pipes": pipes,
+            "users": [{"index": u, "from_new": bool(new[u])} for u in range(inst.U) if plan.x[u] > 0.5]}
+
+
+def _network(task: tuple) -> dict:
+    cid, lon, lat, mw = task
+    base = _W["base"]
+    v = heat_value(base, _W["links"], _W["users"], lon, lat, mw, _W["P"], _W["scens"], keep_plan=True)
+    return {**_row(cid, mw, v), "lon": lon, "lat": lat, **network(v.plan, _pairs(base), base.inst.D)}
+
+
+def export_networks(path: Path, cands: list[dict], mw: float, n: int, workers: int, base, links, users, P, scens) -> None:
+    """Solve the n best sites again, keep their plans, and write the pipe networks next to the export."""
+    key = f"{mw:g}"
+    best = sorted(cands, key=lambda c: -c["by_mw"][key]["value"])[:n]
+    with ProcessPoolExecutor(min(workers, len(best)), initializer=_init, initargs=(base, links, users, P, scens)) as pool:
+        rows = list(pool.map(_network, [(c["id"], c["lon"], c["lat"], mw) for c in best]))
+    for c, r in zip(best, rows):
+        r["value_in_export"] = c["by_mw"][key]["value"]
+        note = "" if abs(r["value"] - r["value_in_export"]) < 0.05 * M else "   <- differs from the export (the search is heuristic)"
+        print(f"  network of {c['id']}: {r['value'] / M:.1f}M, {r['sites']} sites, {r['pipe_km']:.1f} km "
+              f"(export: {r['value_in_export'] / M:.1f}M){note}", flush=True)
+    data = {"provenance": provenance.stamp(solver=solver_name(P)), "mw": mw,
+            "base": {"net": base.expected_net, "sites": len(base.connected), "pipe_km": base.pipe_m / 1000,
+                     **network(base, _pairs(base), base.inst.D)},
+            "sites": rows}
+    path.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+    print(f"wrote {path}")
 
 
 def main() -> None:
@@ -57,6 +122,8 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--no-power", action="store_true", help="do not download the power lines")
     ap.add_argument("--out", default=str(OUT / "siting.json"), help="where to write (the app reads the default path)")
+    ap.add_argument("--networks", type=int, default=3, help="keep the pipe networks of this many best sites (0: none)")
+    ap.add_argument("--networks-only", action="store_true", help="read the export at --out and only redo networks.json")
     args = ap.parse_args()
 
     use_overpass_mirror()
@@ -68,6 +135,14 @@ def main() -> None:
     base, links = seeded_plan(inst, P, scens)
     print(f"regional plan without a new data center: {base.expected_net / M:.1f}M, {len(base.connected)} sites, "
           f"{base.pipe_m / 1000:.1f} km  [{time.perf_counter() - t0:.0f}s]", flush=True)
+    out = Path(args.out)
+    if args.networks_only:
+        done = json.loads(out.read_text(encoding="utf-8"))
+        if abs(done["base"]["net"] - base.expected_net) > 0.05 * M:
+            print(f"note: the export has a regional plan of {done['base']['net'] / M:.1f}M, this run {base.expected_net / M:.1f}M")
+        export_networks(out.with_name("networks.json"), done["candidates"], done["sizes_mw"][0], args.networks,
+                        args.workers, base, links, users, P, scens)
+        return
 
     cands = name_places(grid_candidates(spacing_m=args.spacing))
     sizes = [float(x) for x in args.mw.split(",")]
@@ -110,7 +185,6 @@ def main() -> None:
                  "sites": jv.sites, "sites_from_candidates": jv.sites_from_candidate, "pipe_km": jv.pipe_km}
         print(f"pair {joint['ids']}: single values add up to {pick.heat / M:.1f}M, joint value {jv.value / M:.1f}M")
 
-    out = Path(args.out)
     out.parent.mkdir(parents=True, exist_ok=True)
     data = {
         "provenance": provenance.stamp(solver=solver_name(P)), "spacing_m": args.spacing, "sizes_mw": sizes,
@@ -124,6 +198,8 @@ def main() -> None:
     }
     out.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     print(f"wrote {out}  [{time.perf_counter() - t0:.0f}s]")
+    if args.networks > 0:
+        export_networks(out.with_name("networks.json"), cands, mw0, args.networks, args.workers, base, links, users, P, scens)
 
 
 if __name__ == "__main__":

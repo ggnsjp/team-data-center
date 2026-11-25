@@ -141,29 +141,30 @@ flowchart LR
   n42["src/dcopt/grid/hosting.py"]
   n43["experiments/grid_hosting/run.py"]
   n44["app/pages/5_Grid_Hosting.py"]
-  n45{"tests/test_grid_cases.py"}
-  n46{"tests/test_grid_hosting.py"}
-  n47[("Built-in illustrative power systems: a two-bus line, a five-bus ring and an eight-bus feeder")]
-  n49{"tests/test_grid_app.py"}
-  n50[("OpenStreetMap: transmission lines, substations and power plants around the study area")]
-  n52["src/dcopt/siting/gridmap.py"]
-  n53["scripts/export_siting.py"]
-  n54["app/pages/6_Siting.py"]
-  n55{"tests/test_siting.py"}
-  n56[("Siting study: candidate sites, the heat value of each and its distance to the grid")]
-  n57(["MIT + ODbL-1.0"])
-  n59["src/dcopt/siting/candidates.py"]
-  n60["src/dcopt/siting/heat_value.py"]
-  n61["src/dcopt/siting/model.py"]
-  n62{"tests/test_siting_app.py"}
-  n63[("Generated results: experiment outputs, proposal exports and map exports")]
-  n64(["MIT + ODbL-1.0 where maps are drawn"])
-  n67["scripts/export_proposals.py"]
-  n68["scripts/export_heat_story.py"]
-  n69["app/pages/3_Warm_Ishikari_Proposals.py"]
-  n70{"tests/test_proposal.py"}
-  n71{"tests/test_properties.py"}
-  n72{"tests/test_bruteforce.py"}
+  n45["scripts/render_theme_animations.py"]
+  n46{"tests/test_grid_cases.py"}
+  n47{"tests/test_grid_hosting.py"}
+  n48[("Built-in illustrative power systems: a two-bus line, a five-bus ring and an eight-bus feeder")]
+  n50{"tests/test_grid_app.py"}
+  n51[("OpenStreetMap: transmission lines, substations and power plants around the study area")]
+  n53["src/dcopt/siting/gridmap.py"]
+  n54["scripts/export_siting.py"]
+  n55["app/pages/6_Siting.py"]
+  n56{"tests/test_siting.py"}
+  n57[("Siting study: candidate sites, the heat value of each and its distance to the grid")]
+  n58(["MIT + ODbL-1.0"])
+  n60["src/dcopt/siting/candidates.py"]
+  n61["src/dcopt/siting/heat_value.py"]
+  n62["src/dcopt/siting/model.py"]
+  n63{"tests/test_siting_app.py"}
+  n64[("Generated results: experiment outputs, proposal exports and map exports")]
+  n65(["MIT + ODbL-1.0 where maps are drawn"])
+  n68["scripts/export_proposals.py"]
+  n69["scripts/export_heat_story.py"]
+  n70["app/pages/3_Warm_Ishikari_Proposals.py"]
+  n71{"tests/test_proposal.py"}
+  n72{"tests/test_properties.py"}
+  n73{"tests/test_bruteforce.py"}
   n0 -->|under| n1
   n2 -->|feeds| n0
   n0 -->|used_by| n4
@@ -210,36 +211,40 @@ flowchart LR
   n36 -->|used_by| n42
   n36 -->|used_by| n43
   n36 -->|used_by| n44
-  n45 -->|checks| n36
+  n36 -->|used_by| n45
   n46 -->|checks| n36
-  n47 -->|under| n1
-  n47 -->|used_by| n42
-  n47 -->|used_by| n44
-  n45 -->|checks| n47
-  n46 -->|checks| n47
-  n49 -->|checks| n47
-  n50 -->|under| n28
-  n29 -->|feeds| n50
-  n52 -->|makes| n50
-  n50 -->|used_by| n53
-  n50 -->|used_by| n54
-  n55 -->|checks| n50
-  n56 -->|under| n57
-  n53 -->|makes| n56
-  n59 -->|makes| n56
-  n60 -->|makes| n56
-  n61 -->|makes| n56
-  n56 -->|used_by| n54
-  n55 -->|checks| n56
-  n62 -->|checks| n56
-  n63 -->|under| n64
-  n14 -->|makes| n63
-  n67 -->|makes| n63
-  n68 -->|makes| n63
-  n63 -->|used_by| n69
-  n70 -->|checks| n63
-  n71 -->|checks| n63
-  n72 -->|checks| n63
+  n47 -->|checks| n36
+  n48 -->|under| n1
+  n48 -->|used_by| n42
+  n48 -->|used_by| n44
+  n46 -->|checks| n48
+  n47 -->|checks| n48
+  n50 -->|checks| n48
+  n51 -->|under| n28
+  n29 -->|feeds| n51
+  n53 -->|makes| n51
+  n51 -->|used_by| n54
+  n51 -->|used_by| n55
+  n51 -->|used_by| n45
+  n56 -->|checks| n51
+  n57 -->|under| n58
+  n54 -->|makes| n57
+  n60 -->|makes| n57
+  n61 -->|makes| n57
+  n62 -->|makes| n57
+  n57 -->|used_by| n55
+  n57 -->|used_by| n45
+  n56 -->|checks| n57
+  n63 -->|checks| n57
+  n64 -->|under| n65
+  n14 -->|makes| n64
+  n68 -->|makes| n64
+  n69 -->|makes| n64
+  n64 -->|used_by| n70
+  n64 -->|used_by| n45
+  n71 -->|checks| n64
+  n72 -->|checks| n64
+  n73 -->|checks| n64
 ```
 <!-- lineage:end -->
 

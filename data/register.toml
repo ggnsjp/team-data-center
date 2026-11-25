@@ -100,7 +100,7 @@ sources = ["https://github.com/power-grid-lib/pglib-opf", "https://arxiv.org/abs
 made_by = "downloaded on first use by dcopt.grid.cases.ensure_pglib, for example through uv run python experiments/grid_hosting/run.py"
 code = ["src/dcopt/grid/cases.py"]
 processing = "Each MATPOWER case file is saved unchanged. On loading, out-of-service elements and isolated buses are dropped, buses are renumbered, and powers are converted to per unit."
-used_by = ["src/dcopt/grid/hosting.py", "experiments/grid_hosting/run.py", "app/pages/5_Grid_Hosting.py"]
+used_by = ["src/dcopt/grid/hosting.py", "experiments/grid_hosting/run.py", "app/pages/5_Grid_Hosting.py", "scripts/render_theme_animations.py"]
 checks = ["tests/test_grid_cases.py", "tests/test_grid_hosting.py"]
 refresh = "Delete data/cache/pglib and run again before a run whose results are published, and record the date."
 
@@ -129,7 +129,7 @@ sources = ["https://www.openstreetmap.org/copyright"]
 made_by = "downloaded on first use by dcopt.siting.gridmap.load_power, for example through uv run python scripts/export_siting.py"
 code = ["src/dcopt/siting/gridmap.py"]
 processing = "Features tagged power=line, minor_line, cable, substation or plant inside the study area's bounding box plus a margin, saved as GeoJSON. The highest value of the voltage tag becomes the voltage class. Not checked against the grid operator's records."
-used_by = ["scripts/export_siting.py", "app/pages/6_Siting.py"]
+used_by = ["scripts/export_siting.py", "app/pages/6_Siting.py", "scripts/render_theme_animations.py"]
 checks = ["tests/test_siting.py"]
 refresh = "Delete the file and run again before a run whose results are published, and record the date."
 
@@ -143,8 +143,8 @@ licence = "MIT for our numbers; site positions and the map layers come from Open
 sources = []
 made_by = "uv run python scripts/export_siting.py"
 code = ["scripts/export_siting.py", "src/dcopt/siting/candidates.py", "src/dcopt/siting/heat_value.py", "src/dcopt/siting/model.py"]
-processing = "Grid points inside the municipal boundary are moved to the nearest road node. For each, the regional heat plan is solved with a new data center there; the gain over the plan without it is stored with the distances to the nearest substations."
-used_by = ["app/pages/6_Siting.py"]
+processing = "Grid points inside the municipal boundary are moved to the nearest road node. For each, the regional heat plan is solved with a new data center there; the gain over the plan without it is stored with the distances to the nearest substations. The pipe networks of today's plan and of the plans for the best sites are stored in networks.json for the README figure."
+used_by = ["app/pages/6_Siting.py", "scripts/render_theme_animations.py"]
 checks = ["tests/test_siting.py", "tests/test_siting_app.py"]
 refresh = "Re-run after any change to the heat model or its data."
 
@@ -159,6 +159,6 @@ sources = []
 made_by = "experiments/*/run.py and scripts/export_*.py"
 code = ["experiments/weather_years/run.py", "scripts/export_proposals.py", "scripts/export_heat_story.py"]
 processing = "Computed from the datasets above. Each experiment writes a provenance block (git commit, uncommitted changes, data fingerprint, package versions) next to its results."
-used_by = ["app/pages/3_Warm_Ishikari_Proposals.py"]
+used_by = ["app/pages/3_Warm_Ishikari_Proposals.py", "scripts/render_theme_animations.py"]
 checks = ["tests/test_proposal.py", "tests/test_properties.py", "tests/test_bruteforce.py"]
 refresh = "Re-run after any change to the data or the model."

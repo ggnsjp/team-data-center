@@ -126,6 +126,10 @@
 
 > **公開の試験系統での結果です。北海道の系統についての結果ではありません。** 北海道の系統の公開モデルは見つかりませんでした。数字が示すのは、手法で何が分かるかと、簡易な評価がどれだけずれるかです。
 
+![石狩のデータセンター周辺の送電線が電圧階級ごとに現れ、続いて公開の試験系統の1母線での受け入れ余地の上下界が表示される](docs/img/grid-hosting-map-ja.gif)
+
+*地図は、データセンター周辺の送電線と変電所です（OpenStreetMapの記載どおりで、系統運用者のデータとは照合していません）。66 kV・187 kV・275 kVの順に表示し、距離は4か所のデータセンターの中心から測っています。石狩のモデルが表すべき系統ですが、そのモデルはまだありません。棒グラフは、IEEE 118母線の試験系統の1母線での結果です。DC潮流による簡易評価は1,040 MWですが、受け入れ余地は579〜593 MWの間にあります。*
+
 ある母線の受け入れ余地とは、電圧・線路・位相角・発電機の制約を守ったまま、交流の系統がその母線で受け入れられる追加負荷（力率0.95）の最大値です。発電機は自由に出力を変えられるとします。これを上下からはさみます。
 - **上限：** 凸緩和（弦グラフ分解を使う半正定値計画、または二次錐計画）[39, 40, 59–61]。どの運転点もこれを超えられません。
 - **下限：** 内点法 [62] で求めた交流の運転点。別の計算で、電力の収支とすべての制約が成り立つことを確かめます。
@@ -155,6 +159,10 @@ PGLib-OPF [45] の6つの系統の全母線、合計558母線で計算しまし�
 ## これまでの結果（テーマ3）
 
 > **最初のふるい分けで、用地の選定ではありません。** 候補地は格子点です。用途地域・土地・通信回線・災害リスクは見ていません。北海道の系統モデルがまだないので、系統は「距離」としてだけ入っています。
+
+![石狩の56か所の候補地で新しいデータセンターを試し、排熱の価値を円で示す。続いて上位3か所の導管網と、1位の候補地の系統への接続](docs/img/siting-map-ja.gif)
+
+*56か所の候補地のそれぞれに、10 MWの新しいデータセンターを置いて試します。円の面積が、その排熱の価値です。続いて上位3か所の導管網を示します。水色の導管と需要家は新設のデータセンターから、橙色は既存のデータセンターから熱を受けます。最後は、1位の候補地から最寄りの66 kVの変電所への接続です。*
 
 石狩市内の56か所の候補地（1.5km間隔の格子点を近くの道路に寄せたもの）のそれぞれについて、そこに10MWの新しいデータセンターがあるとして、テーマ1の導管網モデルを解き直しました。今の地域の計画より増える純便益が、そのデータセンターの排熱の価値です。最寄りの変電所までの距離は、OpenStreetMapから測りました。
 
@@ -211,9 +219,13 @@ uv run pytest                                          # テスト（地図デ�
 - 炭素価格と補助率のシナリオ：`uv run python experiments/heat_policy/run.py`
 - テーマ2、6つの試験系統の全母線（PGLib-OPFをダウンロードします）：`uv run python experiments/grid_hosting/run.py --workers 8`
 
-**上のアニメーションの作り直し方**
-1. `uv run python scripts/export_heat_network_v2.py`
-2. `uv run python scripts/render_readme_animation.py --plan current --lang ja`（日本語版。Noto Sans CJK JPなどの日本語フォントが必要。英語版は `--lang ja` なし）
+**アニメーションの作り直し方**
+1. 地図とテーマ1の計画：`uv run python scripts/export_heat_story.py` と `uv run python scripts/export_heat_network_v2.py`
+2. テーマ1：`uv run python scripts/render_readme_animation.py --plan current --lang ja`
+3. テーマ2：`uv run python scripts/render_theme_animations.py --theme grid --lang ja`（全母線の集計は、`experiments/grid_hosting/run.py` を実行してあれば表示されます）
+4. テーマ3：`uv run python scripts/export_siting.py`（出力がすでにあれば `--networks-only`）のあと、`uv run python scripts/render_theme_animations.py --theme siting --lang ja`
+
+日本語版にはNoto Sans CJK JPなどの日本語フォントが必要です。英語版は `--lang ja` を外します。
 
 ## 構成
 
