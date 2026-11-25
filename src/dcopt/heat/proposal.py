@@ -214,7 +214,7 @@ def _rows(out: dict, rows: list[dict], P, src) -> list[dict]:
         rows += [
             {"key": "kerosene", "ja": "置き換える灯油（期待値）", "en": "Kerosene replaced (expected)",
              "value": round(pr["kerosene_l"] / 1000, 1), "unit": "kL/yr", "tag": "calculated",
-             "basis": f"heat delivered / ({KEROSENE_KWH_PER_L:g} kWh/L lower heating value x boiler {P.boiler_eff:.0%}, "
+             "basis": f"heat delivered / ({KEROSENE_KWH_PER_L:g} kWh/L heating value x boiler {P.boiler_eff:.0%}, "
                       "assumptions)"},
             {"key": "fuel_mwh", "ja": "灯油でつくる熱の単価（156.8円/L）", "en": "Cost of heat from kerosene (156.8 yen/L)",
              "value": round(pr["fuel_mwh"][1]), "unit": "yen/MWh", "tag": "calculated",

@@ -30,7 +30,7 @@ We took the idea starter **"Warm Ishikari"**: a matchmaker and calculator for da
 
 ## Results so far (theme 1)
 
-> **All numbers are model estimates** from public data and stated assumptions, not measured values or quotations. Several sites, demands and data-center positions are assumptions (see [Caveats](#caveats) and [docs/data-sources.md](docs/data-sources.md)).
+> **All numbers are model estimates** from public data and stated assumptions, not measured values or quotations. Several sites, demands and data-center positions are assumptions, and about half of the heat in the headline plan goes to two assumed sites (see [What the result rests on](#what-the-result-rests-on), [Caveats](#caveats) and [docs/data-sources.md](docs/data-sources.md)).
 
 All figures are annual net benefits in million yen, averaged over four scenarios: IT load low or high, crossed with kerosene at 115 or 156.8 yen/L. The net benefit is the value of the kerosene replaced, minus heat-pump electricity, minus the annualized cost of pipes and heat pumps. Pipe costs follow [15], heat-pump costs [16], kerosene prices [11], and monthly demand follows JMA climate normals [12]. There are 50 candidate sites: 40 from OpenStreetMap facility tags, plus 10 named public buildings, hotels and a factory. Demand per building type is an assumption.
 
@@ -110,6 +110,29 @@ Notes on the table:
 - These are the best plans found, with Gurobi (gaps of 4–11 % to its bound after 300 s per policy). HiGHS alone finds plans within 3.4 % of them and the same picture, except that it keeps the 13-site plan at 4,300 yen/t.
 - Every policy was given the same candidate links, and every plan found was evaluated under every policy, so the plans differ because of the policy and not because of the search ([method](docs/formulations/heat-model.md#12-co2-and-policy-scenarios), [both tables](docs/formulations/heat.md)).
 
+### What the result rests on
+
+The published plan (93.8 M yen a year, 13 sites, 7.8 km) was computed again with each input moved, one at a time, to the end of the range found in published sources. The sources and the reading of each input are in [docs/input-evidence.md](docs/input-evidence.md); the runs are `experiments/input_sensitivity` and `experiments/heat_loss_check`.
+
+| Input | In the model | Changed to | Net benefit (M yen a year) |
+|---|---|---|---|
+| Assumed sites: fish farm, road heating, new greenhouse sites | included | all left out | 11.4 |
+| Heat demand of the fish farm (an assumed site) | 5,000 MWh a year | 1,000 MWh a year, the scale documented in Hokkaido | 27.9 to 32.4 |
+| All yearly heat demands | as assumed | 0.7 times / 1.3 times | 28.4 to 51.5 / 144.8 |
+| Pipe cost | 2019 quotes | fiscal 2025 prices (1.22 times) | 72.7 to 76.6 |
+| Discount rate | 3 % | 4 % / 1 % | 78.3 to 79.0 / about 122 |
+| Heat from a litre of kerosene | 8.2 kWh | 8.7 kWh / 7.6 kWh | 80.7 / 115.0 |
+| Electricity price for the heat pumps | 25 yen/kWh | 30 to 34 yen/kWh | 87.4 to 82.4 |
+| Power drawn by the data centers | the stated IT load, all year | half of it | 80.4 |
+| Network heat loss (ambient loop) | 2 % | 3.7 to 4.5 % | 92.0 |
+
+- **Half of the heat goes to two assumed sites.** The fish farm takes 33 % of the heat the plan delivers and one road-heating area 16 %. Neither exists today. Without the assumed sites, the best plan found on the facilities that exist is worth 11.4 M yen a year (13 sites, 6.0 km).
+- **Low-temperature users carry the value.** The fish farm and the road heating need 22 to 25 °C and take the heat of the 30 °C loop as it is. Existing buildings need 45 to 60 °C, so each of them needs a heat pump and its electricity.
+- **Costs are in 2019 prices.** Construction costs rose about 22 % between fiscal 2019 and fiscal 2025; with pipes at today's prices the plan is worth about a fifth less, and a plan made again shrinks to 10 sites and 4.3 km.
+- **The heat loss matters little here,** because waste heat is in surplus. Computed from published loss coefficients and Sapporo's ground temperature, the plan's own pipes lose 2.7 to 4.5 % of the heat delivered, against the flat 2 % in the model.
+
+A range "a to b" spans the published pipes kept and the plan made again under the changed input.
+
 ### Caveats
 
 - **Optimality.** The plans come from an LP-guided kernel search with HiGHS.
@@ -175,8 +198,8 @@ For each of 56 candidate sites in Ishikari (a 1.5 km grid, each point moved to t
 
 - **The heat has value at 19 of the 56 sites.** At the best one it is 45.2 M yen a year, almost half of what the whole regional plan earns today (93.8).
 - **What counts is being nearer to the heat users.** The best sites are 1 to 2 km from the existing data centers, on the town side. At the port itself heat is already in surplus: the regional plan uses about 15 % of what the existing data centers could supply, so one more data center there adds nothing.
-- **The grid connection decides how much is left.** With a connection line at 100 M yen/km (an assumption), the best site keeps 37.9 of its 45.2 if it connects at the 66 kV substation 1.4 km away, and 18.5 if it has to connect at 187 kV, 5.2 km away.
-- **A second new data center is worth about a third of the first:** 16.6 of heat value on top, and 3.3 after its own connection cost.
+- **The grid connection costs as much as the heat is worth.** Published standard unit costs for a two-circuit tower line are 140 to 670 M yen/km in the 66/77 kV class [65]. At the middle of that range, the best site keeps 15.3 of its 45.2 if it connects at the 66 kV substation 1.4 km away, and only one other site keeps a positive net. If the connection has to be made at 187 kV, 5.2 km away, the heat value does not cover the line at any site.
+- **A second new data center adds about a third of the heat value of the first** (16.6 on top), which is less than its own connection costs.
 
 The app's *Siting* page shows the map and solves the location model for a chosen number of data centers, connection level and cost. The values are lower bounds from a heuristic search, computed one site at a time. They are from the run with Gurobi; HiGHS alone gives the same values at the four best sites and lower ones at 17 others. Formulation, method and limits: [docs/formulations/siting.md](docs/formulations/siting.md).
 
@@ -249,7 +272,7 @@ tests/              unit tests on synthetic instances and app tests
 
 ## Data and sources
 
-- **Every number has a source or is marked as an assumption.** The list, with URLs, is in [docs/data-sources.md](docs/data-sources.md). It covers the data centers in Ishikari, prices, pipe and heat-pump costs, climate normals and precedents.
+- **Every number has a source or is marked as an assumption.** For the assumptions, [docs/input-evidence.md](docs/input-evidence.md) gives the range found in published sources and how far the results move with it. The list, with URLs, is in [docs/data-sources.md](docs/data-sources.md). It covers the data centers in Ishikari, prices, pipe and heat-pump costs, climate normals and precedents.
 - **Every dataset is registered, pinned and tested.** [docs/data-accountability.md](docs/data-accountability.md) shows where each dataset is stored, under which terms, how it is processed, which tests keep the calculations accurate, and how a result is traced to its code and data.
 - **Map data.**
   - Scripts download OpenStreetMap data (© OpenStreetMap contributors, ODbL [18]) into `data/raw/` and `data/cache/`. This data is not committed.
@@ -279,7 +302,7 @@ tests/              unit tests on synthetic instances and app tests
 
 ## References
 
-Facts and parameters [1–22], then related literature: waste-heat networks and data-center heat reuse [23–30], robust optimization [31–36], grid hosting capacity [37–47], siting and flexible loads [48–52]. CO₂ factors and policy sources [53–58]. Methods and the solver of theme 2 [59–64].
+Facts and parameters [1–22], then related literature: waste-heat networks and data-center heat reuse [23–30], robust optimization [31–36], grid hosting capacity [37–47], siting and flexible loads [48–52]. CO₂ factors and policy sources [53–58]. Methods and the solver of theme 2 [59–64]. Grid connection costs [65].
 
 1. Hack × Hokkaido Build Week 2026, AI build week in Sapporo, 23–27 November 2026. https://www.hackhokkaido.com/ (accessed 2026-11-24).
 2. Broadband Tower (2025-11-28). Press release on Ishikari Renewable Energy Data Center No. 1 (in Japanese). https://www.bbtower.co.jp/ir/pr/docs/20251128_ishikari_release.pdf
@@ -345,6 +368,7 @@ Facts and parameters [1–22], then related literature: waste-heat networks and 
 62. Wang, H., Murillo-Sánchez, C.E., Zimmerman, R.D., Thomas, R.J. (2007). On Computational Issues of Market-Based Optimal Power Flow. *IEEE Transactions on Power Systems*, 22(3), 1185–1193. https://doi.org/10.1109/TPWRS.2007.901301
 63. Coffrin, C., Hijazi, H.L., Van Hentenryck, P. (2017). Strengthening the SDP Relaxation of AC Power Flows With Convex Envelopes, Bound Tightening, and Valid Inequalities. *IEEE Transactions on Power Systems*, 32(5), 3549–3558. https://doi.org/10.1109/TPWRS.2016.2634586
 64. Goulart, P.J., Chen, Y. (2026). Clarabel: An interior-point solver for conic programs with quadratic objectives. *Mathematical Programming Computation*, 18(4), 1279–1361. https://doi.org/10.1007/s12532-026-00320-7
+65. 電力広域的運営推進機関 (2026). 送変電設備の標準的な単価の見直しについて, 第11回 計画評価及び検証小委員会 資料1 (OCCTO, standard unit costs of transmission and substation equipment, published 2026-03-10; land excluded). https://www.occto.or.jp/assets/iinkai/kouikikeitouseibi_hyouka/11/hyouka_11_01_01.pdf
 
 ## Team
 

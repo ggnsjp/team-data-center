@@ -113,7 +113,7 @@ In ambient mode the pipes carry only the low-temperature part of the heat; the u
 
 ### 2.4 Value of a delivered MWh
 
-Each MWh delivered replaces kerosene burned in a boiler with efficiency $\eta_b = 0.85$. Kerosene's lower heating value is 9.7 kWh/L, so one MWh replaces $1000/(9.7 \times 0.85) = 121.3$ L. With the kerosene price $p^{ker}_\omega$ (yen/L) and the electricity price $p^{el} = 25$ yen/kWh:
+Each MWh delivered replaces kerosene burned in a boiler with efficiency $\eta_b = 0.85$. The heating value of kerosene is taken as 9.7 kWh/L (the standard values are 9.55 kWh/L net and 10.17 kWh/L gross; see [input-evidence.md](../input-evidence.md)), so one MWh replaces $1000/(9.7 \times 0.85) = 121.3$ L. With the kerosene price $p^{ker}_\omega$ (yen/L) and the electricity price $p^{el} = 25$ yen/kWh:
 
 ```math
 v_{u\omega} = \frac{1000\,p^{ker}_\omega}{9.7\,\eta_b} - 1000\,p^{el}\,e_u \qquad \text{(yen/MWh)}.

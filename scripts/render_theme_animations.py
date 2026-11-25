@@ -297,7 +297,9 @@ def siting(records: list[dict], lang: str) -> Stage:
         return spots[int(np.argmax(room))]
 
     from dcopt.siting.model import annuity
-    line = annuity(0.03, 30) * 100.0                                   # M yen a year per km of connection line (assumption)
+    # M yen a year per km of connection line: the middle of the published standard unit costs for a
+    # two-circuit tower line, 66/77 kV class and 154/187 kV class (docs/input-evidence.md)
+    line66, line187 = annuity(0.03, 30) * 410.0, annuity(0.03, 30) * 510.0
     g66, g187 = top["grid_66"], top["grid_187"]
     solver = (nets.get("provenance") or {}).get("solver", "")
     T = {
@@ -482,12 +484,19 @@ def siting(records: list[dict], lang: str) -> Stage:
         new = np.zeros(len(users), bool)
         for u in s["users"]:
             (new if u["from_new"] else connected)[u["index"]] = True
-        net66, net187 = c["v"] - line * g66["substation_km"], c["v"] - line * g187["substation_km"]
-        body = [(f"66 kVの変電所まで{g66['substation_km']:.1f} km：年{man(net66)}万円が残る" if ja else
-                 f"{g66['substation_km']:.1f} km to a 66 kV substation: {net66:.1f} M yen a year is left", 9.8, C["ink"]),
-                (f"187 kVの変電所まで{g187['substation_km']:.1f} km：年{man(net187)}万円が残る" if ja else
-                 f"{g187['substation_km']:.1f} km to a 187 kV substation: {net187:.1f} is left", 9.5, C["ink2"]),
-                ("接続線の費用は1 kmあたり1億円（仮定）。" if ja else "Connection line at 100 M yen per km (an assumption).", 8.6, C["muted"]),
+        cost66, cost187 = line66 * g66["substation_km"], line187 * g187["substation_km"]
+
+        def left(cost: float) -> str:
+            if c["v"] >= cost:
+                return f"残り{man(c['v'] - cost)}万円" if ja else f"{c['v'] - cost:.1f} left"
+            return "排熱の価値を超える" if ja else "above the heat value"
+
+        body = [(f"66 kVまで{g66['substation_km']:.1f} km：接続線 年{man(cost66)}万円、{left(cost66)}" if ja else
+                 f"66 kV substation, {g66['substation_km']:.1f} km: line {cost66:.1f} M yen/yr, {left(cost66)}", 9.8, C["ink"]),
+                (f"187 kVまで{g187['substation_km']:.1f} km：接続線 年{man(cost187)}万円、{left(cost187)}" if ja else
+                 f"187 kV, {g187['substation_km']:.1f} km: line {cost187:.1f} M yen/yr, {left(cost187)}", 9.5, C["ink2"]),
+                ("接続線の単価は公表値の中央（4.1億円/km、5.1億円/km）。" if ja else
+                 "Published unit costs, mid-range: 410, 510 M yen per km.", 8.6, C["muted"]),
                 ("石狩の受け入れ余地はまだ計算できていません（テーマ2）。" if ja else
                  "There is no hosting capacity for Ishikari yet (theme 2).", 8.6, C["muted"])]
         steps = 5

@@ -126,45 +126,50 @@ flowchart LR
   n23{"tests/test_coefficients.py"}
   n24[("Model parameters: prices, efficiencies, temperatures, pipe costs, peak factors")]
   n25>"docs/data-sources.md"]
-  n27[("OpenStreetMap: boundary, road network, facilities and candidate heat users for the study area")]
-  n28(["ODbL-1.0"])
-  n29>"www.openstreetmap.org/copyright"]
-  n32["scripts/fetch_data.py"]
-  n33["src/dcopt/common/geo.py"]
-  n34["app/pages/1_Warm_Ishikari.py"]
-  n35["app/pages/2_Warm_Ishikari_Map.py"]
-  n36[("PGLib-OPF benchmark power systems (six cases, 14 to 300 buses)")]
-  n37(["CC-BY-4.0"])
-  n38>"github.com/power-grid-lib/pglib-opf"]
-  n39>"arxiv.org/abs/1908.02788"]
-  n41["src/dcopt/grid/cases.py"]
-  n42["src/dcopt/grid/hosting.py"]
-  n43["experiments/grid_hosting/run.py"]
-  n44["app/pages/5_Grid_Hosting.py"]
-  n45["scripts/render_theme_animations.py"]
-  n46{"tests/test_grid_cases.py"}
-  n47{"tests/test_grid_hosting.py"}
-  n48[("Built-in illustrative power systems: a two-bus line, a five-bus ring and an eight-bus feeder")]
-  n50{"tests/test_grid_app.py"}
-  n51[("OpenStreetMap: transmission lines, substations and power plants around the study area")]
-  n53["src/dcopt/siting/gridmap.py"]
-  n54["scripts/export_siting.py"]
-  n55["app/pages/6_Siting.py"]
-  n56{"tests/test_siting.py"}
-  n57[("Siting study: candidate sites, the heat value of each and its distance to the grid")]
-  n58(["MIT + ODbL-1.0"])
-  n60["src/dcopt/siting/candidates.py"]
-  n61["src/dcopt/siting/heat_value.py"]
-  n62["src/dcopt/siting/model.py"]
-  n63{"tests/test_siting_app.py"}
-  n64[("Generated results: experiment outputs, proposal exports and map exports")]
-  n65(["MIT + ODbL-1.0 where maps are drawn"])
-  n68["scripts/export_proposals.py"]
-  n69["scripts/export_heat_story.py"]
-  n70["app/pages/3_Warm_Ishikari_Proposals.py"]
-  n71{"tests/test_proposal.py"}
-  n72{"tests/test_properties.py"}
-  n73{"tests/test_bruteforce.py"}
+  n26>"docs/input-evidence.md"]
+  n28["experiments/input_sensitivity/run.py"]
+  n29["experiments/heat_loss_check/run.py"]
+  n30{"tests/test_evidence.py"}
+  n31{"tests/test_heat_loss.py"}
+  n32[("OpenStreetMap: boundary, road network, facilities and candidate heat users for the study area")]
+  n33(["ODbL-1.0"])
+  n34>"www.openstreetmap.org/copyright"]
+  n37["scripts/fetch_data.py"]
+  n38["src/dcopt/common/geo.py"]
+  n39["app/pages/1_Warm_Ishikari.py"]
+  n40["app/pages/2_Warm_Ishikari_Map.py"]
+  n41[("PGLib-OPF benchmark power systems (six cases, 14 to 300 buses)")]
+  n42(["CC-BY-4.0"])
+  n43>"github.com/power-grid-lib/pglib-opf"]
+  n44>"arxiv.org/abs/1908.02788"]
+  n46["src/dcopt/grid/cases.py"]
+  n47["src/dcopt/grid/hosting.py"]
+  n48["experiments/grid_hosting/run.py"]
+  n49["app/pages/5_Grid_Hosting.py"]
+  n50["scripts/render_theme_animations.py"]
+  n51{"tests/test_grid_cases.py"}
+  n52{"tests/test_grid_hosting.py"}
+  n53[("Built-in illustrative power systems: a two-bus line, a five-bus ring and an eight-bus feeder")]
+  n55{"tests/test_grid_app.py"}
+  n56[("OpenStreetMap: transmission lines, substations and power plants around the study area")]
+  n58["src/dcopt/siting/gridmap.py"]
+  n59["scripts/export_siting.py"]
+  n60["app/pages/6_Siting.py"]
+  n61{"tests/test_siting.py"}
+  n62[("Siting study: candidate sites, the heat value of each and its distance to the grid")]
+  n63(["MIT + ODbL-1.0"])
+  n65["src/dcopt/siting/candidates.py"]
+  n66["src/dcopt/siting/heat_value.py"]
+  n67["src/dcopt/siting/model.py"]
+  n68{"tests/test_siting_app.py"}
+  n69[("Generated results: experiment outputs, proposal exports and map exports")]
+  n70(["MIT + ODbL-1.0 where maps are drawn"])
+  n73["scripts/export_proposals.py"]
+  n74["scripts/export_heat_story.py"]
+  n75["app/pages/3_Warm_Ishikari_Proposals.py"]
+  n76{"tests/test_proposal.py"}
+  n77{"tests/test_properties.py"}
+  n78{"tests/test_bruteforce.py"}
   n0 -->|under| n1
   n2 -->|feeds| n0
   n0 -->|used_by| n4
@@ -191,60 +196,65 @@ flowchart LR
   n23 -->|checks| n19
   n24 -->|under| n1
   n25 -->|feeds| n24
+  n26 -->|feeds| n24
   n24 -->|used_by| n4
   n24 -->|used_by| n13
+  n24 -->|used_by| n28
+  n24 -->|used_by| n29
   n5 -->|checks| n24
   n23 -->|checks| n24
-  n27 -->|under| n28
-  n29 -->|feeds| n27
-  n32 -->|makes| n27
-  n33 -->|makes| n27
-  n27 -->|used_by| n22
-  n27 -->|used_by| n4
-  n27 -->|used_by| n34
-  n27 -->|used_by| n35
-  n5 -->|checks| n27
-  n36 -->|under| n37
-  n38 -->|feeds| n36
-  n39 -->|feeds| n36
-  n41 -->|makes| n36
-  n36 -->|used_by| n42
-  n36 -->|used_by| n43
-  n36 -->|used_by| n44
-  n36 -->|used_by| n45
-  n46 -->|checks| n36
-  n47 -->|checks| n36
-  n48 -->|under| n1
-  n48 -->|used_by| n42
-  n48 -->|used_by| n44
-  n46 -->|checks| n48
-  n47 -->|checks| n48
-  n50 -->|checks| n48
-  n51 -->|under| n28
-  n29 -->|feeds| n51
-  n53 -->|makes| n51
-  n51 -->|used_by| n54
-  n51 -->|used_by| n55
-  n51 -->|used_by| n45
-  n56 -->|checks| n51
-  n57 -->|under| n58
-  n54 -->|makes| n57
-  n60 -->|makes| n57
-  n61 -->|makes| n57
-  n62 -->|makes| n57
-  n57 -->|used_by| n55
-  n57 -->|used_by| n45
-  n56 -->|checks| n57
-  n63 -->|checks| n57
-  n64 -->|under| n65
-  n14 -->|makes| n64
-  n68 -->|makes| n64
-  n69 -->|makes| n64
-  n64 -->|used_by| n70
-  n64 -->|used_by| n45
-  n71 -->|checks| n64
-  n72 -->|checks| n64
-  n73 -->|checks| n64
+  n30 -->|checks| n24
+  n31 -->|checks| n24
+  n32 -->|under| n33
+  n34 -->|feeds| n32
+  n37 -->|makes| n32
+  n38 -->|makes| n32
+  n32 -->|used_by| n22
+  n32 -->|used_by| n4
+  n32 -->|used_by| n39
+  n32 -->|used_by| n40
+  n5 -->|checks| n32
+  n41 -->|under| n42
+  n43 -->|feeds| n41
+  n44 -->|feeds| n41
+  n46 -->|makes| n41
+  n41 -->|used_by| n47
+  n41 -->|used_by| n48
+  n41 -->|used_by| n49
+  n41 -->|used_by| n50
+  n51 -->|checks| n41
+  n52 -->|checks| n41
+  n53 -->|under| n1
+  n53 -->|used_by| n47
+  n53 -->|used_by| n49
+  n51 -->|checks| n53
+  n52 -->|checks| n53
+  n55 -->|checks| n53
+  n56 -->|under| n33
+  n34 -->|feeds| n56
+  n58 -->|makes| n56
+  n56 -->|used_by| n59
+  n56 -->|used_by| n60
+  n56 -->|used_by| n50
+  n61 -->|checks| n56
+  n62 -->|under| n63
+  n59 -->|makes| n62
+  n65 -->|makes| n62
+  n66 -->|makes| n62
+  n67 -->|makes| n62
+  n62 -->|used_by| n60
+  n62 -->|used_by| n50
+  n61 -->|checks| n62
+  n68 -->|checks| n62
+  n69 -->|under| n70
+  n14 -->|makes| n69
+  n73 -->|makes| n69
+  n74 -->|makes| n69
+  n69 -->|used_by| n75
+  n69 -->|used_by| n50
+  n76 -->|checks| n69
+  n77 -->|checks| n69
+  n78 -->|checks| n69
 ```
 <!-- lineage:end -->
 

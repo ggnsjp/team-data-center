@@ -24,6 +24,10 @@ DATA = ROOT / "out" / "siting" / "siting.json"
 M = 1e6
 LINE = {275000: ("#B3541E", 5), 187000: ("#14213D", 4), 66000: ("#3987E5", 3)}
 RATE, YEARS = 0.03, 30                 # the annuity of the heat model, used for the grid connection too
+# Connection line, M yen per km: the middle and the range of the standard unit costs for a two-circuit
+# tower line that OCCTO published in March 2026 (land excluded); "66" is its 66/77 kV class and
+# "187" its 154/187 kV class. Source and reading: docs/input-evidence.md.
+LINE_COST = {"66": (410, 140, 670), "187": (510, 190, 830)}
 
 lang = st.session_state.get("app_lang", "日本語")
 ja = lang == "日本語"
@@ -64,11 +68,15 @@ with st.sidebar:
     n = st.slider(pick("新しく置く数", "Number of new data centers"), 1, 3, 1, key="siting_n")
     level = st.radio(pick("系統への接続先", "Grid connection at"), ["66", "187"], horizontal=True, key="siting_kv",
                      format_func=lambda k: pick(f"{k} kV以上の変電所", f"a substation of {k} kV or more"), disabled=not has_grid)
-    cost = st.slider(pick("接続線の費用（百万円/km）", "Connection line cost (M yen per km)"), 0, 300, 100, 10, key="siting_cost",
-                     disabled=not has_grid,
-                     help=pick("仮定です。距離に比例する費用を、30年・3%の年賦に直して排熱の価値から引きます。",
-                               "An assumption. The cost grows with distance and is turned into an annuity (30 years, 3 %) "
-                               "before it is taken off the heat value."))
+    mid, low, high = LINE_COST[level]
+    cost = st.slider(pick("接続線の費用（百万円/km）", "Connection line cost (M yen per km)"), 0, 900, mid, 10,
+                     key=f"siting_cost_{level}", disabled=not has_grid,
+                     help=pick(f"初期値は、電力広域的運営推進機関が公表している標準的な単価（2026年3月、鉄塔2回線の架空線、土地代を除く）の範囲"
+                               f" {low / 100:.1f}〜{high / 100:.1f}億円/km の中央です。距離に比例する費用を、30年・3 %の年賦に直して"
+                               "排熱の価値から引きます。",
+                               f"The default is the middle of the standard unit costs published by OCCTO (March 2026, two-circuit "
+                               f"tower line, land excluded): {low} to {high} M yen per km. The cost grows with distance and is "
+                               "turned into an annuity (30 years, 3 %) before it is taken off the heat value."))
     spacing = st.slider(pick("新しいデータセンターどうしの最小間隔（km）", "Minimum spacing between new data centers (km)"),
                         0.0, 8.0, 3.0, 0.5, key="siting_spacing",
                         help=pick("排熱の価値は1か所ずつ計算しているので、同じ需要家を取り合う近い2か所の価値は足せません。その組を除くための間隔です。",
@@ -223,7 +231,8 @@ with st.expander(pick("読み方と限界", "How to read this, and its limits"))
         f"- **排熱の価値：** 既存のデータセンターに、IT負荷{mw:g} MW（低負荷シナリオではその{data['low_share']:.0%}）のデータセンターを1つ加えて導管網を最適化し直し、"
         "加えない場合との純便益の差をとった値です。既存のデータセンターのそばでは、熱はすでに余っているので価値はほぼ0です。"
         "まだ熱が届いていない需要家の近くで高くなります。\n"
-        "- **系統への接続：** OpenStreetMapに載っている変電所までの直線距離に、1 kmあたりの費用（仮定）を掛けています。変電所にどれだけ余地があるかは分かりません。"
+        "- **系統への接続：** OpenStreetMapに載っている変電所までの直線距離に、1 kmあたりの費用を掛けています。費用は、公表されている標準的な単価の"
+        "範囲の中央で、範囲は広く（66・77 kV級で1.4〜6.7億円/km）、土地代は含みません。変電所にどれだけ余地があるかは分かりません。"
         "北海道の系統モデルができれば、テーマ2の受け入れ余地を制約に入れます。\n"
         "- **見ていないもの：** 用途地域、土地の広さと価格、通信回線、洪水・津波・地盤、冷却用の水。候補地は格子点であり、実際の空き地ではありません。"
         + extra,
@@ -231,8 +240,9 @@ with st.expander(pick("読み方と限界", "How to read this, and its limits"))
         f"({data['low_share']:.0%} of it in the low-load scenario), and the value is the gain in net benefit over the plan "
         "without it. Next to the existing data centers the heat is already in surplus, so the value is about zero. It is high "
         "near users that no heat reaches yet.\n"
-        "- **Grid connection:** the straight-line distance to a substation mapped in OpenStreetMap, times a cost per km (an "
-        "assumption). How much room the substation has is not known. Once a network model of the Hokkaido grid exists, the "
+        "- **Grid connection:** the straight-line distance to a substation mapped in OpenStreetMap, times a cost per km. The "
+        "cost is the middle of the published standard unit costs, a wide range (140 to 670 M yen per km in the 66/77 kV "
+        "class) that leaves out land. How much room the substation has is not known. Once a network model of the Hokkaido grid exists, the "
         "hosting capacity of theme 2 becomes a constraint here.\n"
         "- **Not considered:** zoning, the size and price of land, fibre, flood, tsunami and ground conditions, cooling "
         "water. The candidates are grid points, not vacant lots." + extra))

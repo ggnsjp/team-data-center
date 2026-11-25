@@ -2,6 +2,8 @@
 
 This page lists every value the models use, with its source, or marks it as an assumption. Values were checked on 2026-11-23 unless noted.
 
+**For the assumptions, see [input-evidence.md](input-evidence.md)** ([日本語](input-evidence.ja.md)): the range found in published sources for each one, where the model's value sits in it, and how far the published results move when the value moves to the end of the range.
+
 ## Data centers in Ishikari
 
 | Item | Value | Source |
@@ -32,7 +34,7 @@ This page lists every value the models use, with its source, or marks it as an a
 | Recoverable share of IT heat at 30–35 °C | 0.6 | Assumption |
 | Heat-pump COP (to about 60 °C) | 4.0 | Assumption |
 | Boiler efficiency (kerosene) | 0.85 | Assumption |
-| Lower heating value of kerosene | 9.7 kWh/L | Assumption (standard value) |
+| Heating value of kerosene | 9.7 kWh/L | Assumption, between the standard net value (9.55 kWh/L) and gross value (10.17 kWh/L); see [input-evidence.md](input-evidence.md) |
 | CO2 from kerosene | 2.50 kg/L | Ministry of the Environment list of emission factors (see *CO₂ factors and policy scenarios* below) |
 | Heat-pump electricity | 25 yen/kWh | Assumption |
 | Pipe, installed, both directions | 100,000 yen per metre of street | Assumption; compare with the range above |
@@ -70,7 +72,7 @@ Checked on 2026-11-25. The carbon prices and subsidy rates are scenario values f
 | Item | Value | Source or assumption |
 |---|---|---|
 | Transmission lines, voltage classes and substations around Ishikari | as mapped; 275, 187 and 66 kV classes | OpenStreetMap (© OpenStreetMap contributors, ODbL), downloaded into `data/cache/ishikari/power.geojson`; not checked against HEPCO Network's records |
-| Cost of a grid connection line | 100 M yen per km, turned into an annuity at 3 % over 30 years | Assumption (a slider in the app); to be replaced by published standard unit costs |
+| Cost of a grid connection line | 410 M yen per km to a 66 kV substation and 510 M yen per km to a 187 kV one, turned into an annuity at 3 % over 30 years (a slider in the app) | The middle of the standard unit costs for a two-circuit tower line, land excluded: 140 to 670 M yen/km (66/77 kV class) and 190 to 830 M yen/km (154/187 kV class). 電力広域的運営推進機関, 送変電設備の標準的な単価 (published 2026-03-10), as reproduced in https://www.occto.or.jp/assets/iinkai/kouikikeitouseibi_hyouka/11/hyouka_11_01_01.pdf . An earlier placeholder of 100 M yen/km was below this range |
 | IT load of a new data center | 10 MW, and 60 % of it in the low-load scenarios | Assumption; the ratio is that of data center No. 1 in the model |
 | Candidate sites | points of a 1.5 km grid inside the municipal boundary, moved to the nearest road | Generated; not a land survey |
 
