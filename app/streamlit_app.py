@@ -25,6 +25,7 @@ def home() -> None:
 | 1 | 排熱の導管網 | 排熱の導管網・アニメーション・提案書・気象年で試す |
 | 2 | 系統の受け入れ余地 | 系統の受け入れ余地（公開の試験系統で検証） |
 | 3 | 次のデータセンターの立地 | 立地（排熱の価値と系統への距離による最初のふるい分け） |
+| 4 | 時間ごとに見た再エネ利用 | 再エネの一致（北海道エリアの30分ごとの需給実績で数える） |
 """)
     else:
         st.markdown("Optimization for data centers in Ishikari, Hokkaido")
@@ -34,6 +35,7 @@ def home() -> None:
 | 1 | Waste-heat networks | Waste-heat network, Animation, Proposals, Weather years |
 | 2 | Grid hosting capacity | Grid hosting capacity (checked on benchmark systems) |
 | 3 | Siting the next data center | Siting (a first screen by heat value and distance to the grid) |
+| 4 | Renewable electricity, slot by slot | Renewable matching (counted on the area's 30-minute supply and demand records) |
 """)
 
 
@@ -59,6 +61,7 @@ pages = [
     st.Page("pages/5_Grid_Hosting.py", title=pick("系統の受け入れ余地", "Grid hosting capacity"),
             url_path="Grid_Hosting"),
     st.Page("pages/6_Siting.py", title=pick("立地", "Siting"), url_path="Siting"),
+    st.Page("pages/7_Matching.py", title=pick("再エネの一致", "Renewable matching"), url_path="Matching"),
 ]
 st.navigation(pages).run()
 st.caption(pick("地図データ © OpenStreetMap contributors（ODbL）", "Map data © OpenStreetMap contributors (ODbL)"))
