@@ -335,7 +335,7 @@ Facts and parameters [1–22], then related literature: waste-heat networks and 
 
 ## Team
 
-Adam Curnow, Junko, Lia Vergou, Noriyuki Sugita, Paul Binder, Seiko Yamaguchi, Thomas Braam
+Adam Curnow, Junko, Lia Vergou, Noriyuki Sugita, Paul Binder, Seiko Yamaguchi
 
 ## License and citation
 

@@ -329,7 +329,7 @@ tests/              合成データでの単体テストとアプリのテスト
 
 ## メンバー
 
-Adam Curnow, Junko, Lia Vergou, Noriyuki Sugita, Paul Binder, Seiko Yamaguchi, Thomas Braam
+Adam Curnow, Junko, Lia Vergou, Noriyuki Sugita, Paul Binder, Seiko Yamaguchi
 
 ## ライセンスと引用
 
