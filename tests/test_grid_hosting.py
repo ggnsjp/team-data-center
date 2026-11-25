@@ -207,3 +207,36 @@ def test_pglib_case14_is_bracketed_exactly_when_cached():
     rows = hosting_map(cases.load("case14_ieee", download=False))
     assert all(h.ac is not None and h.gap < 1e-4 for h in rows)
     assert all(h.dc > h.upper for h in rows)                             # DC screening overstates every bus here
+
+
+def _grid_global():
+    """experiments/grid_global/run.py as a module (experiments are scripts, not a package)."""
+    import importlib.util
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / "experiments" / "grid_global" / "run.py"
+    spec = importlib.util.spec_from_file_location("grid_global_run", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_grid_global_row_reproduces_the_five_bus_line_of_the_table():
+    gp = pytest.importorskip("gurobipy")
+    run = _grid_global()
+    try:
+        r = run.row(cases.ring5(), "3", level=0.6, time_limit=30)
+    except gp.GurobiError as err:
+        pytest.skip(f"no usable Gurobi licence: {err}")
+    assert r["gurobi_status"] == "optimal"
+    assert r["gurobi_best_mw"] == pytest.approx(r["ac_mw"], rel=2e-4)  # 233.80 in docs/formulations/grid.md
+    assert r["ac_mw"] < r["sdp_mw"]                                       # the SDP bound is loose here
+    assert "| ring5 bus 3 at load level 0.6 |" in run.markdown([r], 30)
+
+
+def test_grid_global_exits_cleanly_without_gurobi(monkeypatch, tmp_path, capsys):
+    import sys
+    monkeypatch.setitem(sys.modules, "gurobipy", None)                   # makes `import gurobipy` fail
+    assert _grid_global().main(["--out", str(tmp_path)]) == 0
+    out = capsys.readouterr().out.strip()
+    assert out.count("\n") == 0 and "Gurobi is optional" in out
+    assert not any(tmp_path.iterdir())

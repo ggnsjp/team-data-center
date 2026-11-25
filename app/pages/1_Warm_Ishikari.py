@@ -344,7 +344,7 @@ with right:
         for t in range(12):
             if opt.served[i, t] > 1e-6:
                 rows.append({"month": t, "kind": KINDS[s.kind][0 if ja else 1], "mwh": opt.served[i, t]})
-    df = pd.DataFrame(rows)
+    df = pd.DataFrame(rows, columns=["month", "kind", "mwh"])   # columns even when nothing connects
     deliverable = [w / (1 - 1 / A.cop) for w in opt.waste_heat]
     demand = [sum(s.monthly()[t] for s in opt.sites) for t in range(12)]
     month_labels = MONTHS_JA if ja else MONTHS_EN
