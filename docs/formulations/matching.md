@@ -184,6 +184,7 @@ What the numbers say:
 ## 8. Limits
 
 - **A replay, not a dispatch model.** Section 4 keeps hydro, pumped storage, the interconnection and plant commitment as recorded. In reality they would respond, mostly in the direction of less curtailment. There are no network limits.
+- **Thermal plants in Hokkaido stand for all plants that respond.** The area exported about 1.1 TWh a year in the records. If an added load is covered by exporting less, the extra generation happens in Honshu instead; the replay books it in Hokkaido.
 - **One floor for the year.** The level thermal plants can turn down to depends on which units run and on reserve needs. The two cases bracket it only roughly.
 - **The area's fleet as the contract.** A single plant, or a new offshore wind farm, has a different shape from today's fleet.
 - **A constant load.** Real data centers vary with their work. AI training and inference may follow different patterns.
