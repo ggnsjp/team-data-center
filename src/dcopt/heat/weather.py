@@ -316,11 +316,9 @@ class WeatherYear:
         """The design-day demand (MW) implied by the year's daily weather, or None for kinds whose
         peak stays monthly: snow-melting is a multi-day process and flat kinds have no peak day.
 
-        The model does not use this yet: with the all-or-nothing pipe-size convention (a pipe
-        must carry the user's full peak or the user stays off), sizing for the worst day of 50
-        years while mean-built plans keep their own mild sizing makes cross-plan comparisons
-        apples-to-oranges. It becomes usable when the deliverable capacity is tied to the BUILT
-        pipe size instead of alpha x the scenario peak."""
+        The model's default sizing ignores this; `Params(sizing="robust")` uses it for
+        weather-bearing scenarios (the design-day rule: cover the worst day of the worst year in
+        the set), while kinds without a daily peak keep the monthly convention."""
         profile = KINDS[kind][2]
         if profile not in ("building", "school", "greenhouse", "pool"):
             return None

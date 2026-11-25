@@ -167,6 +167,9 @@ class Params:
     hp_yen_per_mw_user: float = 150e6   # heat pumps at the users, yen per MW of heat (HP_COST_BASIS)
     hp_yen_per_mw_central: float = 100e6  # central heat pump, yen per MW of heat (HP_COST_BASIS)
     alpha: float = 1.0               # share of each user's peak the pipes and heat pumps are sized for
+    sizing: str = "published"        # "published": alpha x the worst month of the worst scenario; "robust":
+                                     # also cover the worst DAY of weather-bearing scenarios (daily_peak_mw).
+                                     # 管やヒートポンプのサイズ根拠：「公表」は最悪月、「頑健」は最悪日まで
     sizes: tuple = PIPE_SIZES
     supply_c: dict = field(default_factory=lambda: dict(SUPPLY_C))
     peak_factor: dict = field(default_factory=lambda: dict(PEAK_FACTOR))
@@ -451,14 +454,22 @@ def user_data(inst: Instance, P: Params, scens: list[Scenario],
     fs = np.array([P.peak_factor[site.kind] for site in inst.users])
     means = dem / np.array(HOURS)[None, :, None]              # U x T x W
     peak_w = means.max(axis=1) * fs[:, None]                  # U x W: each year's design peak
-    # Sized for the worst MONTH of the worst scenario (the published convention). A design-DAY
-    # peak would be the more faithful engineering choice, but with the all-or-nothing pipe-size
-    # convention (a pipe must carry the user's full peak or the user stays off) it forces every
-    # candidate build to pay for the worst day of 50 years while mean-built plans evaluated on
-    # the same years keep their mild sizing — the stage-A comparison stops being apples-to-
-    # apples (EEV 149.7M vs RP 104.4M). A consistent design-day model needs the deliverable
-    # capacity tied to the BUILT pipe size, not to alpha x the scenario peak (see the weather
-    # module's daily_peak_mw for the data side of that next step).
+    if P.sizing == "robust":
+        # cover the worst DAY of every weather-bearing scenario (daily_peak_mw), not just its worst
+        # month; kinds without a daily peak (snow-melting, flat) keep their monthly peak.
+        # 「頑健」サイズ：気象つきシナリオの最悪日まで管・HPを sizing する（雪融・フラットは月単位のまま）
+        for w, sc in enumerate(scens):
+            if sc.weather is None:
+                continue
+            for u, site in enumerate(inst.users):
+                dp = sc.weather.daily_peak_mw(site.kind, float(dem[u, :, w].sum()))
+                if dp is not None:
+                    peak_w[u, w] = max(peak_w[u, w], dp)
+    # Sized for the worst MONTH of the worst scenario by default (the published convention);
+    # `sizing="robust"` extends this to the worst DAY of weather-bearing scenarios. Either way,
+    # `evaluate` now judges every plan by the same physical rule (the smaller of the built pipes'
+    # capacity and the evaluation set's own convention), so plans built on different sets compare
+    # cleanly and the daily-peak data is usable (dcopt.heat.weather.daily_peak_mw).
     peak = peak_w.max(axis=1) if design_peak is None else np.asarray(design_peak, float)
     c = P.alpha * peak
     cap = np.empty((U, T, Wn))
@@ -1004,10 +1015,15 @@ def _score(plan: Plan, objective: str) -> float:
 
 def evaluate(plan: Plan, scens: list[Scenario] | None = None, off: tuple | list = ()) -> Plan:
     """The plan's pipes and connections kept fixed; deliveries re-optimised (on other scenarios, or
-    with some users switched off). This is the second-stage LP: the built pipes keep the design
-    peak they were sized for, only the demand follows the scenarios."""
+    with some users switched off). The built pipes set the physics: each user draws the smaller of
+    what its pipes were sized to carry (`plan.ud.peak`) and what the evaluation set's own sizing
+    convention would provide — so a plan built on mild years throttles honestly in cold years while
+    staying inside the evaluation set's feasible set, and every plan is judged by one rule however
+    it was sized. On the evaluation set the plan was built for, the two capacities coincide and the
+    evaluation is exactly the first-stage plan (the published numbers do not move)."""
+    target = user_data(plan.inst, plan.P, scens if scens is not None else plan.scens)
     return solve(plan.inst, plan.P, scens if scens is not None else plan.scens, edges=plan.E,
-                 fix=plan.build(), off=off, design_peak=plan.ud.peak)
+                 fix=plan.build(), off=off, design_peak=np.minimum(plan.ud.peak, target.peak))
 
 
 # ------------------------------------------------------------------------------------- uncertainty

@@ -172,6 +172,11 @@ The published mean-scenario plan scores within 0.5 of the published stochastic p
 
 **Caveats.** Kernel gaps on the wide sets are 11–19 %: no plan here is certified optimal. Demands remain HDD-scaled annual estimates — daily resolution sharpens the winter shape of demand, not the underlying user data. The design-day peak (the daily data's sharpest signal) is computed (`daily_peak_mw`) but deliberately unused: using it consistently requires tying deliverable capacity to the built pipe size.
 
+**Design direction adopted (DN as a decision, robust sizing; in progress).** Pipe sizes are already a per-edge decision in the model; what keeps plans from comparing across scenario sets is that a user's deliverable capacity comes from the sizing convention ($\alpha$ times the design peak) rather than from the pipe that was built. The redesign, two levers:
+
+1. *Physical evaluation.* `evaluate()` derives each user's deliverable capacity from the **built pipes** — the bottleneck DN along the user's path, through the DN capacity table — instead of the plan's own $\alpha\times$design peak. A plan that under-builds then throttles in cold years (unmet demand appears in the numbers), and every plan is judged by the same physical rule no matter which scenario set built it. The published four-scenario set is unchanged: with one demand shape the bottleneck capacity equals the design cap, so every published number stays as printed.
+2. *Robust sizing as an option.* A `sizing` parameter: `"published"` (default, the current convention) or `"robust"` — size for the worst *day* in the scenario set (`daily_peak_mw`), so "cover the worst year in the set you optimized for" becomes an explicit, inspectable choice. Out-of-sample years beyond the set throttle honestly under lever 1 instead of being silently served or silently excluded.
+
 **What the results say.**
 - Small or planned data centers are where uncertainty bites. A robust plan moves users to the large, operating center at a small price.
 - Planning for the average scenario costs 4.4 to 28.7 a year against the stochastic plan in ambient mode, depending on the candidate links of the search; the earlier 14.8 was a single search draw.
