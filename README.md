@@ -395,6 +395,8 @@ tests/              unit tests on synthetic instances and app tests
 
 Everything runs with open-source solvers. Gurobi is optional: no part of the code needs it. Where it is installed (`DCOPT_SOLVER=gurobi`), the same models solve faster, and the largest one is solved with a proof of optimality.
 
+Checking results on large, realistic models may need a solver of that strength. With the open-source solvers alone, the full network model of theme 1 still has a gap of 18 to 26 % after 300 s, so its plans come without a proof; and the global cross-check of theme 2 has no open-source counterpart in this code.
+
 | Theme | Without Gurobi (the default) | With Gurobi (optional) |
 |---|---|---|
 | 1. Waste-heat network | HiGHS with an LP-guided kernel search. Its plans are within 0.2 to 0.8 % of the optimum; on the full model HiGHS alone still has gaps of 18 to 26 % after 300 s | Proves the optimum of the full model in 71 s (ambient loop) and 255 s (central network) |
