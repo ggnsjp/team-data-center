@@ -10,7 +10,7 @@ def test_pages_are_current():
 
 
 def test_every_assumption_of_the_heat_model_has_an_entry():
-    need = {r["key"] for r in assumptions_table(Params()) if r["basis"].startswith("assumption")}
+    need = {r["key"] for r in assumptions_table(Params()) if r["basis"].startswith("assumption")} - evidence.NOT_INPUTS
     assert need <= evidence.covered_keys(), sorted(need - evidence.covered_keys())
 
 

@@ -394,6 +394,10 @@ SUMMARY = [
 ]
 
 
+# rows of assumptions_table that are devices of the computation, not inputs with a published value
+NOT_INPUTS = {"tie"}
+
+
 def covered_keys() -> set[str]:
     return {k for item in ITEMS for k in item.keys}
 
