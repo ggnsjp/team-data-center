@@ -244,12 +244,12 @@ flowchart LR
   T3["3. Siting<br/>where the next data center goes"]
   T4["4. Renewable matching<br/>how renewable the electricity is"]
   T1 -->|"value of the heat at a site"| T3
-  T2 -.->|"room at a connection point, once a network model exists"| T3
-  T4 -.->|"when and how much renewable output is left over"| T3
-  T1 -.->|"fuel replaced by waste heat, next to the electricity used"| T4
+  T2 -.->|"room at a connection point"| T3
+  T4 -.->|"renewable output left over"| T3
+  T1 -.->|"fuel replaced by waste heat"| T4
 ```
 
-Solid arrow: in the code today. Dotted arrows: planned links.
+Solid arrow: in the code today. The heat value that theme 1 gives for a site is what theme 3 ranks sites by. Dotted arrows: planned links. The hosting capacity of theme 2 becomes the room at a connection point once there is a network model of the area; theme 4 can tell where and when renewable output is left over, and can set the fuel that waste heat replaces next to the electricity a data center uses.
 
 ### Theme 1: waste-heat network
 
@@ -494,7 +494,7 @@ Facts and parameters [1–22], then related literature: waste-heat networks and 
 
 ## Team
 
-Adam Curnow, Junko, Lia Vergou, Noriyuki Sugita, Paul Binder, Seiko Yamaguchi
+Adam Curnow, Junko, Koki Umebachi, Lia Vergou, Noriyuki Sugita, Paul Binder, Seiko Yamaguchi
 
 ## License and citation
 
