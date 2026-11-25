@@ -43,6 +43,10 @@ STAGE = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2] in ("a", "b", "both") e
 WITH_EVPI = "--evpi" in sys.argv
 WITH_BOUND = "--bound" in sys.argv   # LP relaxation bound of each stage's first-stage model
 FULL = float(next((a.split("=")[1] for a in sys.argv if a.startswith("--full=")), 0.0))
+# model variant switches (default: the published formulation). --decided runs the connection-DN
+# decision with no sizing floor, so plans built on different scenario sets live in one model.
+CONN = next((a for a in sys.argv if a == "--decided"), None) is not None
+TL = float(next((a.split("=")[1] for a in sys.argv if a.startswith("--time=")), 0)) or 60.0
 M = 1e6
 YEARS = (1976, 2025)
 
@@ -61,7 +65,11 @@ print(f"weather years {YEARS[0]}-{YEARS[1]}: {len(years)}; normals check {checks
 
 sakura, sites = ishikari_sites()
 inst = build_instance(ishikari_sources(sakura), sites)
-P = Params(mode=MODE, time_limit=60.0)
+if CONN:
+    P = Params(mode=MODE, time_limit=TL, formulation="extended",
+               user_connection="decided", sizing="free")
+else:
+    P = Params(mode=MODE, time_limit=TL)
 
 # seed links: each data center's own plan on the published 4-scenario set (as in the README's
 # headline plans, heat_v2_compare). Seeds from a different scenario set change the kernel search.
