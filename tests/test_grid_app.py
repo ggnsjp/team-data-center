@@ -1,4 +1,5 @@
 """The grid hosting-capacity page renders on a built-in system (no download) in both languages."""
+import re
 from pathlib import Path
 
 import pytest
@@ -30,3 +31,11 @@ def test_grid_page_studies_run():
     at.run()
     assert not at.exception
     assert len(at.dataframe) >= 3                      # binding limits, load levels, every bus
+
+
+def test_chart_padding_is_an_object():
+    """With a numeric padding, Streamlit's chart component fails in the browser as soon as it makes room
+    for a bottom legend ("Cannot create property 'bottom' on number"). AppTest does not run the browser
+    side, so this checks the page sources."""
+    for page in sorted((ROOT / "app").rglob("*.py")):
+        assert not re.search(r"padding\s*=\s*\d", page.read_text(encoding="utf-8")), page.name

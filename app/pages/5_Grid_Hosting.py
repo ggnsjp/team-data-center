@@ -216,7 +216,9 @@ with right:
                  alt.Tooltip("v:Q", title=pick("電圧（p.u.）", "Voltage (p.u.)")),
                  alt.Tooltip("load:Q", title=pick("既存の負荷（MW）", "Existing load (MW)"))])
     chart = (edge + node).resolve_scale(color="independent", shape="independent", size="independent")
-    st.altair_chart(chart.properties(height=430, padding=14).configure(background=SURFACE, font=FONT)
+    # padding as an object: with a number, Streamlit's chart component fails in the browser when it makes room for the bottom legend
+    pad = {"left": 14, "right": 14, "top": 14, "bottom": 14}
+    st.altair_chart(chart.properties(height=430, padding=pad).configure(background=SURFACE, font=FONT)
                     .configure_view(stroke=None), width="stretch", theme=None)
     st.caption(pick("橙の丸：負荷を足す母線。四角：発電機のある母線。線の色：負荷を足した運転点での線路の負荷率。"
                     "試験系統には座標がないので、配置は接続関係から自動で決めています。",
