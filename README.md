@@ -264,6 +264,7 @@ tests/              unit tests on synthetic instances and app tests
 
 - **Open source by default.** HiGHS solves the MILPs and LPs. Clarabel [64] solves the conic relaxations of theme 2, and the AC points come from our own interior-point code.
 - **Optional commercial solver.** Gurobi can be used when installed (`DCOPT_SOLVER=gurobi`), but no part of the code requires it. On this model it certifies plans that HiGHS cannot within the same time (see Caveats).
+- **Checked with both solvers.** The test suite passes with `DCOPT_SOLVER=gurobi` as it does with HiGHS, and the exports give the same regional plan with either (93.8 M yen a year, 13 sites, the same pipes). Where two neighbouring data centers can serve a site at the same cost, the two solvers may break the tie differently, so a data center's list of partners can differ in a few entries.
 
 ## Next research questions
 

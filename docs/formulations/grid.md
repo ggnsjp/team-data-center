@@ -128,17 +128,19 @@ What the table says:
 
 | Problem | SDP bound (MW) | AC point (MW) | Global solver |
 |---|---|---|---|
-| built-in 5-bus ring, 3 load levels × 5 buses | — | — | optimal in all 15; best value within 0.01 MW of the AC point |
-| … of which bus 3 at load levels 0.6 and 0.8 | 243.29, 223.35 | 233.80, 219.12 | proves 233.81 and 219.12: the SDP bound is loose there |
-| case30_ieee bus 29 | 10.62 | 10.50 | optimal, 10.50 (0.008 % above the AC point) |
-| case30_ieee bus 30 | 7.54 | 7.33 | optimal, 7.34 (0.04 % above the AC point) |
-| case30_ieee bus 26 | 7.46 | 7.29 | best 7.29, bound 8.78 at 60 s |
+| built-in 5-bus ring, 3 load levels × 5 buses | — | — | optimal in all 15; best value equal to the AC point (within 0.0001 MW) |
+| … of which bus 3 at load levels 0.6 and 0.8 | 243.29, 223.35 | 233.80, 219.12 | proves 233.80 and 219.12: the SDP bound is loose there |
+| case30_ieee bus 29 | 10.62 | 10.50 | optimal, 10.50: equal to the AC point |
+| case30_ieee bus 30 | 7.54 | 7.33 | optimal, 7.33: equal to the AC point |
+| case30_ieee bus 26 | 7.46 | 7.29 | optimal, 7.29: equal to the AC point |
 | case57_ieee bus 1 | 327.05 | 288.21 | best 288.21, bound 365.77 at 240 s |
 | case57_ieee bus 7 | 255.27 | 158.98 | best 158.98, bound 292.08 at 240 s |
 | case57_ieee bus 8 | 705.83 | 513.60 | best 513.60, bound 721.04 at 240 s |
 | case39_epri bus 21 | 564.78 | 470.62 | best 470.62, bound 511.49 at 240 s |
 
-Where the global solver finished, its optimum is within 0.04 % of the AC point, so the open bracket there is the relaxation's slack. On the 39-bus and 57-bus systems it did not finish in 240 s, and its best point equals the AC point to two decimals. Its own bound was tighter than the SDP bound at the 39-bus bus and looser at the three 57-bus buses. So the wide brackets there remain open.
+Where the global solver finished, its optimum equals the AC point to five digits, so the open bracket there is the relaxation's slack. On the 39-bus and 57-bus systems it did not finish in 240 s, and its best point equals the AC point to two decimals. Its own bound was tighter than the SDP bound at the 39-bus bus and looser at the three 57-bus buses. So the wide brackets there remain open.
+
+Gurobi runs with a feasibility tolerance of $10^{-9}$ in this check. At its default of $10^{-6}$ its solution may violate the limits just enough to host slightly more: the reported optimum then lay up to 0.07 % above the AC point, and on the built-in radial feeder, where the bracket is closed, above the certified upper bound. That is tolerance, not a better operating point; with $10^{-9}$ the two agree to seven digits there, and a test checks it.
 
 **Load level.** On the 30-bus system, with every existing load scaled, the bracket stays closed and the hostable load falls steeply with the background load (AC point = upper bound, MW):
 

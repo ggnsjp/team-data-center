@@ -183,6 +183,24 @@ def test_global_solver_agrees_on_the_five_bus_system():
     assert h.ac <= bound * case.base_mva * (1 + 1e-6) <= h.sdp
 
 
+def test_global_solver_stays_inside_the_bracket_on_the_feeder():
+    """On a radial feeder the bracket is closed, so a global solver has to land on it. With Gurobi's
+    default feasibility tolerance its value was 0.05 % above the upper bound here."""
+    gp = pytest.importorskip("gurobipy")
+    from dcopt.grid.ac import global_gurobi
+    case = cases.feeder8()
+    tan_phi = math.tan(math.acos(0.95))
+    for bus in (3, 5, 7):
+        try:
+            best, _, status = global_gurobi(case, weights(case, bus), tan_phi, time_limit=30)
+        except gp.GurobiError as err:
+            pytest.skip(f"no usable Gurobi licence: {err}")
+        h = hosting_capacity(case, bus)
+        assert status == "optimal" and h.gap < 1e-5
+        assert best * case.base_mva == pytest.approx(h.ac, rel=1e-5)
+        assert best * case.base_mva <= h.upper * (1 + 1e-5)
+
+
 def test_pglib_case14_is_bracketed_exactly_when_cached():
     if not cases.pglib_path("case14_ieee").exists():
         pytest.skip("PGLib case14_ieee is not in data/cache/pglib (it is downloaded on first use)")

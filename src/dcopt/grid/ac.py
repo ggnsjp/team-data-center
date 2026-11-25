@@ -397,9 +397,14 @@ class ACProblem:
 
 
 def global_gurobi(case: Case, w: np.ndarray, tan_phi: float, time_limit: float = 60.0,
-                  gap: float = 1e-4) -> tuple[float | None, float | None, str]:
+                  gap: float = 1e-4, feas_tol: float = 1e-9) -> tuple[float | None, float | None, str]:
     """The same AC problem as a nonconvex quadratically constrained program for Gurobi (optional).
-    Returns (best feasible lambda, proven upper bound, status), per unit."""
+    Returns (best feasible lambda, proven upper bound, status), per unit.
+
+    feas_tol is Gurobi's feasibility tolerance. At its default of 1e-6 the solution may violate
+    the limits just enough to host a few hundredths of a percent more than any true operating
+    point; on the built-in feeder that put the "best" value 0.05 % above the certified upper bound.
+    At 1e-9 it agrees with the bracket to seven digits."""
     import gurobipy as gp
     from gurobipy import GRB
 
@@ -437,6 +442,7 @@ def global_gurobi(case: Case, w: np.ndarray, tan_phi: float, time_limit: float =
             m.Params.NonConvex = 2
             m.Params.TimeLimit = time_limit
             m.Params.MIPGap = gap
+            m.Params.FeasibilityTol = feas_tol
             m.optimize()
             best = float(m.ObjVal) if m.SolCount else None
             bound = float(m.ObjBound) if m.Status in (GRB.OPTIMAL, GRB.TIME_LIMIT, GRB.SUBOPTIMAL) else None
