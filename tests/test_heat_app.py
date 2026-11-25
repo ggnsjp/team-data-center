@@ -18,6 +18,16 @@ def test_heat_page_renders():
     assert len(at.dataframe) >= 1
 
 
+def test_heat_page_survives_an_emptied_network():
+    # the what-if "double the electricity price" with the assumed sites off connects nobody;
+    # the monthly chart must render empty, not raise KeyError('month') (the 2026-11-25 capture crash)
+    at = AppTest.from_file(str(ROOT / "app/pages/1_Warm_Ishikari.py"), default_timeout=600).run()
+    at.session_state["power_yen_kwh"] = 40
+    at.session_state["assumed_sites"] = False
+    at.run()
+    assert not at.exception
+
+
 def test_network_beats_pairwise():
     from dcopt.heat.v1 import Assumptions, design, ishikari_sites, pairwise
     A = Assumptions()
