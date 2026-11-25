@@ -133,12 +133,12 @@ What the table says:
 | case30_ieee bus 29 | 10.62 | 10.50 | optimal, 10.50: equal to the AC point |
 | case30_ieee bus 30 | 7.54 | 7.33 | optimal, 7.33: equal to the AC point |
 | case30_ieee bus 26 | 7.46 | 7.29 | optimal, 7.29: equal to the AC point |
-| case57_ieee bus 1 | 327.05 | 288.21 | best 288.21, bound 365.77 at 240 s |
-| case57_ieee bus 7 | 255.27 | 158.98 | best 158.98, bound 292.08 at 240 s |
-| case57_ieee bus 8 | 705.83 | 513.60 | best 513.60, bound 721.04 at 240 s |
-| case39_epri bus 21 | 564.78 | 470.62 | best 470.62, bound 511.49 at 240 s |
+| case57_ieee bus 1 | 327.05 | 288.21 | best 288.21, bound 359.70 at 240 s |
+| case57_ieee bus 7 | 255.27 | 158.98 | best 158.98, bound 287.66 at 240 s |
+| case57_ieee bus 8 | 705.83 | 513.60 | best 513.60, bound 723.77 at 240 s |
+| case39_epri bus 21 | 564.78 | 470.62 | best 470.62, bound 623.74 at 240 s |
 
-Where the global solver finished, its optimum equals the AC point to five digits, so the open bracket there is the relaxation's slack. On the 39-bus and 57-bus systems it did not finish in 240 s, and its best point equals the AC point to two decimals. Its own bound was tighter than the SDP bound at the 39-bus bus and looser at the three 57-bus buses. So the wide brackets there remain open.
+Where the global solver finished, its optimum equals the AC point to five digits, so the open bracket there is the relaxation's slack. On the 39-bus and 57-bus systems it did not finish in 240 s, and its best point equals the AC point to two decimals. Its own bound was looser than the SDP bound at all four buses in these runs. In an earlier run at Gurobi's default tolerance it had reached 511.49 at the 39-bus bus, which is tighter than the SDP bound and still valid, because a looser tolerance only enlarges the feasible set. So the wide brackets there remain open.
 
 Gurobi runs with a feasibility tolerance of $10^{-9}$ in this check. At its default of $10^{-6}$ its solution may violate the limits just enough to host slightly more: the reported optimum then lay up to 0.07 % above the AC point, and on the built-in radial feeder, where the bracket is closed, above the certified upper bound. That is tolerance, not a better operating point; with $10^{-9}$ the two agree to seven digits there, and a test checks it.
 
