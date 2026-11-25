@@ -15,9 +15,11 @@ Inputs (not committed; rebuilt or downloaded by scripts):
   results/grid_hosting/case*.csv        optional, from experiments/grid_hosting/run.py: the count over all buses
 Output: docs/img/grid-hosting-map.gif and docs/img/siting-map.gif; with --lang ja the names end in -ja
 (needs a Japanese font, e.g. Noto Sans CJK JP). --stills also writes every frame the animation
-holds on as a PNG, and --scale 3 draws at three times the size (for print).
+holds on as a PNG, and --scale 3 draws at three times the size. For print, --bare draws only those
+frames, as maps without the text panel (PNG only, no gif), at the --size given.
 
 Run: uv run python scripts/render_theme_animations.py --theme grid|siting [--lang en|ja] [--stills] [--scale 3]
+     uv run python scripts/render_theme_animations.py --theme siting --bare --size 800x620 --scale 6 --out /tmp/print
 """
 from __future__ import annotations
 
@@ -35,7 +37,7 @@ import numpy as np
 from matplotlib.collections import LineCollection
 from matplotlib.patches import Circle, Polygon, Rectangle
 from PIL import Image
-from render_readme_animation import DN_WIDTH, C, Proj, cumlen, decode, use_japanese_fonts
+from render_readme_animation import DC_LABEL, DN_WIDTH, JA, LABEL_AT, C, Proj, cumlen, decode, use_japanese_fonts
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = ROOT / "out" / "heat_story" / "base.json"
@@ -48,6 +50,7 @@ OUT = ROOT / "docs" / "img"
 W_PX, H_PX, DPI = 1000, 620, 100         # --scale multiplies all three; sizes in points keep their share of the picture
 FX, FY = (0.43, 0.97), (0.09, 0.93)        # the part of the canvas the map content may use; the text panel covers the left
 TX = 0.025                                 # left margin of the text panel, as a share of the width
+BARE = False                               # --bare: maps for print, only the frames the animation holds on
 NEW = "#5fe1ff"                            # a new data center, its pipes and the sites it serves
 QUIET = "#c9d1e8"                          # context that is not the subject of a figure
 KV = {66000: ("#4cc9f0", 1.3), 187000: ("#f472b6", 2.3), 275000: ("#ffb347", 3.6)}   # colour and line width by voltage class;
@@ -168,18 +171,19 @@ class Stage:
         plt.close(fig)
 
     def save(self, gif: Path, keys: list[str], stills: bool) -> None:
-        picks = [self.frames[i] for i in np.linspace(0, len(self.frames) - 1, 6).astype(int)]
-        sample = Image.new("RGB", (W_PX, H_PX * len(picks) + 80))        # frames and swatches the palette is built from
-        for j, f in enumerate(picks):
-            sample.paste(f, (0, H_PX * j))
-        for j, hexc in enumerate(keys):                                # key colours keep palette entries of their own
-            sample.paste(Image.new("RGB", (60, 80), hexc), (j * 60, H_PX * len(picks)))
-        palette = sample.quantize(colors=255, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
-        pal = [f.quantize(palette=palette, dither=Image.Dither.NONE) for f in self.frames]
         gif.parent.mkdir(parents=True, exist_ok=True)
-        pal[0].save(gif, save_all=True, append_images=pal[1:], duration=self.ms, loop=0, optimize=True, disposal=1)
-        print("wrote", gif, f"{gif.stat().st_size / 1e6:.1f} MB,", len(self.frames), "frames,", f"{sum(self.ms) / 1000:.1f} s")
-        if stills:
+        if not BARE:
+            picks = [self.frames[i] for i in np.linspace(0, len(self.frames) - 1, 6).astype(int)]
+            sample = Image.new("RGB", (W_PX, H_PX * len(picks) + 80))    # frames and swatches the palette is built from
+            for j, f in enumerate(picks):
+                sample.paste(f, (0, H_PX * j))
+            for j, hexc in enumerate(keys):                            # key colours keep palette entries of their own
+                sample.paste(Image.new("RGB", (60, 80), hexc), (j * 60, H_PX * len(picks)))
+            palette = sample.quantize(colors=255, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE)
+            pal = [f.quantize(palette=palette, dither=Image.Dither.NONE) for f in self.frames]
+            pal[0].save(gif, save_all=True, append_images=pal[1:], duration=self.ms, loop=0, optimize=True, disposal=1)
+            print("wrote", gif, f"{gif.stat().st_size / 1e6:.1f} MB,", len(self.frames), "frames,", f"{sum(self.ms) / 1000:.1f} s")
+        if stills or BARE:
             held = [f for f, ms in zip(self.frames, self.ms) if ms >= 1000]
             for k, f in enumerate(held, start=1):
                 f.save(gif.with_name(f"{gif.stem}-{k}.png"), optimize=True)
@@ -373,11 +377,16 @@ def siting(records: list[dict], lang: str) -> Stage:
 
     def frame(view: np.ndarray, ms: int, head: str, head_col: str, body: list[tuple], draw, shown: set, mark: str | None = None,
               legend: int = 3) -> None:
+        if BARE and ms < 1000:
+            return
         scale = W_PX / (DPI / 100) / (view[1] - view[0])                 # pixels per km at the standard size
         fig, ax = stage.open(view, CLOSE_NAMES if scale > 75 else WIDE_NAMES if scale < 40 else ())
         z = min(1.0, scale / 100)
         draw(ax, z)
         data_centers(ax, dcs, pr, max(z, 0.55))
+        if BARE:
+            stage.close(fig, ms)
+            return
         panel(fig, T["title"], T["sub"])
         fig.text(TX, 0.775, head, color=head_col, fontsize=20, weight="bold")
         rows(fig, 0.745, body)
@@ -401,6 +410,11 @@ def siting(records: list[dict], lang: str) -> Stage:
     def plan_today(ax, z):
         pipes(ax, base, z, "all")
         heat_users(ax, z, in_base, none)
+        if BARE:                                                        # the print version names the data centers
+            for d in dcs:
+                x, y = pr(d["lon"], d["lat"])
+                ddx, ddy, ha = LABEL_AT.get(d["key"], (0.15, 0.12, "left"))
+                tag(ax, float(x) + ddx, float(y) + ddy, (JA["dc"] if ja else DC_LABEL).get(d["key"], d["key"]), size=8.5, ha=ha)
 
     frame(close, 1900, *today, plan_today, set(), legend=2)
     for i in range(7):                                                  # zoom out to all candidate sites
@@ -583,6 +597,8 @@ def grid(records: list[dict], lang: str) -> Stage:
 
     def frame(ms: int, radius: dict, labels: bool = False, ask: float | None = None, grow: float | None = None,
               count: bool = False) -> None:
+        if BARE and ms < 1000:
+            return
         fig, ax = stage.open(view)
         for kv, r in radius.items():
             col, lw = KV[kv]
@@ -607,6 +623,9 @@ def grid(records: list[dict], lang: str) -> Stage:
             ax.add_patch(Circle((cx, cy), 0.75 + 0.9 * ask, fill=False, ec=NEW, lw=2.0, alpha=0.9 * (1 - 0.75 * ask), zorder=10))
             ax.add_patch(Circle((cx, cy), 0.75, fill=False, ec=NEW, lw=1.6, alpha=0.9, zorder=10))
             tag(ax, cx + 0.95, cy - 0.75, "＋？MW" if ja else "+ ? MW", color=NEW, size=11.5, weight="bold")
+        if BARE:
+            stage.close(fig, ms)
+            return
         panel(fig, T["title"], T["sub"])
         fig.text(TX, 0.795, T["around"], color=C["ink2"], fontsize=8.8, weight="bold")
         for j, kv in enumerate(order):
@@ -661,15 +680,21 @@ def grid(records: list[dict], lang: str) -> Stage:
 
 
 def main() -> None:
+    global W_PX, H_PX, DPI, BARE, FX, FY
     ap = argparse.ArgumentParser()
     ap.add_argument("--theme", required=True, choices=["grid", "siting"])
     ap.add_argument("--lang", default="en", choices=["en", "ja"])
     ap.add_argument("--out", default=str(OUT), help="folder for the gif")
     ap.add_argument("--stills", action="store_true", help="also write the frames the animation holds on, as PNG")
     ap.add_argument("--scale", type=float, default=1.0, help="size factor: 1 gives 1000 x 620 pixels")
+    ap.add_argument("--bare", action="store_true", help="for print: maps without the text panel, held frames only, no gif")
+    ap.add_argument("--size", default=f"{W_PX}x{H_PX}", help="width x height in pixels before --scale")
     args = ap.parse_args()
-    global W_PX, H_PX, DPI
-    W_PX, H_PX, DPI = round(W_PX * args.scale), round(H_PX * args.scale), round(DPI * args.scale)
+    BARE = args.bare
+    if BARE:
+        FX, FY = (0.05, 0.95), (0.06, 0.94)                               # no text panel: the map may use the whole canvas
+    w, h = (int(v) for v in args.size.lower().split("x"))
+    W_PX, H_PX, DPI = round(w * args.scale), round(h * args.scale), round(DPI * args.scale)
     if args.lang == "ja":
         use_japanese_fonts()
     records = json.loads(BASE.read_text(encoding="utf-8"))
