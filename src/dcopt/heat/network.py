@@ -169,7 +169,14 @@ class Params:
     alpha: float = 1.0               # share of each user's peak the pipes and heat pumps are sized for
     sizing: str = "published"        # "published": alpha x the worst month of the worst scenario; "robust":
                                      # also cover the worst DAY of weather-bearing scenarios (daily_peak_mw).
+                                     # "free": no sizing floor — the optimizer trades pipe cost against
+                                     # cold-year shedding (needs user_connection='decided').
                                      # 管やヒートポンプのサイズ根拠：「公表」は最悪月、「頑健」は最悪日まで
+    user_connection: str = "sized"   # "sized": each user's draw is hard-wired to the sizing peak (the
+                                     # published convention); "decided" (extended formulation only): the
+                                     # user's connection DN is a decision — a smaller connection throttles
+                                     # the user in cold years instead of excluding the build.
+                                     # 需要家の引込管サイズを決定変数にする（extended 計算式のみ）
     sizes: tuple = PIPE_SIZES
     supply_c: dict = field(default_factory=lambda: dict(SUPPLY_C))
     peak_factor: dict = field(default_factory=lambda: dict(PEAK_FACTOR))
@@ -522,6 +529,7 @@ class Plan:
     own_opt: list | None = None      # each scenario's own optimum, for min-max regret
     dual_bound: float | None = None  # solver bound: net benefit (expected, worst) or regret
     kernel: dict | None = None       # kernel-search details when solved by solve_kernel
+    conn: np.ndarray | None = None   # U, each user's connection size index (-1 off; user_connection='decided')
 
     @property
     def p(self) -> np.ndarray:
@@ -539,7 +547,17 @@ class Plan:
 
     @property
     def capex_hp(self) -> float:
-        return float(self.ud.hp @ self.x)
+        if self.conn is None:
+            return float(self.ud.hp @ self.x)
+        # user_connection='decided': the heat pump is sized to the chosen connection capped by the
+        # user's design load (the same min the model's objective charges).
+        cap_k = np.array([s.capacity_mw(self.P.dT) for s in self.P.sizes])
+        share = np.array([self.P.per_kind(u.kind)["share"] * (1 + self.P.loss) for u in self.inst.users])
+        conn = np.maximum(self.conn, 0)
+        c = np.minimum(self.P.alpha * self.ud.peak, cap_k[conn] / share) * (self.conn >= 0)
+        rate = np.divide(self.ud.hp, self.P.alpha * self.ud.peak,
+                         out=np.zeros(self.inst.U), where=(self.P.alpha * self.ud.peak) > 1e-9)
+        return float(rate @ c)
 
     @property
     def capex(self) -> float:
@@ -637,7 +655,10 @@ class Plan:
         return np.einsum("udtw,uw,w->u", self.s, self.ud.v, self.p)
 
     def build(self) -> dict:
-        return {"y": self.y.copy(), "x": self.x.copy(), "assign": self.assign.copy()}
+        fix = {"y": self.y.copy(), "x": self.x.copy(), "assign": self.assign.copy()}
+        if self.conn is not None:
+            fix["yu"] = np.asarray(self.conn, int)
+        return fix
 
 
 # ------------------------------------------------------------------------------------------- solve
@@ -683,20 +704,36 @@ def build_model(inst: Instance, P: Params, scens: list[Scenario], *, edges: list
     cost_k = np.array([s.yen_m for s in P.sizes])
 
     ext = P.formulation == "extended"
+    decided = P.user_connection == "decided"
+    if decided and not ext:
+        raise ValueError("user_connection='decided' needs the extended formulation")
     G = K if ext else 1                   # commodity shares per arc and size (extended) or per arc
     oy, ox = 0, nE * K
     oz = ox + U
     og = oz + U * D
     osv = og + U * A * G
-    nv = osv + U * D * T * Wn
+    oyu = osv + U * D * T * Wn            # connection-size binaries (user_connection='decided')
+    nv = oyu + (U * K if decided else 0)
 
     cost = np.zeros((Wn, nv))
     cost[:, oy:ox] = P.own * P.crf * np.outer(length, cost_k).ravel()
-    cost[:, ox:oz] = P.own * P.crf_hp * ud.hp
+    share_l = np.array([P.per_kind(u.kind)["share"] * (1 + P.loss) for u in inst.users])
+    if decided:
+        # The user never draws more than its design load: with connection k the network sees
+        # min(q_u, cap_k) at peak and the user can take min(alpha x peak, cap_k/share) of heat.
+        # With the published floor the min is q_u exactly, so the sized and decided models agree.
+        draw_uk = np.minimum(ud.q[:, None], cap_k[None, :])              # U x K, MW on the pipes
+        c_uk = draw_uk / share_l[:, None]                                # U x K, MW at the user
+        hp_rate = np.divide(ud.hp, P.alpha * ud.peak, out=np.zeros(U), where=(P.alpha * ud.peak) > 1e-9)
+        cost[:, oyu:oyu + U * K] = ((P.own * P.crf_hp) * (hp_rate[:, None] * c_uk)).ravel()[None, :]
+        cost[:, ox:oz] = 0.0
+    else:
+        draw_uk = None
+        cost[:, ox:oz] = P.own * P.crf_hp * ud.hp
     for w in range(Wn):
         blockv = np.zeros((U, D, T, Wn))
         blockv[..., w] = -ud.v[:, w][:, None, None]
-        cost[w, osv:] = blockv.ravel()
+        cost[w, osv:oyu] = blockv.ravel()
 
     R, C, V, lo, hi = [], [], [], [], []
     r0 = 0
@@ -727,22 +764,72 @@ def build_model(inst: Instance, P: Params, scens: list[Scenario], *, edges: list
     # (one size) sum_k y_ek <= 1, or = 1 when every given edge must be built
     block(np.repeat(np.arange(nE), K), oy + np.arange(nE * K), 1.0, nE, 1.0 if force_edges else 0.0, 1.0)
     if ext:
-        # (built pipes, per size) g_uk(a->b) + g_uk(b->a) - y_ek <= 0, for the sizes that can carry u
-        ue = np.repeat(np.arange(U), nE * K)
-        ee = np.tile(np.repeat(np.arange(nE), K), U)
-        ke = np.tile(np.arange(K), U * nE)
-        keep = fits[ue, ke] > 0
-        ue, ee, ke = ue[keep], ee[keep], ke[keep]
-        rr = np.arange(ue.size)
-        block(np.concatenate([rr, rr, rr]),
-              np.concatenate([og + (ue * A + ee) * K + ke, og + (ue * A + ee + nE) * K + ke, oy + ee * K + ke]),
-              np.concatenate([np.ones(ue.size), np.ones(ue.size), -np.ones(ue.size)]), ue.size, -np.inf, 0.0)
-        # (capacity, per size) sum_u q_u (g_uk(a->b) + g_uk(b->a)) - cap_k y_ek <= 0
-        u2, ek = np.repeat(np.arange(U), nE * K), np.tile(np.arange(nE * K), U)
-        e2, k2 = ek // K, ek % K
-        block(np.concatenate([ek, ek, np.arange(nE * K)]),
-              np.concatenate([og + (u2 * A + e2) * K + k2, og + (u2 * A + e2 + nE) * K + k2, oy + np.arange(nE * K)]),
-              np.concatenate([ud.q[u2], ud.q[u2], -np.tile(cap_k, nE)]), nE * K, -np.inf, 0.0)
+        if decided:
+            # g rides at the user's CONNECTION size k; the connection binary gates it and the
+            # heat drawn on a pipe equals that connection's capacity cap_k (a constant), so the
+            # trunk capacity rows stay linear. The sizing convention becomes a floor on yu.
+            ue = np.repeat(np.arange(U), nE * K)
+            ee = np.tile(np.repeat(np.arange(nE), K), U)
+            ke = np.tile(np.arange(K), U * nE)
+            rr = np.arange(ue.size)
+            # (connection link) g_uk(a->b) + g_uk(b->a) - yu_uk <= 0
+            block(np.concatenate([rr, rr, rr]),
+                  np.concatenate([og + (ue * A + ee) * K + ke, og + (ue * A + ee + nE) * K + ke,
+                                  oyu + ue * K + ke]),
+                  np.concatenate([np.ones(ue.size), np.ones(ue.size), -np.ones(ue.size)]),
+                  ue.size, -np.inf, 0.0)
+            # (capacity, one row per edge) sum_{u,k} cap_k g_u,e,k(both) - sum_j cap_j y_ej <= 0:
+            # g's size index is the user's connection, so the trunk sees each user's draw at that
+            # connection's capacity, and the built size (sum_j y <= 1) sets the edge's capacity.
+            ue = np.repeat(np.arange(U), A * K)
+            aa = np.tile(np.repeat(np.arange(A), K), U)
+            kk = np.tile(np.arange(K), U * A)
+            erow = np.where(aa < nE, aa, aa - nE)
+            block(np.concatenate([erow, np.repeat(np.arange(nE), K)]),
+                  np.concatenate([og + (ue * A + aa) * K + kk, oy + np.arange(nE * K)]),
+                  np.concatenate([draw_uk[ue, kk], -np.tile(cap_k, nE)]), nE, -np.inf, 0.0)
+            # (one connection per connected user) sum_k yu_uk - x_u = 0
+            uu3, kk3 = np.repeat(np.arange(U), K), np.tile(np.arange(K), U)
+            block(np.concatenate([uu3, np.arange(U)]),
+                  np.concatenate([oyu + uu3 * K + kk3, ox + np.arange(U)]),
+                  np.concatenate([np.ones(U * K), -np.ones(U)]), U, 0.0, 0.0)
+            # (sizing floor) yu_uk = 0 below the smallest size that carries the sizing peak.
+            # sizing='free' drops the floor: the optimizer trades pipe cost against cold-year
+            # shedding, and 'cover the worst year in the set' becomes an inspectable choice.
+            # (delivered energy) s_udtw <= sum_k capE_utwk yu_uk: the connection's duration curve
+            idxs = np.arange(U * D * T * Wn)
+            su2, st2, sw2 = idxs // (D * T * Wn), (idxs // Wn) % T, idxs % Wn
+            means_ud = ud.demand / np.array(HOURS)[None, :, None]        # U x T x W
+            capE = np.empty((U, T, Wn, K))
+            for w in range(Wn):
+                for u in range(U):
+                    fs_u = P.peak_factor[inst.users[u].kind]
+                    for t in range(T):
+                        capE[u, t, w] = [duration_energy(means_ud[u, t, w], HOURS[t], fs_u, c_uk[u, k])
+                                         for k in range(K)]
+            kcols = np.tile(np.arange(K), idxs.size)
+            ridx = np.repeat(idxs, K)
+            block(np.concatenate([idxs, ridx]),
+                  np.concatenate([osv + idxs, oyu + np.repeat(su2, K) * K + kcols]),
+                  np.concatenate([np.ones(idxs.size), -capE[su2, st2, sw2, :].ravel()]),
+                  idxs.size, -np.inf, 0.0)
+        else:
+            # (built pipes, per size) g_uk(a->b) + g_uk(b->a) - y_ek <= 0, for the sizes that can carry u
+            ue = np.repeat(np.arange(U), nE * K)
+            ee = np.tile(np.repeat(np.arange(nE), K), U)
+            ke = np.tile(np.arange(K), U * nE)
+            keep = fits[ue, ke] > 0
+            ue, ee, ke = ue[keep], ee[keep], ke[keep]
+            rr = np.arange(ue.size)
+            block(np.concatenate([rr, rr, rr]),
+                  np.concatenate([og + (ue * A + ee) * K + ke, og + (ue * A + ee + nE) * K + ke, oy + ee * K + ke]),
+                  np.concatenate([np.ones(ue.size), np.ones(ue.size), -np.ones(ue.size)]), ue.size, -np.inf, 0.0)
+            # (capacity, per size) sum_u q_u (g_uk(a->b) + g_uk(b->a)) - cap_k y_ek <= 0
+            u2, ek = np.repeat(np.arange(U), nE * K), np.tile(np.arange(nE * K), U)
+            e2, k2 = ek // K, ek % K
+            block(np.concatenate([ek, ek, np.arange(nE * K)]),
+                  np.concatenate([og + (u2 * A + e2) * K + k2, og + (u2 * A + e2 + nE) * K + k2, oy + np.arange(nE * K)]),
+                  np.concatenate([ud.q[u2], ud.q[u2], -np.tile(cap_k, nE)]), nE * K, -np.inf, 0.0)
     else:
         # (built pipes) g_u(a->b) + g_u(b->a) - sum_{k: cap_k >= q_u} y_ek <= 0: a user's heat only runs
         # on pipes big enough for it alone (valid, and tighter than sum_k y_ek when sizes differ)
@@ -768,7 +855,12 @@ def build_model(inst: Instance, P: Params, scens: list[Scenario], *, edges: list
     Amat = sp.csr_matrix((np.concatenate(V), (np.concatenate(R), np.concatenate(C))), shape=(r0, nv))
     lb, ub = np.zeros(nv), np.full(nv, np.inf)
     ub[:osv] = 1.0
-    if ext:
+    if decided:
+        ub[oyu:] = 1.0                                   # connection binaries
+        if P.sizing != "free":
+            below = np.argwhere(fits == 0)               # (u, k): smaller than the sizing peak needs
+            ub[oyu + below[:, 0] * K + below[:, 1]] = 0.0
+    if ext and not decided:
         nofit = np.argwhere(fits == 0)                                  # (u, k) pairs
         for u, k in nofit:
             ub[og + (u * A + np.arange(A)) * K + k] = 0.0
@@ -786,10 +878,20 @@ def build_model(inst: Instance, P: Params, scens: list[Scenario], *, edges: list
             xs[u], zs[u] = 0.0, 0.0
         lb[ox:oz] = ub[ox:oz] = xs
         lb[oz:og] = ub[oz:og] = zs.ravel()
+        if decided and fix.get("yu") is not None:
+            yu = np.zeros((U, K))
+            for u, k in enumerate(np.asarray(fix["yu"], int)):
+                if k >= 0:
+                    yu[u, k] = 1.0
+            lb[oyu:] = ub[oyu:] = yu.ravel()
     integrality = np.zeros(nv)
     integrality[:og] = 1
-    return Model(cost, Amat, np.concatenate(lo), np.concatenate(hi), lb, ub, integrality,
-                 {"y": oy, "x": ox, "z": oz, "g": og, "s": osv, "n": nv}, E, ud, Wc)
+    if decided:
+        integrality[oyu:] = 1
+    offs = {"y": oy, "x": ox, "z": oz, "g": og, "s": osv, "n": nv}
+    if decided:
+        offs["yu"] = oyu
+    return Model(cost, Amat, np.concatenate(lo), np.concatenate(hi), lb, ub, integrality, offs, E, ud, Wc)
 
 
 def _with_objective(m: Model, scens: list[Scenario], objective: str, own_opt, eps: float):
@@ -914,6 +1016,10 @@ def _start(m: Model, plan: Plan, objective: str, own_opt, P: Params) -> np.ndarr
     for u, d in enumerate(plan.assign):
         if d >= 0:
             v[o["z"] + u * D + d] = 1.0
+    if plan.conn is not None and "yu" in o:
+        for u, k in enumerate(np.asarray(plan.conn, int)):
+            if k >= 0:
+                v[o["yu"] + u * K + k] = 1.0
     v[o["s"]:o["n"]] = plan.s.ravel()
     if objective == "worst":
         v = np.r_[v, float(plan.net.min())]
@@ -948,12 +1054,16 @@ def solve(inst: Instance, P: Params, scens: list[Scenario], *, objective: str = 
     xs = (xv[o["x"]:o["z"]] > 0.5).astype(float)
     z = xv[o["z"]:o["g"]].reshape(U, D)
     assign = np.where(xs > 0.5, z.argmax(axis=1), -1) if U else np.zeros(0, int)
-    s = np.clip(xv[o["s"]:nv].reshape(U, D, T, Wn), 0.0, None)
+    s_end = o.get("yu", nv)
+    s = np.clip(xv[o["s"]:s_end].reshape(U, D, T, Wn), 0.0, None)
     g = xv[o["g"]:o["s"]].reshape(U, 2 * nE, -1).sum(axis=2) if nE else np.zeros((U, 0))
     plan = Plan(inst, P, list(scens), m.E, y, xs, assign, s, g, m.ud, m.Wc, res["status"],
                 time.perf_counter() - t0, res["gap"], objective,
                 float(xv[nv]) if objective != "expected" else None, list(own_opt) if own_opt is not None else None)
     plan.dual_bound = -res["bound"] if objective != "regret" else res["bound"]
+    if "yu" in o:                                    # user_connection='decided'
+        conn = xv[o["yu"]:].reshape(U, K)
+        plan.conn = np.where(xs > 0.5, conn.argmax(axis=1), -1)
     return plan
 
 
@@ -1016,14 +1126,24 @@ def _score(plan: Plan, objective: str) -> float:
 def evaluate(plan: Plan, scens: list[Scenario] | None = None, off: tuple | list = ()) -> Plan:
     """The plan's pipes and connections kept fixed; deliveries re-optimised (on other scenarios, or
     with some users switched off). The built pipes set the physics: each user draws the smaller of
-    what its pipes were sized to carry (`plan.ud.peak`) and what the evaluation set's own sizing
-    convention would provide — so a plan built on mild years throttles honestly in cold years while
-    staying inside the evaluation set's feasible set, and every plan is judged by one rule however
-    it was sized. On the evaluation set the plan was built for, the two capacities coincide and the
-    evaluation is exactly the first-stage plan (the published numbers do not move)."""
+    what its connection was built to carry and what the evaluation set's own sizing would provide —
+    a plan built on mild years throttles honestly in cold years while staying inside the
+    evaluation set's feasible set, and every plan is judged by one rule however it was sized. On
+    the set the plan was built for the two capacities coincide (the published numbers do not
+    move). With user_connection='decided' the plan's own capacities come from its chosen
+    connection sizes and `fix` pins them."""
     target = user_data(plan.inst, plan.P, scens if scens is not None else plan.scens)
+    peak = plan.ud.peak
+    if plan.conn is not None:
+        K = len(plan.P.sizes)
+        cap_k = np.array([s.capacity_mw(plan.P.dT) for s in plan.P.sizes])
+        share = np.array([plan.P.per_kind(u.kind)["share"] * (1 + plan.P.loss) for u in plan.inst.users])
+        own = np.where(plan.conn >= 0, cap_k[np.maximum(plan.conn, 0)] / share, np.nan)
+        peak = np.where(np.isfinite(own), np.minimum(own, target.peak), target.peak)
+    else:
+        peak = np.minimum(plan.ud.peak, target.peak)
     return solve(plan.inst, plan.P, scens if scens is not None else plan.scens, edges=plan.E,
-                 fix=plan.build(), off=off, design_peak=np.minimum(plan.ud.peak, target.peak))
+                 fix=plan.build(), off=off, design_peak=peak / plan.P.alpha)
 
 
 # ------------------------------------------------------------------------------------- uncertainty
