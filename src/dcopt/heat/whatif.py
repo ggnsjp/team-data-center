@@ -6,6 +6,7 @@ deterministic model re-runs. The LLM never computes results: it chooses inputs a
 the numbers the model produced.
 """
 import json
+import math
 import re
 import unicodedata
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
@@ -70,15 +71,12 @@ def parse_prompt(current: dict, text: str) -> str:
             "Never invent other keys.")
 
 
-def parse_patch(text: str, current: dict, *, llm_chat) -> dict:
-    """Free text -> {"changes": {knob: clamped value}, "new_dc": {mw, place} | None, "clarify": str}.
-
-    Raises WhatifError when the model's answer is unusable after one retry with a larger budget
-    (the reasoning model sometimes spends its whole budget thinking before any content).
-    """
-    prompt = [{"role": "user", "content": parse_prompt(current, text)}]
-    raw, err, parsed = "", None, None
+def _ask_for_changes(prompt: list[dict], llm_chat) -> tuple[dict | None, Exception | None]:
+    """Up to two tries (the second with a larger token budget) -> (the parsed answer or None, the last error)."""
+    err: Exception | None = None
     for budget in (2000, 4000):
+        if llm.out_of_time():
+            return None, err or llm.LLMError("the request took too long")
         try:
             raw = llm_chat(prompt, max_tokens=budget, json_mode=True)
         except llm.LLMError as e:
@@ -86,14 +84,51 @@ def parse_patch(text: str, current: dict, *, llm_chat) -> dict:
             continue
         try:
             parsed = json.loads(raw)
-            if not isinstance(parsed, dict):
-                raise WhatifError("the model did not return a JSON object")
-            if isinstance(parsed.get("changes"), dict):
-                break
-            raise WhatifError("the model did not return a changes object")
         except (ValueError, TypeError):
             err = WhatifError("the model did not return usable JSON")
-    else:
+            continue
+        if isinstance(parsed, dict) and isinstance(parsed.get("changes"), dict):
+            return parsed, None
+        err = WhatifError("the model did not return usable JSON")
+    return None, err
+
+
+_TRUE, _FALSE = {"true", "1", "yes"}, {"false", "0", "no"}
+
+
+def _as_bool(value) -> bool | None:
+    """A switch as the model wrote it; None when it is neither clearly on nor clearly off."""
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str) and value.strip().lower() in _TRUE | _FALSE:
+        return value.strip().lower() in _TRUE
+    return None
+
+
+def _as_number(value) -> float | None:
+    """A finite number, or None: NaN, an infinity, a switch or text is not a setting."""
+    if isinstance(value, bool):
+        return None
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    return v if math.isfinite(v) else None
+
+
+def parse_patch(text: str, current: dict, *, llm_chat) -> dict:
+    """Free text -> {"changes": {knob: clamped value}, "new_dc": {mw, place} | None, "clarify": str}.
+
+    Raises WhatifError when the model's answer is unusable after one retry with a larger budget
+    (the reasoning model sometimes spends its whole budget thinking before any content). Both
+    tries share one time budget (llm.time_budget): the retry is skipped once it has run out.
+    """
+    prompt = [{"role": "user", "content": parse_prompt(current, text)}]
+    with llm.time_budget():
+        parsed, err = _ask_for_changes(prompt, llm_chat)
+    if parsed is None:
         raise err or WhatifError("the model did not return usable JSON")
     out: dict = {}
     for key, value in parsed["changes"].items():
@@ -101,11 +136,12 @@ def parse_patch(text: str, current: dict, *, llm_chat) -> dict:
             continue
         _, _, _, kind, lo, hi, step, _ = BY_ID[key]
         if kind == "bool":
-            out[key] = bool(value)
+            switch = _as_bool(value)
+            if switch is not None:
+                out[key] = switch
         else:
-            try:
-                v = float(value)
-            except (TypeError, ValueError):
+            v = _as_number(value)
+            if v is None:
                 continue
             if lo is not None:
                 v = min(max(v, lo), hi)
@@ -117,11 +153,7 @@ def parse_patch(text: str, current: dict, *, llm_chat) -> dict:
     new_dc = None
     if isinstance(ndc, dict) and ndc.get("place") is not None:
         place = str(ndc["place"]).strip()
-        mw_raw = ndc.get("mw")
-        try:
-            mw = float(mw_raw) if mw_raw is not None else None
-        except (TypeError, ValueError):
-            mw = None
+        mw = _as_number(ndc.get("mw"))
         if place.lower() in RANDOM_PLACES:
             new_dc = {"mw": min(max(mw, 0.5), 100.0) if mw is not None else None, "place": place}
         elif mw is not None:

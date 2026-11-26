@@ -20,7 +20,7 @@ from dcopt.common.geo import fetch_command, missing_map_data
 from dcopt.common.style import FONT, GRID, INK, INK2, SURFACE
 from dcopt.heat import weather as W
 from dcopt.heat.network import Params, Scenario, build_instance, ishikari_sources, plan_for
-from dcopt.heat.v1 import DAYS, KINDS, SNOW, TEMP, ishikari_sites
+from dcopt.heat.v1 import DAYS, KINDS, SNOW, TEMP, HeatSourceMissing, ishikari_sites
 
 M = 1e6
 YEARS = list(range(W.YEARS[0], W.YEARS[1] + 1))   # the weather years of the experiment and the selector
@@ -308,7 +308,11 @@ if missing := missing_map_data():
     st.code(fetch_command(), language="bash")
     st.stop()
 with st.spinner(pick("その年の気象で導管網を最適化中…", "Optimizing the network for this year…")):
-    plan = solve_year(shown, it_level, price, w)
+    try:
+        plan = solve_year(shown, it_level, price, w)
+    except HeatSourceMissing as e:
+        st.error(pick(e.ja, e.en))
+        st.stop()
 hedge = rp_net(res, shown)
 
 c = st.columns(5)
