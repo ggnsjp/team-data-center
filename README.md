@@ -233,6 +233,14 @@ Studies that model how other investment responds find that matching by the year 
 
 The app's *Renewable matching* page lets you set the load, the contract, a battery and the share of work that can move within the day, and solves a linear program for the cheapest contract and battery that reach a target match (prices from [70, 71]). Formulation, inputs and limits: [docs/formulations/matching.md](docs/formulations/matching.md).
 
+## The GX overlay
+
+![The GX strategic zone at Ishikari Bay New Port: the two offshore wind farms in the bay, onshore turbines, solar plants and the fossil plants; the data centers standing and planned, and the plots where Hokkaido has pre-filed grid power](docs/img/gx-overlay.png)
+
+*Ishikari Bay New Port is part of a METI-certified GX strategic zone (data-center cluster type, 2026-09-11). The page maps the area's power: the renewables already operating (195 MW of offshore wind in the bay, 60+ MW of onshore turbines, named solar plants), the ones under construction or planned (the 64.5 MW Atsuta wind farm, battery storage), the data centers standing and planned, the five plots where Hokkaido has pre-filed 590 MW of grid power — and the fossil plants still running. Renewable capacity comes from the TSH GX Information Platform (tsh-gxpf.jp) and operator press releases; plant geometry comes from OpenStreetMap. Nothing is drawn at an invented location — unpublished sites sit at GSI district points or bay representative points and say so.*
+
+The app's *GX overlay* page renders this from `uv run python scripts/export_gx_zone.py`. Sources and values: [docs/data-sources.md](docs/data-sources.md), [docs/gx-zone-portfolio.md](docs/gx-zone-portfolio.md).
+
 ## How it works
 
 Each theme has its own data, model and output. The first diagram shows how the four connect; the others show one theme each.

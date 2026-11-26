@@ -93,6 +93,25 @@ Checked on 2026-11-26. The reading of each input against published values is in 
 | Discount rate for the battery | 3 % | As in theme 1 |
 | Value of the contracted energy not used in its slot | 0 yen/kWh | Assumption (cautious); adjustable in the app |
 
+## The GX strategic zone, its energy portfolio and the data centers
+
+Checked on 2026-11-26. The GX-zone page and `data/curated/ishikari_gx_plots.csv` draw their values from this table.
+
+| Item | Value | Source |
+|---|---|---|
+| GX strategic zone, certification | Ishikari City is one of the first-round GX strategic zones (data-center cluster type), certified 2026-09-11 | METI press release: https://www.meti.go.jp/press/2026/09/20260911006.html |
+| The zone's page by the city | 3 data centers already in 石狩湾新港地域; recruitment of operators Oct 20 – Dec 4, 2026 | https://www.city.ishikari.hokkaido.jp/sangyo/yuchi/1007457.html |
+| Power applications the prefecture pre-filed, Ishikari | 5 sites, 590 MW: 新港中央1丁目720-2 (40 MW, 66 kV), 新港中央1丁目40-10 (75 MW and 15 MW, 66 kV), 新港南2丁目737 (160 MW as 2×80 MW, 66 kV), 新港東2丁目123-40/41 (300 MW, 275 kV); connection from Oct 2031 to after Dec 2032; areas and lot prices in the guideline | 北海道「GX戦略地域（石狩市）における電力申込内容の承継に係る公募要領」2026-10: https://www.pref.hokkaido.lg.jp/kz/ssg/272100.html |
+| The five plots' coordinates | one lon/lat per plot, compiled into `data/curated/ishikari_gx_plots.csv`: the GSI geocoder's point for each chome (新港中央1丁目 → 141.288666, 43.177246; 新港南2丁目 → 141.316757, 43.187950; 新港東2丁目 → 141.330475, 43.205128). The geocoder does not resolve lot numbers (地番), so a plot's marker sits at its chome's district point, not on the parcel; the guideline's position diagrams (pp. 5–13 of the PDF) are the reference for the parcel shapes | GSI address-search API: https://msearch.gsi.go.jp/address-search/AddressSearch ; the same guideline as above |
+| Offshore wind at Ishikari Bay New Port, phase 1 | 112 MW, commercial operation from July 2024; operated by a Hokkaido Electric subsidiary | https://www.hokkaido-electric.co.jp/pressrelease/detail/4319 |
+| Offshore wind, 石狩湾新港第2洋上風力発電 | 83 MW (3.45 MW × 24 turbines), operation from 2024-03-28; SPC owned by Marubeni and Mitsui & Co.; power sold to Hokkaido Electric | https://www.marubeni.com/ja/news/2024/release/00092/ |
+| Onshore wind turbines around the port | "石狩湾新港地域を中心にすでに60MW超" and a designated offshore "promising area"; individual turbine positions from OpenStreetMap | 石狩市 脱炭素先行地域計画 (rev. 2025-07-04), p. 3: https://www.city.ishikari.hokkaido.jp/_res/projects/default_project/_page_/001/002/422/senko20250704.pdf ; © OpenStreetMap contributors (ODbL) |
+| Onshore wind, Hokkaido Gas Ishikari Wind Farm | 2,350 kW at 石狩市新港中央4丁目 | TSH GX platform: https://tsh-gxpf.jp/en/business/info/9145/ |
+| Onshore wind, planned (仮称)北海道厚田風力発電事業 | 64,500 kW, Ishikari (Atsuta district); operator Tokyu Land | TSH GX platform: https://tsh-gxpf.jp/en/business/info/9108/ |
+| Battery storage, Ishikari | 石狩蓄電所, 30,000 kW, 石狩市花川東641番1・674番1, R3 Storage Stations GK | TSH GX platform: https://tsh-gxpf.jp/en/business/info/8318/ |
+| Gas plant and LNG base (Ishikari, fossil) | 石狩湾新港発電所, gas, 569,400 kW, Hokkaido Electric, operating since Feb 2019 (OSM way 931796255); 石狩LNG基地, Hokkaido Gas (OSM way 962283251) | © OpenStreetMap contributors (ODbL) |
+| Substations and the 275 kV line near the port | 石狩変電所 (66 kV), 石狩湾新港発電所 switching station (275 kV), the 石狩湾新港発電所線 corridor | OpenStreetMap ways 203869092, 1473254439, 955800108 (© OpenStreetMap contributors, ODbL) |
+
 ## Climate
 
 | Item | Source |

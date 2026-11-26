@@ -1,0 +1,935 @@
+<title>The GX zone</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* The GX strategic zone, drawn to be read: what stands, what is rising, what the grid has
+   already promised, and where the waste heat already flows. Same visual language as
+   web/heat_story (the dark canvas); the palette for the marker classes is
+   validated for CVD and contrast on this dark surface. */
+:root {
+  color-scheme: dark;
+  --night: #09131d;
+  --panel: #0f1d2a;
+  --line: #22384c;
+  --land: #0b1824;
+  --sea: #060d14;
+  --river: #0c2333;
+  --road-0: #13263a;
+  --road-1: #183048;
+  --road-2: #21405d;
+  --road-3: #2a5072;
+  --road-4: #33618a;
+  --coast: #3b5b78;
+  --cityline: #4f6c87;
+  --label: #7189a1;
+  --label-water: #4f7391;
+  --ink: #e9eff5;
+  --ink-2: #a9bacb;
+  --muted: #7d93a8;
+  --heat: #ffc46b;
+  --heat-deep: #ff7a45;
+  --heat-core: #fff4e0;
+  --dc: #d64b82;          /* data centers: built and rising */
+  --plot: #c08a05;        /* the prefecture's reserved power plots */
+  --grid: #4a9de0;        /* the grid: substations and the 275 kV corridor */
+  --use: #23b26d;         /* the heat users our network serves */
+  --re-wind: #4a9de0;     /* wind: same blue as the grid (electricity) */
+  --re-solar: #c08a05;    /* solar: amber */
+  --re-bio: #23b26d;      /* biomass: green */
+  --re-store: #9b7bdd;    /* battery storage: violet */
+  --re-h2: #2ea3ac;       /* hydrogen: teal */
+  --fossil: #8a8a83;      /* fossil plants: recessive grey */
+  --font-display: "Zen Kaku Gothic New", "Noto Sans JP", "Hiragino Sans", system-ui, sans-serif;
+  --font-body: "Noto Sans JP", "Hiragino Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-data: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+* { box-sizing: border-box; }
+body { background: var(--night); color: var(--ink); font-family: var(--font-body); font-size: 15px; line-height: 1.7; }
+.wrap { max-width: 1200px; margin: 0 auto; padding-block: 0 72px;
+        padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+        display: grid; gap: 40px; }
+.hero { display: grid; gap: 16px; padding-top: 36px; }
+.topline { display: flex; flex-wrap: wrap; gap: 12px; justify-content: space-between; align-items: center; }
+.eyebrow { font-family: var(--font-data); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-2); }
+.toggle { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--night); }
+.toggle button { font: inherit; font-size: 13px; line-height: 1.4; background: transparent; color: var(--ink-2); border: 0; padding: 6px 14px; cursor: pointer; }
+.toggle button[aria-pressed="true"] { background: var(--ink); color: var(--night); }
+button:focus-visible, select:focus-visible, summary:focus-visible, a:focus-visible { outline: 2px solid var(--heat); outline-offset: 2px; }
+h1 { font-family: var(--font-display); font-weight: 900; font-size: clamp(30px, 5vw, 56px); line-height: 1.15; letter-spacing: .01em; margin: 0; max-width: 20em; text-wrap: balance; }
+h1 em { font-style: normal; color: var(--heat); }
+h2 { font-family: var(--font-display); font-weight: 700; font-size: clamp(22px, 2.6vw, 30px); line-height: 1.3; margin: 0; text-wrap: balance; }
+h3 { font-family: var(--font-display); font-weight: 700; font-size: 18px; line-height: 1.4; margin: 0; }
+.lede { color: var(--ink-2); max-width: 46em; margin: 0; font-size: 16px; }
+.figures { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.figure { background: var(--panel); padding: 14px 18px; display: grid; gap: 2px; align-content: start; min-width: 0; }
+.figure b { font-family: var(--font-data); font-weight: 500; font-size: clamp(24px, 2.8vw, 32px); line-height: 1.2; font-variant-numeric: tabular-nums; color: var(--heat); }
+.figure span { font-size: 13px; color: var(--ink); }
+.figure small { font-size: 12px; color: var(--muted); }
+.caption { font-size: 12.5px; color: var(--muted); margin: 0; }
+@media (max-width: 760px) { .figures { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.stage { display: grid; grid-template-columns: minmax(0, 1fr) 318px; gap: 16px; align-items: start; }
+@media (max-width: 980px) { .stage { grid-template-columns: minmax(0, 1fr); } }
+.mapcol { display: grid; gap: 12px; min-width: 0; }
+.mapbox { position: relative; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--land); aspect-ratio: 4 / 3; width: 100%; max-width: 100%; }
+@media (max-width: 600px) { .mapbox { aspect-ratio: 4 / 5; } }
+.mapbox canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.controls { position: absolute; left: 10px; top: 10px; right: 10px; display: flex; flex-wrap: wrap; gap: 8px; pointer-events: none; }
+.controls > * { pointer-events: auto; }
+.controls .toggle, .controls select { background: rgba(9, 19, 29, .86); }
+.zoombtns { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: rgba(9, 19, 29, .86); }
+.zoombtns button { font: inherit; font-size: 13px; line-height: 1.4; background: transparent; color: var(--ink-2); border: 0; padding: 6px 12px; cursor: pointer; font-family: var(--font-data); }
+.zoombtns button:hover { color: var(--ink); }
+@media (pointer: coarse) { .zoombtns button { padding: 10px 16px; } }
+select { font: inherit; font-size: 13px; line-height: 1.4; color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; max-width: 100%; }
+.mbadge { position: absolute; left: 10px; bottom: 10px; display: grid; gap: 2px; padding: 10px 14px; border-radius: 10px; background: rgba(9, 19, 29, .84); border: 1px solid var(--line); pointer-events: none; max-width: calc(100% - 20px); }
+.mbadge b { font-family: var(--font-display); font-weight: 900; font-size: clamp(20px, 2.6vw, 28px); line-height: 1.1; }
+.mbadge span { font-size: 12.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.tip { position: absolute; z-index: 3; pointer-events: none; background: rgba(9, 19, 29, .96); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font-size: 12.5px; line-height: 1.55; width: max-content; max-width: 300px; }
+.tip b { font-weight: 700; }
+.tip .src { color: var(--muted); font-size: 11.5px; word-break: break-all; }
+.loading { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); color: var(--ink-2); font-size: 14px; }
+
+.side { display: grid; gap: 12px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 10px; min-width: 0; }
+.legend { display: grid; gap: 7px; font-size: 12.5px; color: var(--ink-2); }
+.legend span { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.sw { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.sq { width: 11px; height: 11px; border-radius: 3px; flex: none; }
+.sw.dc { background: var(--dc); }
+.sw.dcrise { background: transparent; border: 1.5px solid var(--dc); border-radius: 50%; }
+.sw.plot { width: 11px; height: 11px; border-radius: 2px; background: transparent; border: 1.5px dashed var(--plot); }
+.sw.grid { width: 4px; height: 16px; border-radius: 2px; background: var(--grid); }
+.sw.use { background: var(--use); }
+.sw.pipe { width: 22px; height: 4px; border-radius: 2px; background: var(--heat); box-shadow: 0 0 6px var(--heat-deep); }
+.sw.shed { background: transparent; border: 1.5px solid var(--heat); opacity: .55; border-radius: 50%; }
+.layers { display: grid; gap: 6px; }
+.layers label { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); cursor: pointer; }
+.layers input { accent-color: var(--heat); }
+.note { font-size: 12px; color: var(--muted); margin: 0; }
+
+section { display: grid; gap: 16px; min-width: 0; }
+.prose { color: var(--ink-2); max-width: 46em; margin: 0; }
+.tablebox { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+.data { width: 100%; min-width: 640px; border-collapse: collapse; font-size: 13.5px; }
+.data th, .data td { text-align: left; padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.data th { font-weight: 500; font-size: 12px; color: var(--ink-2); background: var(--panel); white-space: nowrap; }
+.data td.num { font-family: var(--font-data); font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.data th.num { text-align: right; }
+.data tr:last-child td { border-bottom: 0; }
+.data td.src { color: var(--muted); font-size: 12px; }
+.data td.src a { color: var(--ink-2); }
+.data .grp td { background: var(--panel); font-family: var(--font-data); font-size: 11.5px; letter-spacing: .06em; color: var(--heat); padding: 6px 12px; }
+.status { display: inline-block; font-size: 12px; padding: 1px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink-2); white-space: nowrap; }
+.status.op { border-color: var(--dc); color: var(--dc); }
+.status.uc { border-color: var(--plot); color: var(--plot); }
+footer { color: var(--muted); font-size: 12.5px; display: grid; gap: 4px; }
+footer a { color: var(--ink-2); }
+</style>
+
+<div class="wrap">
+  <header class="hero">
+    <div class="topline">
+      <div class="eyebrow" data-t="eyebrow"></div>
+      <div class="toggle" role="group" aria-label="Language">
+        <button type="button" id="lang-ja" aria-pressed="true">日本語</button>
+        <button type="button" id="lang-en" aria-pressed="false">English</button>
+      </div>
+    </div>
+    <h1 id="title"></h1>
+    <p class="lede" data-t="lede"></p>
+    <div class="figures" id="figures"></div>
+    <p class="caption" data-t="figCap"></p>
+  </header>
+
+  <section class="stage" aria-labelledby="title">
+    <div class="mapcol">
+      <div class="mapbox" id="mapbox" role="img">
+        <canvas id="c-base" aria-hidden="true"></canvas>
+        <canvas id="c-net" aria-hidden="true"></canvas>
+        <canvas id="c-flow" aria-hidden="true"></canvas>
+        <div class="controls">
+          <div class="zoombtns" role="group" aria-label="Zoom">
+            <button type="button" id="zoom-in" aria-label="+">＋</button>
+            <button type="button" id="zoom-out" aria-label="−">−</button>
+            <button type="button" id="zoom-reset" data-t="zoomReset"></button>
+          </div>
+        </div>
+        <div class="mbadge" id="mbadge">
+          <b id="mb-name"></b>
+          <span id="mb-sub"></span>
+          <span id="mb-net"></span>
+        </div>
+        <div class="tip" id="tip" hidden></div>
+        <div class="loading" id="loading" data-t="loading"></div>
+      </div>
+      <p class="caption" data-t="zoneNote"></p>
+
+    </div>
+    <aside class="side">
+      <div class="card">
+        <div class="eyebrow" data-t="layersTitle"></div>
+        <div class="layers" id="layers"></div>
+      </div>
+      <div class="card">
+        <div class="eyebrow" data-t="legend"></div>
+        <div class="legend" id="legend"></div>
+      </div>
+      <div class="card">
+        <div class="eyebrow" data-t="heatTitle"></div>
+        <p class="note" data-t="heatNote"></p>
+      </div>
+      <div class="card">
+        <div class="eyebrow" data-t="gridTitle"></div>
+        <p class="note" data-t="gridNote"></p>
+      </div>
+    </aside>
+  </section>
+
+  <section>
+    <h2 data-t="tableTitle"></h2>
+    <p class="prose" data-t="tableNote"></p>
+    <div class="tablebox"><table class="data" id="marks"></table></div>
+  </section>
+
+  <footer>
+    <div data-t="credits"></div>
+    <div><a href="https://github.com/ggnsjp/team-data-center" target="_blank" rel="noopener">github.com/ggnsjp/team-data-center</a></div>
+  </footer>
+</div>
+
+<script>
+"use strict";
+const T = {
+  ja: {
+    eyebrow: "GX戦略地域（データセンター集積型）· 認定 2026-09-11",
+    title: "GXの街は、<em>電力で伸びる</em>。",
+    lede: "石狩湾新港地域は、経済産業省のGX戦略地域（データセンター集積型）に認定されました。このページは、この地域の電力の姿を地図に描きます：すでに動いている再エネ、建設中・計画の再エネ、動いているデータセンターとその計画、そしてまだ稼働する火力。印はすべて出典つきです。",
+    figCap: "出力の合計は各地の公表値の集計です（座標未公表の洋上風力は湾内の代表点）。道の電力申込は2026年10月20日〜12月4日の公募で事業者に承継されます。",
+    fig1: "MWが再エネで稼働中", fig1sub: "洋上風力195・陸上風力60超・太陽光・バイオマス",
+    fig2: "MWが建設中・計画", fig2sub: "厚田風力64.5MW、蓄電所、水素ほか",
+    fig3: "MWが火力で稼働中", fig3sub: "ガス火力（石狩湾新港発電所569MW）",
+    fig4: "MWを道が確保済み", fig4sub: "石狩市内5か所の工業用地",
+    loading: "地図を描いています…", loadFail: "データを読み込めませんでした。ページを再読み込みしてください。",
+    zoomReset: "初期",
+    layersTitle: "地図の重ね合わせ", legend: "凡例",
+    lWindO: "洋上風力（稼働）", lWindR: "陸上風車", lWindP: "風力（計画・建設中）", lSolar: "太陽光（OSMに登録された発電所）", lBio: "バイオマス",
+    lStore: "蓄電池", lH2: "水素", lFossil: "火力・LNG（石炭・ガス）",
+    lDc: "データセンター（稼働）", lDcRise: "データセンター（建設中・計画）", lPlot: "道が電力申込済みの用地",
+    lGrid: "変電所・275kV線（OSM）",
+    showDc: "データセンター", showPlot: "電力申込の用地", showGrid: "系統（変電所・幹線）", showRe: "再エネ", showFossil: "火力・LNG",
+    zoneNote: "石狩側の現在地：洋上風力2基地区（計195MW）が湾に並び、港周辺には60MW超の陸上風車、市内に太陽光。北海道電力の石狩湾新港発電所（ガス569MW）とLNG基地が依然として地区の電力を支える側です。",
+    heatTitle: "排熱の導管網について",
+    heatNote: "このページはエネルギーのポートフォリオが主役です。本アプリの熱モデル（テーマ1）は石狩湾新港の既存データセンターの排熱を最適化していて、18.5kmの導管網が24か所に熱を届けています（標準の前提で年33,021MWh、純便益159.7百万円）。詳しくは「排熱の導管網」のページを。",
+    gridTitle: "系統の印について",
+    gridNote: "変電所と275kV線はOpenStreetMapの地物です（石狩・茨戸・樽川の各変電所、石狩湾新港発電所）。電力事業者の設備データとは突き合わせていません。名称のない変電所が1つ含まれます。",
+    tableTitle: "印の出典一覧",
+    tableNote: "地図のすべての印は、下の出典に対応します。位置が公表されていない施設は、地区点（GSIジオコーダ）または湾内の代表点に置き、その旨を「位置の根拠」に書いています。電力申込済みの用地には、まだデータセンターはありません——道が系統の接続を先に確保した、造成済み・造成中の工業用地です。",
+    grpIshikariRe: "石狩 — 再エネ（稼働）",
+    grpIshikariPlan: "石狩 — 再エネ（計画・建設中）",
+    grpIshikariFossil: "石狩 — 火力・LNG",
+    grpIshikariDc: "石狩 — データセンターと用地",
+    srcFoot: "出典の完全なURL：経産省 www.meti.go.jp/press/2026/09/20260911006.html · 石狩市 www.city.ishikari.hokkaido.jp/sangyo/yuchi/1007457.html · 道の公募要領 www.pref.hokkaido.lg.jp/kz/ssg/272100.html · TSH GX事業情報 tsh-gxpf.jp/en/business/ · 丸紅 www.marubeni.com/ja/news/2024/release/00092/ · 北海道電力 www.hokkaido-electric.co.jp/pressrelease/detail/4319 · 地図・発電所 © OpenStreetMap contributors（ODbL）",
+    thName: "施設・用地", thStatus: "状況", thScale: "規模", thWhere: "位置の根拠", thSource: "出典",
+    stOp: "稼働", stUc: "建設中", stPl: "計画", stPlot: "用地（電力申込済・DC未進出）",
+    mwRange: (lo, hi) => `IT負荷 ${lo}–${hi} MW`,
+    mwLine: (mw) => `${nf(mw, 1)} MW`,
+    plotLine: (mw, kv, yr) => `${mw} MW（${kv / 1000} kV）・連系 ${yr} 以降`,
+    mbTitle: "石狩湾新港",
+    mbSub: (reMw, dcN) => `再エネ稼働 ${reMw} MW・DC ${dcN}棟`,
+    dcTip: (st) => `状況: ${st}`,
+    whereTip: (w) => `位置: ${w}`,
+    tableRef: "出典は下の表",
+    statusNames: { operating: "稼働", under_construction: "建設中", planned: "計画" },
+    credits: "地図・発電所：© OpenStreetMap contributors（ODbL）。GX戦略地域の認定：経済産業省（2026-09-11）。出力・計画：TSH GX事業情報（tsh-gxpf.jp）、各事業者のプレスリリース、北海道の公募要領。数字の出典はすべて表中に記載しています。",
+  },
+  en: {
+    eyebrow: "GX strategic zone (data-center cluster type) · certified 2026-09-11",
+    title: "The GX zone: <em>powered and ready to grow</em>.",
+    lede: "Ishikari Bay New Port is part of a METI-certified GX strategic zone (data-center cluster type). This page maps the area's power: the renewables already operating, the ones under construction or planned, the data centers standing and planned, and the fossil plants still running. Every marker carries its source.",
+    figCap: "Capacity totals sum each operator's published figures (offshore wind farms without published coordinates sit at a bay representative point). Hokkaido transfers the pre-filed grid applications to operators chosen in the Oct 20 – Dec 4, 2026 call.",
+    fig1: "MW of renewables running", fig1sub: "offshore wind 195 · onshore wind 60+ · solar · biomass",
+    fig2: "MW under construction or planned", fig2sub: "Atsuta wind 64.5 MW, storage, hydrogen and more",
+    fig3: "MW of fossil power running", fig3sub: "gas (the Ishikariwan Shinko plant, 569 MW)",
+    fig4: "MW pre-filed by Hokkaido", fig4sub: "industrial land, five plots in Ishikari",
+    loading: "Drawing the map…", loadFail: "The data did not load. Reload the page to try again.",
+    zoomReset: "Reset",
+    layersTitle: "Map layers", legend: "Legend",
+    lWindO: "Offshore wind (operating)", lWindR: "Onshore wind turbines", lWindP: "Wind (planned, under construction)", lSolar: "Solar (plants mapped in OSM)", lBio: "Biomass",
+    lStore: "Battery storage", lH2: "Hydrogen", lFossil: "Fossil power & LNG (coal, gas)",
+    lDc: "Data center (operating)", lDcRise: "Data center (under construction / planned)", lPlot: "Plot with pre-filed power",
+    lGrid: "Substations & the 275 kV line (OSM)",
+    showDc: "Data centers", showPlot: "Reserved power plots", showGrid: "Grid (substations, trunk line)", showRe: "Renewables", showFossil: "Fossil & LNG",
+    zoneNote: "Ishikari's side: two offshore wind farms (195 MW combined) line the bay, 60+ MW of onshore turbines stand around the port, solar plants dot the city — while Hokkaido Electric's Ishikariwan Shinko gas plant (569 MW) and the LNG base still carry the area's power.",
+    mbSub: (reMw, dcN) => `${reMw} MW of renewables running · ${dcN} DCs`,
+    heatTitle: "About the waste-heat network",
+    heatNote: "This page is about the energy portfolio. Our heat model (theme 1) optimizes the waste heat of the existing data centers in Ishikari Bay New Port: an 18.5 km network serving 24 users (33,021 MWh/yr, ¥160 M net in the base case). See the Waste-heat network page for that story.",
+    gridTitle: "About the grid markers",
+    gridNote: "The substations and the 275 kV line are OpenStreetMap features (Ishikari, Ichibato, Tarukawa substations; the Ishikariwan Shinko power station). They are not checked against the grid operator's equipment data. One substation is unnamed in OSM.",
+    tableTitle: "Every marker, with its source",
+    tableNote: "Each marker on the map corresponds to a row here. Where a site's location is unpublished, the marker sits at a district point (GSI geocoder) or a bay representative point, and the basis column says so. The pre-filed plots have no data center on them yet — they are industrial land (graded or under construction) for which Hokkaido has secured the grid connection in advance.",
+    grpIshikariRe: "Ishikari — renewables (operating)",
+    grpIshikariPlan: "Ishikari — renewables (planned, under construction)",
+    grpIshikariFossil: "Ishikari — fossil & LNG",
+    grpIshikariDc: "Ishikari — data centers and plots",
+    srcFoot: "Full source URLs: METI www.meti.go.jp/press/2026/09/20260911006.html · Ishikari City www.city.ishikari.hokkaido.jp/sangyo/yuchi/1007457.html · Hokkaido guidelines www.pref.hokkaido.lg.jp/kz/ssg/272100.html · TSH GX platform tsh-gxpf.jp/en/business/ · Marubeni www.marubeni.com/ja/news/2024/release/00092/ · Hokkaido Electric www.hokkaido-electric.co.jp/pressrelease/detail/4319 · Map and plants © OpenStreetMap contributors (ODbL)",
+    thName: "Facility / plot", thStatus: "Status", thScale: "Scale", thWhere: "Location basis", thSource: "Source",
+    stOp: "Operating", stUc: "Under construction", stPl: "Planned", stPlot: "Land + power reserved, no DC yet",
+    mwRange: (lo, hi) => `IT load ${lo}–${hi} MW`,
+    mwLine: (mw) => `${nf(mw, 1)} MW`,
+    plotLine: (mw, kv, yr) => `${mw} MW (${kv / 1000} kV), connection ${yr}+`,
+    mbTitle: "Ishikari Bay New Port",
+    dcTip: (st) => `Status: ${st}`,
+    whereTip: (w) => `Location: ${w}`,
+    tableRef: "source in the table below",
+    statusNames: { operating: "Operating", under_construction: "Under construction", planned: "Planned" },
+    credits: "Map and plants: © OpenStreetMap contributors (ODbL). GX strategic zone certification: METI (2026-09-11). Capacity and plans: the TSH GX Information Platform (tsh-gxpf.jp), operator press releases, Hokkaido's recruitment guidelines. Sources for every figure are in the table.",
+  },
+};
+const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const $ = (id) => document.getElementById(id);
+const S = { lang: initialLang(), show: { re: true, fossil: true, dc: true, plot: true, grid: true } };
+let gx = null, layers = null, C = null;
+let W = 0, H = 0, DPR = 1, P = null, pipes = [], lastTs = 0;
+let IW = 0, IH = 0, IP = null;
+
+function initialLang() {
+  const h = location.hash.replace("#", "");
+  if (h === "ja" || h === "en") return h;
+  return (navigator.language || "ja").toLowerCase().startsWith("ja") ? "ja" : "en";
+}
+const t = (k) => T[S.lang][k];
+const nf = (v, d = 0) => new Intl.NumberFormat(S.lang === "ja" ? "ja-JP" : "en-US", { maximumFractionDigits: d, minimumFractionDigits: d }).format(v);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const name = (o) => (S.lang === "ja" ? o.name : o.name_en);
+const where = (o) => (S.lang === "ja" ? o.where[0] : o.where[1]);
+
+function readColours() {
+  const cs = getComputedStyle(document.documentElement);
+  const g = (n) => cs.getPropertyValue(n).trim();
+  C = { land: g("--land"), sea: g("--sea"), river: g("--river"), roads: [0, 1, 2, 3, 4].map((i) => g(`--road-${i}`)),
+        coast: g("--coast"), cityline: g("--cityline"), label: g("--label"), labelWater: g("--label-water"),
+        heat: g("--heat"), heatDeep: g("--heat-deep"), heatCore: g("--heat-core"), ink: g("--ink"), ink2: g("--ink-2"),
+        muted: g("--muted"), night: g("--night"), dc: g("--dc"), plot: g("--plot"), grid: g("--grid"), use: g("--use"),
+        wind: g("--re-wind"), solar: g("--re-solar"), bio: g("--re-bio"), store: g("--re-store"),
+        h2: g("--re-h2"), fossil: g("--fossil"),
+        fontBody: g("--font-body"), fontDisplay: g("--font-display"), fontData: g("--font-data") };
+}
+function rgba(hex, a) {
+  const h = hex.replace("#", "");
+  const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+  return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${a})`;
+}
+
+/* ---------- base map (same encoded format as the heat story's base.json) ---------- */
+function decodeBase(records) {
+  const meta = records.find((r) => r.layer === "meta");
+  const [x0, y0] = meta.extent, k = meta.scale;
+  const dec = (a) => {
+    const out = new Float64Array(a.length);
+    let x = 0, y = 0;
+    for (let i = 0; i < a.length; i += 2) { x += a[i]; y += a[i + 1]; out[i] = x0 + x / k; out[i + 1] = y0 + y / k; }
+    return out;
+  };
+  const L = { sea: [], river: [], coast: [], city: [], roads: [[], [], [], [], []], labels: [] };
+  for (const r of records) {
+    if (r.layer === "sea") L.sea = r.rings.map(dec);
+    else if (r.layer === "river") L.river = r.rings.map(dec);
+    else if (r.layer === "coast") L.coast = r.lines.map(dec);
+    else if (r.layer === "city") L.city = r.lines.map(dec);
+    else if (r.layer === "road") L.roads[r.class] = r.lines.map(dec);
+    else if (r.layer === "label") L.labels.push(r);
+  }
+  return L;
+}
+
+function fit() {
+  const box = $("mapbox").getBoundingClientRect();
+  DPR = Math.min(window.devicePixelRatio || 1, 2);
+  W = box.width; H = box.height;
+  for (const id of ["c-base", "c-net", "c-flow"]) {
+    const c = $(id); c.width = Math.round(W * DPR); c.height = Math.round(H * DPR);
+  }
+  // a refit (resize, language switch, fonts loaded) keeps the user's view: only the first fit
+  // starts at home; later ones rescale the base projection and re-clamp around the same centre
+  const first = !P;
+  const [w0, s0, e0, n0] = gx.view;
+  const k = Math.cos(((s0 + n0) / 2) * Math.PI / 180), pad = 0.03;
+  const sc = Math.min((W * (1 - 2 * pad)) / ((e0 - w0) * k), (H * (1 - 2 * pad)) / (n0 - s0));
+  const keepCx = first ? (w0 + e0) / 2 : P.cx, keepCy = first ? (s0 + n0) / 2 : P.cy;
+  P = { cx: keepCx, cy: keepCy, kx: k * sc, ky: sc, kmPx: sc / 111.32 };
+  if (first) { HOME = { cx: P.cx, cy: P.cy }; zoom = 1; anim.zoomT = 1; }
+}
+/* navigation: P.cx/cy is the centre, zoom multiplies the fit scale; both change under the user's
+   hand, everything else (labels, ring radii in px stay ring radii in km) follows the projection */
+let zoom = 1, HOME = null;
+const ZOOM_MIN = 1, ZOOM_MAX = 14;
+const px = (lon) => W / 2 + (lon - P.cx) * P.kx * zoom;
+const py = (lat) => H / 2 - (lat - P.cy) * P.ky * zoom;
+const pxKm = (km) => km * P.kmPx * zoom;
+const unpx = (x) => P.cx + (x - W / 2) / (P.kx * zoom);   // screen back to geography
+const unpy = (y) => P.cy - (y - H / 2) / (P.ky * zoom);
+
+function clampView() {
+  // the centre stays inside the drawn extent, so the user never loses the map
+  const [w0, s0, e0, n0] = gx.view;
+  P.cx = Math.min(e0, Math.max(w0, P.cx));
+  P.cy = Math.min(n0, Math.max(s0, P.cy));
+}
+/* zoom/pan run at animation-frame rate: raw events only record the target, one rAF loop applies
+   them (eased zoom, live pan) so wheel spam and drags stay smooth instead of redraw-per-event */
+const anim = { zoomT: 1, zoomA: null, ax: null, ay: null, panX: 0, panY: 0, queued: false };
+function zoomAt(mx, my, factor) {
+  if (!P) return;
+  anim.ax = mx; anim.ay = my;                          // zoom anchors at the last pointer position
+  anim.zoomT = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, anim.zoomT * factor));
+  scheduleZoom();
+}
+function resetView() {
+  if (!HOME || !P) return;
+  anim.zoomT = 1; anim.ax = null; anim.ay = null;
+  P.cx = HOME.cx; P.cy = HOME.cy;
+  scheduleZoom();
+}
+function scheduleZoom() {
+  if (anim.queued) return;
+  anim.queued = true;
+  // rAF is right for a visible page, but embedded/iframed views can throttle it; a 16 ms timer
+  // drives the same easing and keeps zoom responsive everywhere (pipes keep their own rAF loop)
+  anim.timer = setTimeout(() => { anim.queued = false; stepZoom(); }, 16);
+}
+function stepZoom(ts) {
+  anim.queued = false;
+  // main map: ease the zoom toward its target around the anchored point
+  const target = anim.zoomT;
+  if (anim.zoomA == null) anim.zoomA = zoom;
+  const diff = target / zoom;
+  if (Math.abs(diff - 1) > 0.004) {
+    const anchor = anim.ax != null ? [unpx(anim.ax), unpy(anim.ay)] : [P.cx, P.cy];
+    zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, zoom * (1 + (diff - 1) * 0.22)));
+    if (anim.ax != null) {                             // keep the point under the cursor there
+      P.cx += anchor[0] - unpx(anim.ax);
+      P.cy += anchor[1] - unpy(anim.ay);
+    }
+    clampView();
+    drawMap(false);
+    anim.timer = setTimeout(() => { anim.queued = false; stepZoom(); }, 16);
+    return;
+  }
+  zoom = target; anim.zoomA = null;
+  clampView(); drawMap(false);
+}
+
+function trace(ctx, arr, close) {
+  for (let i = 0; i < arr.length; i += 2) {
+    const x = px(arr[i]), y = py(arr[i + 1]);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  if (close) ctx.closePath();
+}
+function haloText(ctx, text, x, y, fill) {
+  ctx.lineWidth = 3; ctx.strokeStyle = rgba(C.land, 0.9); ctx.strokeText(text, x, y);
+  ctx.fillStyle = fill; ctx.fillText(text, x, y);
+}
+
+function drawBase() {
+  const ctx = $("c-base").getContext("2d");
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = C.land; ctx.fillRect(0, 0, W, H);
+  if (!layers) return;
+  ctx.beginPath(); for (const r of layers.sea) trace(ctx, r, true); ctx.fillStyle = C.sea; ctx.fill("evenodd");
+  ctx.beginPath(); for (const r of layers.river) trace(ctx, r, true); ctx.fillStyle = C.river; ctx.fill("evenodd");
+  const widths = [0.6, 0.8, 1.1, 1.6, 2.2];
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+  for (let c = 0; c < 5; c++) {
+    ctx.beginPath(); for (const l of layers.roads[c]) trace(ctx, l, false);
+    ctx.strokeStyle = C.roads[c]; ctx.lineWidth = widths[c]; ctx.stroke();
+  }
+  ctx.beginPath(); for (const l of layers.coast) trace(ctx, l, false); ctx.strokeStyle = C.coast; ctx.lineWidth = 1.2; ctx.stroke();
+  ctx.setLineDash([5, 5]); ctx.beginPath(); for (const l of layers.city) trace(ctx, l, false);
+  ctx.strokeStyle = C.cityline; ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]);
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  for (const l of layers.labels) {
+    const x = px(l.lon), y = py(l.lat);
+    if (x < 30 || x > W - 30 || y < 50 || y > H - 12) continue;
+    const text = S.lang === "ja" ? l.ja : l.en;
+    if (l.kind === "town") { ctx.font = `700 14px ${C.fontBody}`; haloText(ctx, text, x, y, C.muted); }
+    else if (l.kind === "district") { ctx.font = `500 12px ${C.fontBody}`; haloText(ctx, text, x, y, C.label); }
+    else { ctx.font = `italic 500 13px ${C.fontBody}`; ctx.fillStyle = C.labelWater; ctx.fillText(text, x, y); }
+  }
+}
+
+/* ---------- the energy layer: renewables, storage, hydrogen, fossil ---------- */
+/* colors: each energy class has its own hue, validated on this dark surface;
+   status separates operating (filled) from planned (dashed outline) — never color alone */
+const E_COLORS = { wind_offshore: "#4a9de0", wind_onshore: "#4a9de0", solar: "#eab308",
+                   biomass: "#23b26d", storage: "#9b7bdd", hydrogen: "#3bc0c8", fossil: "#8a8a83" };
+
+const labelRows = {};                                // shared stagger ledger: one per canvas, reset per redraw
+function drawEnergy(ctx, X, Y, cw, ch) {
+  const slots = labelRows;
+  for (const e of gx.energy) {
+    if (e.kind === "fossil") continue;          // fossil draws separately, under its own toggle
+    const x = X(e.lon), y = Y(e.lat);
+    if (x < -30 || x > cw + 30 || y < -30 || y > ch + 30) continue;
+    const col = C[e.kind] || E_COLORS[e.kind];
+    const op = e.status === "operating";
+    if (e.kind === "wind_offshore") {                 // the two farms: a translucent bay disc
+      const r = e.mw ? 10 + 26 * Math.sqrt(e.mw / 1650) : 14;
+      ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
+      ctx.fillStyle = rgba(col, op ? 0.22 : 0.10); ctx.fill();
+      if (op) {
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
+        ctx.strokeStyle = rgba(col, 0.85); ctx.lineWidth = 1.8; ctx.stroke();
+      } else {
+        ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
+        ctx.strokeStyle = rgba(col, 0.7); ctx.lineWidth = 1.5; ctx.stroke(); ctx.setLineDash([]);
+      }
+      ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 2 * Math.PI); ctx.fillStyle = col; ctx.fill();
+    } else if (e.kind === "fossil") {                 // fossil: a grey square with a chimney tick
+      const side = 12;
+      ctx.fillStyle = rgba(C.fossil, 0.20); ctx.fillRect(x - side / 2, y - side / 2, side, side);
+      ctx.strokeStyle = rgba(C.fossil, 0.9); ctx.lineWidth = 1.4;
+      ctx.strokeRect(x - side / 2, y - side / 2, side, side);
+      ctx.beginPath(); ctx.moveTo(x, y + side / 2); ctx.lineTo(x, y + side / 2 + 6);
+      ctx.strokeStyle = rgba(C.fossil, 0.75); ctx.stroke();
+    } else {                                          // the rest: a small circle sized by MW
+      const r = e.mw ? 3.5 + 9 * Math.sqrt(Math.min(1, e.mw / 75)) : 4;
+      if (op) {
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
+        ctx.fillStyle = rgba(col, 0.85); ctx.fill();
+        ctx.strokeStyle = rgba(C.night, 0.9); ctx.lineWidth = 1.2; ctx.stroke();
+      } else {
+        ctx.setLineDash([2.5, 2.5]);
+        ctx.beginPath(); ctx.arc(x, y, r, 0, 2 * Math.PI);
+        ctx.strokeStyle = rgba(col, 0.85); ctx.lineWidth = 1.6; ctx.stroke(); ctx.setLineDash([]);
+      }
+    }
+    // labels only for the named, big or fossil sites; small OSM dots stay quiet
+    const big = e.kind === "fossil" || e.kind === "wind_offshore" || e.kind === "biomass" || e.kind === "hydrogen"
+      || (e.mw != null && e.mw >= 25);
+    if (!e.nodes && big) {
+      const shortName = shortNameOf(e);
+      const row = Math.floor((slots[y] = (slots[y] ?? -1) + 1));
+      ctx.font = `500 10.5px ${C.fontBody}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.clip();
+      haloText(ctx, shortName, x + 12, y - 4 + row * 12, op ? C.ink : C.ink2);
+      ctx.restore();
+    }
+  }
+}
+
+function shortNameOf(e) {
+  return (S.lang === "ja" ? e.name : e.name_en)
+    .replace(/Ishikari Bay New Port Offshore Wind Farm II/, "Ishikari offshore wind II")
+    .replace(/Ishikari Bay New Port Offshore Wind Farm/, "Ishikari offshore wind I")
+    .replace(/石狩湾新港地域洋上風力発電施設/, "石狩湾新港洋上風力")
+    .replace(/石狩湾新港第2洋上風力発電所/, "石狩湾新港第2洋上風力")
+    .replace(/Ishikariwan Shinko Power Station \(gas\)/, "Shinko gas plant")
+    .replace(/石狩湾新港発電所/, "石狩湾新港発電所（ガス）")
+    .replace(/石狩LNG基地/, "LNG基地")
+    .replace(/Ishikari LNG Base/, "Ishikari LNG base")
+    .replace(/Hokkaido Atsuta Wind Farm \(planned\)/, "Atsuta wind (planned)")
+    .replace(/（仮称）北海道厚田風力発電事業/, "厚田風力発電（計画）")
+    .replace(/Ishikari Bay New Port/, "New Port")
+    .split(/[（(]/)[0];
+}
+
+function drawNet() {
+  const ctx = $("c-net").getContext("2d");
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.lineCap = "round"; ctx.lineJoin = "round";
+
+  if (S.show.grid) drawGrid(ctx);
+  if (S.show.re) drawEnergy(ctx, px, py, W, H);
+  if (S.show.fossil) drawEnergyFossil(ctx, px, py, W, H);
+  if (S.show.re) {
+    drawOsmNodes(ctx, gx.osm_wind || [], px, py, W, H, "wind");
+    drawOsmNodes(ctx, gx.osm_solar_ishikari || [], px, py, W, H, "solar");
+  }
+
+  if (S.show.plot) {
+    const maxMw = Math.max(...gx.reserved.map((r) => r.mw));
+    for (const r of gx.reserved) {
+            const off = r.offset_px || 0;
+      const x = px(r.lon), y = py(r.lat) - off;
+      const side = (8 + 16 * Math.sqrt(r.mw / maxMw)) * 2;
+      ctx.setLineDash([4, 3]); ctx.strokeStyle = rgba(C.plot, 0.85); ctx.lineWidth = 1.6;
+      ctx.strokeRect(x - side / 2, y - side / 2, side, side); ctx.setLineDash([]);
+      ctx.fillStyle = rgba(C.plot, 0.10); ctx.fillRect(x - side / 2, y - side / 2, side, side);
+    }
+  }
+  if (S.show.dc) drawDcs(ctx, px, py, W, H);
+  if (S.show.plot) {                            // the plot labels read on top of everything
+    ctx.font = `500 10.5px ${C.fontData}`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    for (const r of gx.reserved) {
+      if (r.lon < gx.view[0] - 0.05 || r.lon > gx.view[2] + 0.05) continue;
+      const off = r.offset_px || 0;
+      const x = px(r.lon), y = py(r.lat) - off;
+      haloText(ctx, `${r.mw}MW`, x, y, C.plot);
+      haloText(ctx, `${r.kv / 1000}kV`, x, y + 12, rgba(C.plot, 0.8));
+    }
+  }
+}
+
+/* fossil is a toggle of its own; drawEnergy skips it when the toggle is off */
+function drawEnergyFossil(ctx, X, Y, cw, ch) {
+  const saved = gx.energy;
+  gx.energy = gx.energy.filter((e) => e.kind === "fossil");
+  drawEnergy(ctx, X, Y, cw, ch);
+  gx.energy = saved;
+}
+
+/* the individual OSM dots: wind turbines as small blue ticks, solar plants as small yellow dots */
+function drawOsmNodes(ctx, nodes, X, Y, cw, ch, type) {
+  if (!nodes) return;
+  for (const n of nodes) {
+    const x = X(n.lon), y = Y(n.lat);
+    if (x < -10 || x > cw + 10 || y < -10 || y > ch + 10) continue;
+    if (type === "wind") {
+      ctx.beginPath(); ctx.arc(x, y, 2.2, 0, 2 * Math.PI);
+      ctx.fillStyle = rgba(C.wind, 0.75); ctx.fill();
+    } else {
+      ctx.fillRect(x - 2, y - 2, 4, 4);
+      ctx.fillStyle = rgba(C.solar, 0.7);
+      ctx.fillRect(x - 2, y - 2, 4, 4);
+    }
+  }
+}
+
+function drawGrid(ctx) {
+  if (!layers || !layers.grid) return;
+  ctx.setLineDash([2, 3]);
+  for (const l of layers.grid.lines) {
+    ctx.beginPath(); trace(ctx, l, false);
+    ctx.strokeStyle = rgba(C.grid, 0.55); ctx.lineWidth = 2; ctx.stroke();
+  }
+  ctx.setLineDash([]);
+  for (const s of layers.grid.substations) {
+    const x = px(s.lon), y = py(s.lat);
+    ctx.beginPath(); ctx.arc(x, y, 5, 0, 2 * Math.PI);
+    ctx.fillStyle = rgba(C.grid, 0.25); ctx.fill();
+    ctx.strokeStyle = C.grid; ctx.lineWidth = 1.6; ctx.stroke();
+    ctx.beginPath(); ctx.arc(x, y, 1.8, 0, 2 * Math.PI); ctx.fillStyle = C.grid; ctx.fill();
+  }
+}
+
+function drawDcs(ctx, X, Y, cw, ch) {
+  // the four New Port DCs sit within ~700 m of one another: labels stagger instead of overlap
+  const slots = labelRows;                            // share the rows with the energy labels
+  for (const d of gx.dcs) {
+    const x = X(d.lon), y = Y(d.lat);
+    if (x < -20 || x > cw + 20 || y < -20 || y > ch + 20) continue;
+    const op = d.status === "operating";
+    if (op) {
+      const g = ctx.createRadialGradient(x, y, 0, x, y, 22);
+      g.addColorStop(0, rgba(C.heatCore, 0.95)); g.addColorStop(0.3, rgba(C.heat, 0.6)); g.addColorStop(1, rgba(C.heatDeep, 0));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, 22, 0, 2 * Math.PI); ctx.fill();
+      ctx.fillStyle = C.heatCore; ctx.beginPath(); ctx.arc(x, y, 4.5, 0, 2 * Math.PI); ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, 9, 0, 2 * Math.PI);
+      ctx.strokeStyle = C.dc; ctx.lineWidth = 2.2; ctx.stroke();
+    } else {
+      ctx.setLineDash([3, 3]);
+      ctx.beginPath(); ctx.arc(x, y, 9, 0, 2 * Math.PI);
+      ctx.strokeStyle = rgba(C.dc, 0.9); ctx.lineWidth = 2; ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.arc(x, y, 3.5, 0, 2 * Math.PI);
+      ctx.fillStyle = rgba(C.dc, 0.5); ctx.fill();
+    }
+    // a short label near the marker; the table carries the full names
+    const shortName = (S.lang === "ja" ? d.name : d.name_en)
+      .replace(/Ishikari Renewable Energy Data Center No\. 1/, "Ishikari RE DC No. 1")
+      .replace(/石狩再エネデータセンター第1号/, "石狩再エネDC第1号")
+      .replace(/さくらインターネット株式会社 石狩データセンター/, "さくらインターネットDC")
+      .replace(/Sakura Internet Ishikari Data Center/, "Sakura DC")
+      .replace(/京セラコミュニケーションシステム /, "").replace(/KCCS /, "")
+      .replace(/株式会社エヌ・ティ・ティ エムイー/, "NTT-ME").replace(/NTT-ME.*/, "NTT-ME")
+      .split(/[（(]/)[0];
+    const row = Math.floor((slots[x] = (slots[x] ?? -1) + 1));
+    ctx.font = `500 11px ${C.fontBody}`; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+    haloText(ctx, shortName, x + 13, y - 6 + row * 13, op ? C.ink : C.ink2);
+  }
+}
+
+/* ---------- the marching dashes of the reserved plots: one light loop ---------- */
+let lastDash = 0;
+function frame(ts) {
+  if (!P || !gx) { requestAnimationFrame(frame); return; }
+  if (ts - lastDash > 110) {                         // ~9 fps is plenty for marching dashes
+    lastDash = ts;
+    for (const k of Object.keys(labelRows)) delete labelRows[k];
+    drawNet();
+  }
+  requestAnimationFrame(frame);
+}
+
+function drawMap(rebuild) {
+  if (!gx) return;
+  if (rebuild) fit();
+  if (!P) return;                                    // fit() needs a laid-out map box; headless can skip it
+  for (const k of Object.keys(labelRows)) delete labelRows[k];
+  drawBase();
+  drawNet();
+}
+
+/* ---------- tooltips: name, status, one figure, one source line — nothing more ---------- */
+function hitTest(mx, my) {
+  let best = null, bd = Infinity;
+  const consider = (o, x, y, kind) => {
+    const d = Math.hypot(x - mx, y - my);
+    if (d < 15 && d < bd) { bd = d; best = { o, kind }; }
+  };
+  for (const e of gx.energy) consider(e, px(e.lon), py(e.lat), "energy");
+  for (const d of gx.dcs) consider(d, px(d.lon), py(d.lat), "dc");
+  for (const r of gx.reserved) consider(r, px(r.lon), py(r.lat) - (r.offset_px || 0), "plot");
+  if (layers && layers.grid) {
+    for (const s of layers.grid.substations) consider(s, px(s.lon), py(s.lat), "sub");
+  }
+  return best;
+}
+/* one line of "what it is" per marker kind; the full sources live in the table below */
+function tipHtml(hit) {
+  const ja = S.lang === "ja";
+  if (hit.kind === "energy") {
+    const e = hit.o;
+    return `<b>${esc(name(e))}</b> — ${esc(t("statusNames")[e.status] || e.status)}` +
+      (e.mw ? `<br>${esc(t("mwLine")(e.mw))}` : "") +
+      `<br><span class="src">${esc(t("tableRef"))}</span>`;
+  }
+  if (hit.kind === "dc") {
+    const d = hit.o;
+    return `<b>${esc(name(d))}</b> — ${esc(t("statusNames")[d.status] || d.status)}` +
+      `<br>${esc(t("mwRange")(d.mw.low, d.mw.high))}` +
+      (d.key === "zed" ? `<br>${esc(ja ? "排熱を床暖・道路融雪に利用済み" : "already uses its waste heat for floor and road heating")}` : "") +
+      `<br><span class="src">${esc(t("tableRef"))}</span>`;
+  }
+  if (hit.kind === "plot") {
+    const r = hit.o;
+    return `<b>${esc(ja ? r.lot : r.lot_en)}</b> — ${esc(t("stPlot"))}` +
+      `<br>${esc(t("plotLine")(r.mw, r.kv, r.year))}` +
+      `<br><span class="src">${esc(t("tableRef"))}</span>`;
+  }
+  const s = hit.o;
+  return `<b>${esc(s.name || (ja ? "変電所" : "Substation"))}</b>${s.kv ? ` — ${esc(nf(s.kv / 1000))} kV` : ""}` +
+    `<br><span class="src">© OpenStreetMap</span>`;
+}
+function showTip(tip, box, hit, mx, my, bw, bh) {
+  if (!hit) { tip.hidden = true; return; }
+  tip.innerHTML = tipHtml(hit); tip.hidden = false;
+  const left = mx + 14 + tip.offsetWidth > bw - 8 ? mx - 14 - tip.offsetWidth : mx + 14;
+  tip.style.left = `${Math.max(8, left)}px`;
+  tip.style.top = `${Math.max(8, Math.min(my + 14, bh - tip.offsetHeight - 8))}px`;
+}
+function mapTip(ev) {
+  if (!gx || !P) return;
+  const box = $("mapbox").getBoundingClientRect(), mx = ev.clientX - box.left, my = ev.clientY - box.top;
+  showTip($("tip"), box, hitTest(mx, my), mx, my, W, H);
+}
+
+/* ---------- panel rendering ---------- */
+function renderFigures() {
+  const z = gx.zone;
+  const sum = (f) => gx.energy.filter(f).reduce((a, e) => a + (e.mw || 0), 0);
+  const reOp = sum((e) => e.kind !== "fossil" && e.status === "operating");
+  const rePlan = sum((e) => e.kind !== "fossil" && e.status !== "operating");
+  const foOp = sum((e) => e.kind === "fossil" && e.status === "operating");
+  const cells = [
+    [nf(reOp), t("fig1"), t("fig1sub")],
+    [nf(rePlan), t("fig2"), t("fig2sub")],
+    [nf(foOp), t("fig3"), t("fig3sub")],
+    [nf(z.reserved_mw), t("fig4"), t("fig4sub")],
+  ];
+  $("figures").innerHTML = cells.map(([v, a, b2]) => `<div class="figure"><b>${esc(v)}</b><span>${esc(a)}</span><small>${esc(b2)}</small></div>`).join("");
+}
+
+const LAYER_DEFS = [
+  ["re", "showRe"], ["fossil", "showFossil"], ["dc", "showDc"], ["plot", "showPlot"], ["grid", "showGrid"],
+];
+function renderLayers() {
+  $("layers").innerHTML = LAYER_DEFS.map(([k, label]) =>
+    `<label><input type="checkbox" data-k="${k}" ${S.show[k] ? "checked" : ""}> ${esc(t(label))}</label>`).join("");
+  $("layers").querySelectorAll("input").forEach((i) =>
+    i.addEventListener("change", () => {
+      S.show[i.dataset.k] = i.checked;
+      drawNet();
+    }));
+}
+
+function renderLegend() {
+  $("legend").innerHTML =
+    `<span><i class="sw" style="background:transparent;border:2px solid var(--re-wind);box-shadow:0 0 6px rgba(74,157,224,.4)"></i>${esc(t("lWindO"))}</span>` +
+    `<span><i class="sw" style="background:var(--re-wind);width:8px;height:8px"></i>${esc(t("lWindR"))}</span>` +
+    `<span><i class="sw dcrise" style="border-color:var(--re-wind)"></i>${esc(t("lWindP"))}</span>` +
+    `<span><i class="sq" style="background:var(--re-solar);width:8px;height:8px"></i>${esc(t("lSolar"))}</span>` +
+    `<span><i class="sq" style="background:var(--re-bio);width:8px;height:8px"></i>${esc(t("lBio"))}</span>` +
+    `<span><i class="sq" style="background:var(--re-store);width:8px;height:8px"></i>${esc(t("lStore"))}</span>` +
+    `<span><i class="sq" style="background:var(--re-h2);width:8px;height:8px"></i>${esc(t("lH2"))}</span>` +
+    `<span><i class="sq" style="background:var(--fossil);width:11px;height:11px;border-radius:2px"></i>${esc(t("lFossil"))}</span>` +
+    `<span><i class="sw dc" style="background:var(--heat-core);box-shadow:0 0 8px 2px var(--heat);border:2px solid var(--dc)"></i>${esc(t("lDc"))}</span>` +
+    `<span><i class="sw dcrise"></i>${esc(t("lDcRise"))}</span>` +
+    `<span><i class="sw plot"></i>${esc(t("lPlot"))}</span>` +
+    `<span><i class="sw grid"></i>${esc(t("lGrid"))}</span>`;
+}
+
+function renderBadge() {
+  const sum = (f) => gx.energy.filter(f).reduce((a, e) => a + (e.mw || 0), 0);
+  const reIsh = sum((e) => e.kind !== "fossil" && e.status === "operating");
+  const nDcIsh = gx.dcs.filter((d) => d.status === "operating").length;
+  $("mb-name").textContent = t("mbTitle");
+  $("mb-sub").textContent = t("mbSub")(nf(reIsh), nDcIsh);
+}
+
+function renderTable() {
+  const ja = S.lang === "ja";
+  const stCls = { operating: "op", under_construction: "uc", planned: "uc" };
+  const short = (o) => {                                 // the compact source label, full URL on hover
+    const v = o.src_short ?? o.source;
+    const label = Array.isArray(v) ? v[ja ? 0 : 1] : (v && typeof v === "object" ? v[ja ? "ja" : "en"] : String(v || "—"));
+    const url = o.url || "";
+    return url ? `<a class="src" href="${esc(url)}" target="_blank" rel="noopener">${esc(label)}</a>`
+      : `<span class="src" title="${esc(typeof o.source === "object" ? o.source[ja ? "ja" : "en"] : o.source || "")}">${esc(label)}</span>`;
+  };
+  const scaleOf = (o) => o.kind === "dc" ? t("mwRange")(o.mw.low, o.mw.high)
+    : o.kind === "plot" ? t("plotLine")(o.mw, o.kv, o.year)
+    : o.mw ? t("mwLine")(o.mw) : "—";
+  const tr = (o, status) => `<tr><td>${esc(name(o))}</td><td><span class="status ${stCls[status] || ""}">${esc(o.kind === "plot" ? t("stPlot") : t("statusNames")[status] || status)}</span></td>` +
+    `<td class="num">${esc(scaleOf(o))}</td><td>${esc(where(o))}</td><td class="src">${short(o)}</td></tr>`;
+  const ish = gx.energy.filter((e) => e.city === "ishikari");
+  const ishDc = gx.dcs;
+  const ishPlots = gx.reserved;
+  const grp = (label) => `<tr class="grp"><td colspan="5">${esc(label)}</td></tr>`;
+  $("marks").innerHTML =
+    `<thead><tr><th>${esc(t("thName"))}</th><th>${esc(t("thStatus"))}</th><th class="num">${esc(t("thScale"))}</th><th>${esc(t("thWhere"))}</th><th>${esc(t("thSource"))}</th></tr></thead><tbody>` +
+    grp(t("grpIshikariRe")) + ish.filter((e) => e.kind !== "fossil" && e.status === "operating").map((e) => tr(e, e.status)).join("") +
+    grp(t("grpIshikariPlan")) + ish.filter((e) => e.kind !== "fossil" && e.status !== "operating").map((e) => tr(e, e.status)).join("") +
+    grp(t("grpIshikariFossil")) + ish.filter((e) => e.kind === "fossil").map((e) => tr(e, e.status)).join("") +
+    grp(t("grpIshikariDc")) + [...ishDc.map((d) => tr(d, d.status)), ...ishPlots.map((r) => tr(r, "plot"))].join("") +
+    `</tbody><tfoot><tr><td colspan="5" class="src">${esc(t("srcFoot"))}</td></tr></tfoot>`;
+}
+
+/* ---------- text and wiring ---------- */
+function renderText() {
+  document.documentElement.lang = S.lang;
+  $("title").innerHTML = t("title");
+  document.querySelectorAll("[data-t]").forEach((el) => { const v = T[S.lang][el.dataset.t]; if (typeof v === "string") el.textContent = v; });
+  $("lang-ja").setAttribute("aria-pressed", String(S.lang === "ja"));
+  $("lang-en").setAttribute("aria-pressed", String(S.lang === "en"));
+  if (!gx) return;                                   // start() renders text before the data lands
+  renderFigures(); renderLayers(); renderLegend(); renderBadge(); renderTable();
+}
+
+function applyLang(lang) {
+  if (lang !== "ja" && lang !== "en") return;
+  S.lang = lang; renderText(); drawMap(true);
+}
+
+async function start() {
+  readColours();
+  renderText();
+  try {                                              // the panels render once the data lands
+    gx = await fetch("gx.json").then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
+  } catch (e) {
+    $("loading").textContent = t("loadFail");
+    return;
+  }
+  renderText();
+  const setHash = (h) => { try { if (location.protocol !== "about:") location.hash = h; } catch (e) { /* embedded copy */ } };
+  $("lang-ja").addEventListener("click", () => { setHash("ja"); applyLang("ja"); });
+  $("lang-en").addEventListener("click", () => { setHash("en"); applyLang("en"); });
+  window.addEventListener("hashchange", () => { const h = location.hash.replace("#", ""); if (h !== S.lang) applyLang(h); });
+  drawMap(true);
+  wireNavigation();
+  $("c-flow").addEventListener("pointermove", mapTip);
+  $("c-flow").addEventListener("pointerdown", mapTip);
+  $("c-flow").addEventListener("pointerleave", () => ($("tip").hidden = true));
+  let rt = null;
+  window.addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => drawMap(true), 150); });
+  try {
+    const records = await fetch("base.json").then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
+    layers = decodeBase(records);
+    const gridRec = records.find((r) => r.layer === "grid");
+    if (gridRec) layers.grid = { lines: gridRec.lines.map(decodeGridLine(gridRec)), substations: gridRec.substations };
+    $("loading").hidden = true;
+    drawMap(true);
+  } catch (e) {
+    $("loading").textContent = t("loadFail");
+  }
+  if (!reduceMotion) requestAnimationFrame(frame);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => drawMap(true));
+}
+/* the grid record carries plain lon/lat point pairs (substation points, line vertices), not the
+   delta encoding of the OSM layers — a few dozen vertices, no need to compress */
+function decodeGridLine(rec) { return (a) => a; }
+
+/* ---------- navigation: drag to pan, wheel or pinch to zoom, buttons ---------- */
+function wireNavigation() {
+  const box = $("c-flow");
+  let drag = null, pinchDist = 0, panPending = false;
+  box.style.cursor = "grab";
+  box.addEventListener("pointerdown", (ev) => {
+    if (ev.button !== 0 && ev.pointerType === "mouse") return;
+    drag = { x: ev.clientX, y: ev.clientY, cx: P.cx, cy: P.cy, moved: false };
+    box.setPointerCapture(ev.pointerId);
+    box.style.cursor = "grabbing";
+  });
+  box.addEventListener("pointermove", (ev) => {
+    if (!drag) return;
+    const dx = ev.clientX - drag.x, dy = ev.clientY - drag.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) drag.moved = true;
+    // move at most once per frame: the redraw of the full road layer is the cost, not the event
+    drag.targetX = drag.cx - dx / (P.kx * zoom);
+    drag.targetY = drag.cy + dy / (P.ky * zoom);
+    if (panPending) return;
+    panPending = true;
+    requestAnimationFrame(() => {
+      panPending = false;
+      if (!drag || drag.targetX == null) return;
+      P.cx = drag.targetX; P.cy = drag.targetY;
+      clampView();
+      drawMap(false);
+    });
+  });
+  const endDrag = (ev) => {
+    if (drag && drag.moved) { $("tip").hidden = true; }   // a drag is not a hover: clear the tip
+    drag = null;
+    box.style.cursor = "grab";
+  };
+  box.addEventListener("pointerup", endDrag);
+  box.addEventListener("pointercancel", endDrag);
+  box.addEventListener("wheel", (ev) => {
+    ev.preventDefault();
+    const r = box.getBoundingClientRect();
+    zoomAt(ev.clientX - r.left, ev.clientY - r.top, Math.exp(-ev.deltaY * 0.0016));
+  }, { passive: false });
+  // pinch on touch: two pointers, zoom by the distance ratio
+  const pts = new Map();
+  box.addEventListener("pointerdown", (ev) => { pts.set(ev.pointerId, [ev.clientX, ev.clientY]); if (pts.size === 2) { drag = null; const [a, b] = [...pts.values()]; pinchDist = Math.hypot(a[0] - b[0], a[1] - b[1]); pinching = zoom; } });
+  box.addEventListener("pointermove", (ev) => {
+    if (!pts.has(ev.pointerId)) return;
+    pts.set(ev.pointerId, [ev.clientX, ev.clientY]);
+    if (pts.size === 2 && pinching) {
+      const [a, b] = [...pts.values()];
+      const d = Math.hypot(a[0] - b[0], a[1] - b[1]);
+      if (pinchDist > 0) {
+        const factor = d / pinchDist;
+        const r = box.getBoundingClientRect();
+        zoomAt((a[0] + b[0]) / 2 - r.left, (a[1] + b[1]) / 2 - r.top, factor);
+        pinching = zoom; pinchDist = d;
+      }
+    }
+  });
+  const clearPinch = (ev) => { pts.delete(ev.pointerId); if (pts.size < 2) pinching = null; };
+  box.addEventListener("pointerup", clearPinch);
+  box.addEventListener("pointercancel", clearPinch);
+  $("zoom-in").addEventListener("click", () => zoomAt(W / 2, H / 2, 1.6));
+  $("zoom-out").addEventListener("click", () => zoomAt(W / 2, H / 2, 1 / 1.6));
+  $("zoom-reset").addEventListener("click", resetView);
+}
+start();
+</script>
+</body>

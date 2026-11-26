@@ -109,177 +109,188 @@ flowchart LR
   n4["src/dcopt/heat/network.py"]
   n5{"tests/test_data_and_docs.py"}
   n6[/"data/SHA256SUMS"/]
-  n7[("JMA daily mean temperature and snowfall, Sapporo (station 47412), 1976-2025")]
-  n8(["JMA-PDTU-1.0"])
-  n9>"www.data.jma.go.jp/obd/stats/etrn/view/daily_…"]
-  n10>"www.jma.go.jp/jma/kishou/info/coment.html"]
-  n12["src/dcopt/heat/weather.py"]
-  n13["src/dcopt/heat/proposal.py"]
-  n14["experiments/weather_years/run.py"]
-  n15["app/pages/4_Warm_Ishikari_Weather.py"]
-  n16{"tests/test_data_register.py"}
-  n17{"tests/test_weather.py"}
-  n18{"tests/test_weather_fallback.py"}
-  n19[("JMA climate normals 1991-2020, Sapporo: monthly mean temperature and snowfall")]
-  n20>"www.data.jma.go.jp/obd/stats/etrn/view/nml_sf…"]
-  n22["src/dcopt/heat/v1.py"]
-  n23{"tests/test_coefficients.py"}
-  n24[("Model parameters: prices, efficiencies, temperatures, pipe costs, peak factors")]
-  n25>"docs/data-sources.md"]
-  n26>"docs/input-evidence.md"]
-  n28["experiments/input_sensitivity/run.py"]
-  n29["experiments/heat_loss_check/run.py"]
-  n30{"tests/test_evidence.py"}
-  n31{"tests/test_heat_loss.py"}
-  n32[("OpenStreetMap: boundary, road network, facilities and candidate heat users for the study area")]
-  n33(["ODbL-1.0"])
-  n34>"www.openstreetmap.org/copyright"]
-  n37["scripts/fetch_data.py"]
-  n38["src/dcopt/common/geo.py"]
-  n39["app/pages/1_Warm_Ishikari.py"]
-  n40["app/pages/2_Warm_Ishikari_Map.py"]
-  n41[("PGLib-OPF benchmark power systems (six cases, 14 to 300 buses)")]
-  n42(["CC-BY-4.0"])
-  n43>"github.com/power-grid-lib/pglib-opf"]
-  n44>"arxiv.org/abs/1908.02788"]
-  n46["src/dcopt/grid/cases.py"]
-  n47["src/dcopt/grid/hosting.py"]
-  n48["experiments/grid_hosting/run.py"]
-  n49["app/pages/5_Grid_Hosting.py"]
-  n50["scripts/render_theme_animations.py"]
-  n51{"tests/test_grid_cases.py"}
-  n52{"tests/test_grid_hosting.py"}
-  n53[("Built-in illustrative power systems: a two-bus line, a five-bus ring and an eight-bus feeder")]
-  n55{"tests/test_grid_app.py"}
-  n56[("OpenStreetMap: transmission lines, substations and power plants around the study area")]
-  n58["src/dcopt/siting/gridmap.py"]
-  n59["scripts/export_siting.py"]
-  n60["app/pages/6_Siting.py"]
-  n61{"tests/test_siting.py"}
-  n62[("Hokkaido area supply and demand records, 30-minute values (from April 2024)")]
-  n63(["HEPCO-NW-site-terms"])
-  n64>"www.hepco.co.jp/network/con_service/public_do…"]
-  n65>"www.hepco.co.jp/network/using/legal.html"]
-  n67["src/dcopt/matching/records.py"]
-  n68["src/dcopt/matching/score.py"]
-  n69["src/dcopt/matching/system.py"]
-  n70["src/dcopt/matching/portfolio.py"]
-  n71["app/pages/7_Matching.py"]
-  n72["scripts/export_matching.py"]
-  n73["scripts/render_matching_figure.py"]
-  n74{"tests/test_matching.py"}
-  n75{"tests/test_matching_app.py"}
-  n76[("Siting study: candidate sites, the heat value of each and its distance to the grid")]
-  n77(["MIT + ODbL-1.0"])
-  n79["src/dcopt/siting/candidates.py"]
-  n80["src/dcopt/siting/heat_value.py"]
-  n81["src/dcopt/siting/model.py"]
-  n82{"tests/test_siting_app.py"}
-  n83[("Generated results: experiment outputs, proposal exports and map exports")]
-  n84(["MIT + ODbL-1.0 where maps are drawn"])
-  n87["scripts/export_proposals.py"]
-  n88["scripts/export_heat_story.py"]
-  n89["app/pages/3_Warm_Ishikari_Proposals.py"]
-  n90{"tests/test_proposal.py"}
-  n91{"tests/test_properties.py"}
-  n92{"tests/test_bruteforce.py"}
+  n7[("Ishikari GX strategic zone: the five plots with pre-filed grid applications (lots, MW, kV, connection dates, areas, coordinates)")]
+  n8>"docs/data-sources.md#the-gx-strategic-zone-it…"]
+  n9>"www.pref.hokkaido.lg.jp/kz/ssg/272100.html"]
+  n11["scripts/export_gx_zone.py"]
+  n12[("JMA daily mean temperature and snowfall, Sapporo (station 47412), 1976-2025")]
+  n13(["JMA-PDTU-1.0"])
+  n14>"www.data.jma.go.jp/obd/stats/etrn/view/daily_…"]
+  n15>"www.jma.go.jp/jma/kishou/info/coment.html"]
+  n17["src/dcopt/heat/weather.py"]
+  n18["src/dcopt/heat/proposal.py"]
+  n19["experiments/weather_years/run.py"]
+  n20["app/pages/4_Warm_Ishikari_Weather.py"]
+  n21{"tests/test_data_register.py"}
+  n22{"tests/test_weather.py"}
+  n23{"tests/test_weather_fallback.py"}
+  n24[("JMA climate normals 1991-2020, Sapporo: monthly mean temperature and snowfall")]
+  n25>"www.data.jma.go.jp/obd/stats/etrn/view/nml_sf…"]
+  n27["src/dcopt/heat/v1.py"]
+  n28{"tests/test_coefficients.py"}
+  n29[("Model parameters: prices, efficiencies, temperatures, pipe costs, peak factors")]
+  n30>"docs/data-sources.md"]
+  n31>"docs/input-evidence.md"]
+  n33["experiments/input_sensitivity/run.py"]
+  n34["experiments/heat_loss_check/run.py"]
+  n35{"tests/test_evidence.py"}
+  n36{"tests/test_heat_loss.py"}
+  n37[("OpenStreetMap: boundary, road network, facilities and candidate heat users for the study area")]
+  n38(["ODbL-1.0"])
+  n39>"www.openstreetmap.org/copyright"]
+  n42["scripts/fetch_data.py"]
+  n43["src/dcopt/common/geo.py"]
+  n44["app/pages/1_Warm_Ishikari.py"]
+  n45["app/pages/2_Warm_Ishikari_Map.py"]
+  n46[("PGLib-OPF benchmark power systems (six cases, 14 to 300 buses)")]
+  n47(["CC-BY-4.0"])
+  n48>"github.com/power-grid-lib/pglib-opf"]
+  n49>"arxiv.org/abs/1908.02788"]
+  n51["src/dcopt/grid/cases.py"]
+  n52["src/dcopt/grid/hosting.py"]
+  n53["experiments/grid_hosting/run.py"]
+  n54["app/pages/5_Grid_Hosting.py"]
+  n55["scripts/render_theme_animations.py"]
+  n56{"tests/test_grid_cases.py"}
+  n57{"tests/test_grid_hosting.py"}
+  n58[("Built-in illustrative power systems: a two-bus line, a five-bus ring and an eight-bus feeder")]
+  n60{"tests/test_grid_app.py"}
+  n61[("OpenStreetMap: transmission lines, substations and power plants around the study area")]
+  n63["src/dcopt/siting/gridmap.py"]
+  n64["scripts/export_siting.py"]
+  n65["app/pages/6_Siting.py"]
+  n66{"tests/test_siting.py"}
+  n67[("Hokkaido area supply and demand records, 30-minute values (from April 2024)")]
+  n68(["HEPCO-NW-site-terms"])
+  n69>"www.hepco.co.jp/network/con_service/public_do…"]
+  n70>"www.hepco.co.jp/network/using/legal.html"]
+  n72["src/dcopt/matching/records.py"]
+  n73["src/dcopt/matching/score.py"]
+  n74["src/dcopt/matching/system.py"]
+  n75["src/dcopt/matching/portfolio.py"]
+  n76["app/pages/7_Matching.py"]
+  n77["scripts/export_matching.py"]
+  n78["scripts/render_matching_figure.py"]
+  n79{"tests/test_matching.py"}
+  n80{"tests/test_matching_app.py"}
+  n81[("Siting study: candidate sites, the heat value of each and its distance to the grid")]
+  n82(["MIT + ODbL-1.0"])
+  n84["src/dcopt/siting/candidates.py"]
+  n85["src/dcopt/siting/heat_value.py"]
+  n86["src/dcopt/siting/model.py"]
+  n87{"tests/test_siting_app.py"}
+  n88[("Generated results: experiment outputs, proposal exports and map exports")]
+  n89(["MIT + ODbL-1.0 where maps are drawn"])
+  n92["scripts/export_proposals.py"]
+  n93["scripts/export_heat_story.py"]
+  n94["app/pages/3_Warm_Ishikari_Proposals.py"]
+  n95{"tests/test_proposal.py"}
+  n96{"tests/test_properties.py"}
+  n97{"tests/test_bruteforce.py"}
   n0 -->|under| n1
   n2 -->|feeds| n0
   n0 -->|used_by| n4
   n5 -->|checks| n0
   n6 -->|pins| n0
-  n7 -->|under| n8
+  n7 -->|under| n1
+  n8 -->|feeds| n7
   n9 -->|feeds| n7
-  n10 -->|feeds| n7
-  n12 -->|makes| n7
-  n7 -->|used_by| n12
-  n7 -->|used_by| n13
-  n7 -->|used_by| n14
-  n7 -->|used_by| n15
-  n16 -->|checks| n7
-  n17 -->|checks| n7
-  n18 -->|checks| n7
+  n11 -->|makes| n7
+  n7 -->|used_by| n11
+  n5 -->|checks| n7
   n6 -->|pins| n7
-  n19 -->|under| n8
-  n20 -->|feeds| n19
-  n19 -->|used_by| n22
-  n19 -->|used_by| n12
-  n19 -->|used_by| n4
-  n16 -->|checks| n19
-  n23 -->|checks| n19
-  n24 -->|under| n1
+  n12 -->|under| n13
+  n14 -->|feeds| n12
+  n15 -->|feeds| n12
+  n17 -->|makes| n12
+  n12 -->|used_by| n17
+  n12 -->|used_by| n18
+  n12 -->|used_by| n19
+  n12 -->|used_by| n20
+  n21 -->|checks| n12
+  n22 -->|checks| n12
+  n23 -->|checks| n12
+  n6 -->|pins| n12
+  n24 -->|under| n13
   n25 -->|feeds| n24
-  n26 -->|feeds| n24
+  n24 -->|used_by| n27
+  n24 -->|used_by| n17
   n24 -->|used_by| n4
-  n24 -->|used_by| n13
-  n24 -->|used_by| n28
-  n24 -->|used_by| n29
-  n5 -->|checks| n24
-  n23 -->|checks| n24
-  n30 -->|checks| n24
-  n31 -->|checks| n24
-  n32 -->|under| n33
-  n34 -->|feeds| n32
-  n37 -->|makes| n32
-  n38 -->|makes| n32
-  n32 -->|used_by| n22
-  n32 -->|used_by| n4
-  n32 -->|used_by| n39
-  n32 -->|used_by| n40
-  n5 -->|checks| n32
-  n41 -->|under| n42
-  n43 -->|feeds| n41
-  n44 -->|feeds| n41
-  n46 -->|makes| n41
-  n41 -->|used_by| n47
-  n41 -->|used_by| n48
-  n41 -->|used_by| n49
-  n41 -->|used_by| n50
-  n51 -->|checks| n41
-  n52 -->|checks| n41
-  n53 -->|under| n1
-  n53 -->|used_by| n47
-  n53 -->|used_by| n49
-  n51 -->|checks| n53
-  n52 -->|checks| n53
-  n55 -->|checks| n53
-  n56 -->|under| n33
-  n34 -->|feeds| n56
-  n58 -->|makes| n56
-  n56 -->|used_by| n59
-  n56 -->|used_by| n60
-  n56 -->|used_by| n50
-  n61 -->|checks| n56
-  n62 -->|under| n63
-  n64 -->|feeds| n62
-  n65 -->|feeds| n62
-  n67 -->|makes| n62
-  n62 -->|used_by| n68
-  n62 -->|used_by| n69
-  n62 -->|used_by| n70
-  n62 -->|used_by| n71
-  n62 -->|used_by| n72
-  n62 -->|used_by| n73
-  n74 -->|checks| n62
-  n75 -->|checks| n62
-  n76 -->|under| n77
-  n59 -->|makes| n76
-  n79 -->|makes| n76
-  n80 -->|makes| n76
-  n81 -->|makes| n76
-  n76 -->|used_by| n60
-  n76 -->|used_by| n50
-  n61 -->|checks| n76
-  n82 -->|checks| n76
-  n83 -->|under| n84
-  n14 -->|makes| n83
-  n87 -->|makes| n83
-  n88 -->|makes| n83
-  n83 -->|used_by| n89
-  n83 -->|used_by| n50
-  n90 -->|checks| n83
-  n91 -->|checks| n83
-  n92 -->|checks| n83
+  n21 -->|checks| n24
+  n28 -->|checks| n24
+  n29 -->|under| n1
+  n30 -->|feeds| n29
+  n31 -->|feeds| n29
+  n29 -->|used_by| n4
+  n29 -->|used_by| n18
+  n29 -->|used_by| n33
+  n29 -->|used_by| n34
+  n5 -->|checks| n29
+  n28 -->|checks| n29
+  n35 -->|checks| n29
+  n36 -->|checks| n29
+  n37 -->|under| n38
+  n39 -->|feeds| n37
+  n42 -->|makes| n37
+  n43 -->|makes| n37
+  n37 -->|used_by| n27
+  n37 -->|used_by| n4
+  n37 -->|used_by| n44
+  n37 -->|used_by| n45
+  n5 -->|checks| n37
+  n46 -->|under| n47
+  n48 -->|feeds| n46
+  n49 -->|feeds| n46
+  n51 -->|makes| n46
+  n46 -->|used_by| n52
+  n46 -->|used_by| n53
+  n46 -->|used_by| n54
+  n46 -->|used_by| n55
+  n56 -->|checks| n46
+  n57 -->|checks| n46
+  n58 -->|under| n1
+  n58 -->|used_by| n52
+  n58 -->|used_by| n54
+  n56 -->|checks| n58
+  n57 -->|checks| n58
+  n60 -->|checks| n58
+  n61 -->|under| n38
+  n39 -->|feeds| n61
+  n63 -->|makes| n61
+  n61 -->|used_by| n64
+  n61 -->|used_by| n65
+  n61 -->|used_by| n55
+  n66 -->|checks| n61
+  n67 -->|under| n68
+  n69 -->|feeds| n67
+  n70 -->|feeds| n67
+  n72 -->|makes| n67
+  n67 -->|used_by| n73
+  n67 -->|used_by| n74
+  n67 -->|used_by| n75
+  n67 -->|used_by| n76
+  n67 -->|used_by| n77
+  n67 -->|used_by| n78
+  n79 -->|checks| n67
+  n80 -->|checks| n67
+  n81 -->|under| n82
+  n64 -->|makes| n81
+  n84 -->|makes| n81
+  n85 -->|makes| n81
+  n86 -->|makes| n81
+  n81 -->|used_by| n65
+  n81 -->|used_by| n55
+  n66 -->|checks| n81
+  n87 -->|checks| n81
+  n88 -->|under| n89
+  n19 -->|makes| n88
+  n92 -->|makes| n88
+  n93 -->|makes| n88
+  n88 -->|used_by| n94
+  n88 -->|used_by| n55
+  n95 -->|checks| n88
+  n96 -->|checks| n88
+  n97 -->|checks| n88
 ```
 <!-- lineage:end -->
 

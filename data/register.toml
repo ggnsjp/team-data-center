@@ -28,6 +28,22 @@ checks = ["tests/test_data_and_docs.py"]
 refresh = "When an operator publishes new figures; update the row and its sources together."
 
 [[dataset]]
+id = "curated-gx-plots"
+title = "Ishikari GX strategic zone: the five plots with pre-filed grid applications (lots, MW, kV, connection dates, areas, coordinates)"
+storage = "git"
+paths = ["data/curated/ishikari_gx_plots.csv"]
+terms = "MIT"
+licence = "MIT (our own compilation of published facts)"
+sources = ["docs/data-sources.md#the-gx-strategic-zone-its-energy-portfolio-and-the-data-centers",
+           "https://www.pref.hokkaido.lg.jp/kz/ssg/272100.html"]
+made_by = "compiled by hand from the prefecture's recruitment guideline; coordinates from the GSI geocoder"
+code = ["scripts/export_gx_zone.py"]
+processing = "Facts copied from the guideline (MW, kV, connection year, area, price, lot numbers). Coordinates are the GSI geocoder's point for the chome: it does not resolve lot numbers, so each row says so in location_basis. Nothing here is a parcel survey."
+used_by = ["scripts/export_gx_zone.py"]
+checks = ["tests/test_data_and_docs.py"]
+refresh = "When the prefecture updates the recruitment page (https://www.pref.hokkaido.lg.jp/kz/ssg/272100.html); update the row, its sources and the exporter together."
+
+[[dataset]]
 id = "jma-daily-sapporo"
 title = "JMA daily mean temperature and snowfall, Sapporo (station 47412), 1976-2025"
 storage = "git"
