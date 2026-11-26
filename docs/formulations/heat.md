@@ -79,6 +79,7 @@ This is a prize-collecting Steiner tree with monthly capacities, written in mult
   - Each user has its own heat pump, with COP = 0.5 × Carnot from 25 °C, capped at 8.
   - Users that need 27 °C or less take the heat directly.
 - *Central:* the network runs at 60 °C, with ΔT 30 K, COP 4.76 and 8 % heat loss.
+- What the two modes mean for the quality of the heat (exergy), with the published plan worked through: [../exergy.md](../exergy.md).
 
 **Robust version.**
 - Uncertainty set: at most $\Gamma$ data centers run at the low end of their IT-load range.

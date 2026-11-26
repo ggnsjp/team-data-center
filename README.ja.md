@@ -83,6 +83,19 @@
 
 30℃程度の低温の導管網で、ヒートポンプを各施設に置く方式です。陸上養殖と道路融雪は、熱をそのまま使います。この方式の確率計画の期待値は **9,380万円** で、60℃の導管網と集中ヒートポンプの方式（**8,150万円**）を上回ります。今の灯油価格では、低温方式の計画は10.7kmの管で16か所に届き、年1億4,030万円になります（上のアニメーションの計画です）。
 
+### 熱の質：エクセルギーで見た計画
+
+エクセルギーは、エネルギーのうち仕事に換えられる部分です [72, 73]。電気はすべてエクセルギーで、熱は周囲との温度差が大きいほど価値があります。データセンターの排熱は量は多いものの「質が低い」熱です [74]。30℃では、毎年使える95.7 GWhのうちエクセルギーは6.8 %しかありません（1月は11.0 %、8月は2.5 %）。そこでモデルは、熱を量だけでなく温度で扱っています。需要家の種類ごとに送り温度があり、27℃以下で足りる需要家は熱をそのまま使い、それ以外は昇温の幅で決まるヒートポンプの電気（COPはカルノー値の半分）を負担します。これは、低温の地域熱供給について述べられている、質の低い供給と質の低い需要を合わせる考え方で [75]、導管網の温度を下げることが発展の方向とされています [76, 77]。
+
+| 同じ年15,147 MWh（エクセルギー1,533 MWh）を届けるのに | 質の高いエネルギーの投入 | エクセルギー効率 |
+|---|---|---|
+| 灯油ボイラー | 燃料のエクセルギー 18,683 MWh | 8.2 % |
+| 公表した計画 | 電気 1,267 MWh と、排熱のエクセルギー 1,172 MWh | 62.9 % |
+
+熱の約半分（49 %）は、ヒートポンプの要らない2件に届きます。同じ配熱を60℃の導管網で送ると、電気は2.7倍要ります。上の結果（低温方式が勝つ）をエクセルギーで読むとこうなります。モデルは60℃を超える蒸気やプロセス熱を扱っていません。熱の23 %は病院1件とホテル2件に届きますが、その需要は全量を60℃の水でまかなえるものとして数えています。現地でまず確かめるべき仮定です。
+
+エクセルギーとは何か、定義、手計算の例、限界、参考文献は [docs/exergy.ja.md](docs/exergy.ja.md) にあります。実行：`uv run python scripts/exergy_balance.py`
+
 ### CO₂：計画は補助なしで採算がとれ、炭素価格より補助のほうが計画を大きく動かす
 
 上の確率計画（13か所、7.8km）は、各施設のヒートポンプが北海道電力の標準メニューの電気（0.526 kg/kWh [54]）で動く場合、**年に約3,900トンのCO₂** を減らします。2030年度の国の水準（0.25 kg/kWh [55]）なら4,300トン、再エネ電力なら4,600トンです。灯油の排出量は1Lあたり2.50 kgです [53]。この計画は、減らしながら利益が出ます（1トンあたり約24,000円の得）。炭素価格がなくても成り立ちます。
@@ -153,8 +166,9 @@
   - 比較の再現：`uv run python experiments/solver_compare/run.py`
 - **データセンターの位置。** 2か所はおおよその位置、1か所は仮置きです。
 - **モデルの粗さ。** 熱の収支は月単位で、熱損失は一律の割合です。距離に応じた損失はこれから入れます。
+- **熱の質。** 60℃を超える蒸気やプロセス熱、蓄熱槽、ポンプ動力は、モデルに入っていません（[docs/exergy.ja.md](docs/exergy.ja.md)）。
 
-数理モデルの完全な解説（すべての係数と数値例つき、英語）は [docs/formulations/heat-model.md](docs/formulations/heat-model.md) に、結果は [docs/formulations/heat.md](docs/formulations/heat.md) にあります。
+数理モデルの完全な解説（すべての係数と数値例つき、英語）は [docs/formulations/heat-model.md](docs/formulations/heat-model.md) に、結果は [docs/formulations/heat.md](docs/formulations/heat.md) にあります。エクセルギーから見た説明は [docs/exergy.ja.md](docs/exergy.ja.md) です。
 
 ## これまでの結果（テーマ2）
 
@@ -409,7 +423,7 @@ uv run pytest                                          # テスト（地図デ�
 ## 構成
 
 ```
-src/dcopt/heat      テーマ1：モデルv1（v1.py）、v2（network.py）、提案書（proposal.py）、気象年（weather.py）、ライブ・シミュレーションの設定値（whatif.py）、導管の熱損失（loss.py）、計画のグラフ（plangraph.py）
+src/dcopt/heat      テーマ1：モデルv1（v1.py）、v2（network.py）、提案書（proposal.py）、気象年（weather.py）、ライブ・シミュレーションの設定値（whatif.py）、導管の熱損失（loss.py）、計画のグラフ（plangraph.py）、エクセルギー（exergy.py）
 src/dcopt/grid      テーマ2：系統データ（cases.py）、緩和と交流の問題に共通の持ち上げモデル（lifted.py）、緩和（relax.py）、交流の運転点（ac.py）、上限と下限（hosting.py）
 src/dcopt/siting    テーマ3：候補地（candidates.py）、排熱の価値（heat_value.py）、系統までの距離（gridmap.py）、立地のモデル（model.py）
 src/dcopt/matching  テーマ4：需給実績（records.py）、数え方（score.py）、実績をなぞる再計算（system.py）、いちばん安い組み合わせ（portfolio.py）
@@ -455,6 +469,7 @@ tests/              合成データでの単体テストとアプリのテスト
 - 管の太さの定式化を強化し（カット平面、Benders）、最適性を保証する [23, 26]
 - 網の形・温度方式・ヒートポンプの置き場所を、道路網の規模で同時に最適化する
 - 管の長さ・太さ・温度・流量に応じた熱損失を入れる
+- 熱需要を温度帯（蒸気、給湯、暖房）で分け、蓄熱槽とポンプ動力を入れる [75, 76]
 - 共同の幹線の費用を公平に分ける（シャープレイ値と最小コアの比較） [27, 28]
 - どの計画中のデータセンターが建つかが不確かなときの、2段階ロバスト設計 [32–35]
 - 石狩の系統モデルを作る（北海道電力ネットワークが公表している187kV以上のデータ、電気学会の標準モデル、OpenStreetMapのいずれか）
@@ -464,7 +479,7 @@ tests/              合成データでの単体テストとアプリのテスト
 
 ## 参考文献
 
-事実とパラメータの出典 [1–22]、関連文献：排熱の導管網とデータセンター排熱の利用 [23–30]、ロバスト最適化 [31–36]、系統の受け入れ余地 [37–47]、立地と柔軟な負荷 [48–52]、CO₂の排出係数と政策の出典 [53–58]、テーマ2の手法とソルバー [59–64]、系統接続の費用 [65]、再エネの一致：需給実績と公表されている抑制量 [66, 67]、電力調達に関する研究 [68, 69]、費用 [70, 71]。
+事実とパラメータの出典 [1–22]、関連文献：排熱の導管網とデータセンター排熱の利用 [23–30]、ロバスト最適化 [31–36]、系統の受け入れ余地 [37–47]、立地と柔軟な負荷 [48–52]、CO₂の排出係数と政策の出典 [53–58]、テーマ2の手法とソルバー [59–64]、系統接続の費用 [65]、再エネの一致：需給実績と公表されている抑制量 [66, 67]、電力調達に関する研究 [68, 69]、費用 [70, 71]、エクセルギーと熱の質 [72–77]。
 
 1. Hack × Hokkaido Build Week 2026, AI build week in Sapporo, 23–27 November 2026. https://www.hackhokkaido.com/ (accessed 2026-11-24).
 2. Broadband Tower (2025-11-28). Press release on Ishikari Renewable Energy Data Center No. 1 (in Japanese). https://www.bbtower.co.jp/ir/pr/docs/20251128_ishikari_release.pdf
@@ -537,6 +552,12 @@ tests/              合成データでの単体テストとアプリのテスト
 69. Riepin, I., Brown, T. (2024). On the means, costs, and system-level impacts of 24/7 carbon-free energy procurement. *Energy Strategy Reviews*, 54, 101488. https://doi.org/10.1016/j.esr.2024.101488
 70. 発電コスト検証ワーキンググループ (2025-02-06). 発電コスト検証に関するとりまとめ（2023年の新設：事業用太陽光10.9円/kWh、陸上風力16.3円/kWh、政策経費を含む）. https://www.enecho.meti.go.jp/committee/council/basic_policy_subcommittee/mitoshi/cost_wg/pdf/cost_wg_20250206_01.pdf
 71. 経済産業省 (2025-03-07). 2024年度 定置用蓄電システム普及拡大検討会の結果とりまとめ（補助事業での系統用蓄電システム価格は平均5.4万円/kWh）. https://www.meti.go.jp/shingikai/energy_environment/storage_system/pdf/20250307_1.pdf
+72. Kotas, T.J. (1985). *The Exergy Method of Thermal Plant Analysis*. Butterworths. https://doi.org/10.1016/C2013-0-00894-8
+73. 宿谷昌則 編著 (2010). エクセルギーと環境の理論：流れ・循環のデザインとは何か（改訂版）. 井上書院. 英語版： Shukuya, M. (2013). *Exergy: Theory and Applications in the Built Environment*. Springer. https://doi.org/10.1007/978-1-4471-4573-8
+74. Ebrahimi, K., Jones, G.F., Fleischer, A.S. (2014). A review of data center cooling technology, operating conditions and the corresponding low-grade waste heat recovery opportunities. *Renewable and Sustainable Energy Reviews*, 31, 622-638. https://doi.org/10.1016/j.rser.2013.12.007
+75. Li, H., Svendsen, S. (2012). Energy and exergy analysis of low temperature district heating network. *Energy*, 45(1), 237-246. https://doi.org/10.1016/j.energy.2012.03.056
+76. Gong, M., Werner, S. (2015). Exergy analysis of network temperature levels in Swedish and Danish district heating systems. *Renewable Energy*, 84, 106-113. https://doi.org/10.1016/j.renene.2015.06.001
+77. Lund, H., Werner, S., Wiltshire, R., Svendsen, S., Thorsen, J.E., Hvelplund, F., Mathiesen, B.V. (2014). 4th Generation District Heating (4GDH): Integrating smart thermal grids into future sustainable energy systems. *Energy*, 68, 1-11. https://doi.org/10.1016/j.energy.2014.02.089
 
 ## メンバー
 
