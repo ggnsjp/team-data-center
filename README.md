@@ -247,7 +247,7 @@ The app's *Renewable matching* page lets you set the load, the contract, a batte
 
 ![The GX strategic zone at Ishikari Bay New Port: the two offshore wind farms in the bay, onshore turbines, solar plants and the fossil plants; the data centers standing and planned, and the plots where Hokkaido has pre-filed grid power](docs/img/gx-overlay.png)
 
-*Ishikari Bay New Port is part of a METI-certified GX strategic zone (data-center cluster type, 2026-09-11). The page maps the area's power: the renewables already operating (195 MW of offshore wind in the bay, 60+ MW of onshore turbines, named solar plants), the ones under construction or planned (the 64.5 MW Atsuta wind farm, battery storage), the data centers standing and planned, the five plots where Hokkaido has pre-filed 590 MW of grid power — and the fossil plants still running. Renewable capacity comes from the TSH GX Information Platform (tsh-gxpf.jp) and operator press releases; plant geometry comes from OpenStreetMap. Nothing is drawn at an invented location — unpublished sites sit at GSI district points or bay representative points and say so.*
+*Ishikari Bay New Port is part of a METI-certified GX strategic zone (data-center cluster type, 2026-09-11). The page maps the area's power: the renewables already operating (195 MW of offshore wind in the bay, 60+ MW of onshore turbines, named solar plants), the ones under construction or planned (the 64.5 MW Atsuta wind farm, battery storage), the data centers standing and planned, the five plots where Hokkaido has pre-filed 590 MW of grid power — and the fossil plants still running. Renewable capacity comes from the TSH GX Information Platform (tsh-gxpf.jp) and operator press releases; plant geometry comes from OpenStreetMap. Nothing is drawn at an invented location — unpublished sites sit at GSI district points or bay representative points and say so. Map data © OpenStreetMap contributors (ODbL).*
 
 The app's *GX overlay* page renders this from `uv run python scripts/export_gx_zone.py`. Sources and values: [docs/data-sources.md](docs/data-sources.md), [docs/gx-zone-portfolio.md](docs/gx-zone-portfolio.md).
 
@@ -371,7 +371,7 @@ uv run pytest                                          # tests; those that need 
 
 **The app** (`uv run streamlit run app/streamlit_app.py`; the data each page needs: [app/README.md](app/README.md))
 - One language switch in the sidebar (日本語 / English) sets every page; the choice is kept in the URL (`?lang=`).
-- Seven pages: *Waste-heat network* (Warm Ishikari: model v1 for one data center, every assumption adjustable, and the live simulation), *Animation* (Warm Ishikari Map), *Proposals* (Warm Ishikari Proposals), *Weather years*, *Grid hosting capacity*, *Siting* and *Renewable matching*.
+- Eight pages: *Waste-heat network* (Warm Ishikari: model v1 for one data center, every assumption adjustable, and the live simulation), *Animation* (Warm Ishikari Map), *Proposals* (Warm Ishikari Proposals), *Weather years*, *Grid hosting capacity*, *Siting*, *Renewable matching* and *GX overlay*.
 
 **Live simulation (the app's Warm Ishikari page)**
 - Type a what-if in either language ("電気料金を2倍にして" / "double the electricity price"); the LLM

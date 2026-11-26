@@ -265,10 +265,11 @@ def build() -> dict:
         "energy": energy,
         "reserved": reserved,
         "heat": {"km": Params().max_link_m / 1000, "kpi": kpi,
-                 "note": ("テーマ1の熱モデルは石狩が対象（導管1本8km上限）。最適化した18.5kmの導管網が24か所に"
-                          "熱を届けている。このページの主役はエネルギーのポートフォリオで、導管網は補足。",
-                          "The theme-1 heat model covers Ishikari (8 km candidate-link limit); its optimized 18.5 km "
-                          "network serves 24 users. This page is about the energy portfolio; the heat network is a footnote.")},
+                 "note": ("テーマ1の熱モデルは石狩が対象（導管1本8km上限）。公表している地域計画は13か所を"
+                          "7.8kmの導管でつなぐ（推計）。このページの主役はエネルギーのポートフォリオで、導管網は補足。",
+                          "The theme-1 heat model covers Ishikari (8 km candidate-link limit); its published regional "
+                          "plan connects 13 sites with 7.8 km of pipe (an estimate). This page is about the energy "
+                          "portfolio; the heat network is a footnote.")},
         "sources": {"meti": METI_RELEASE, "ishikari": ISHIKARI_ZONE, "kobo": KOBO, "gxpf": GXPF,
                     "marubeni": MARUBENI, "hokuden": HOKUDEN, "city_plan": CITY_PLAN_URL},
     }

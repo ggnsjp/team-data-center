@@ -80,8 +80,9 @@ The grid behind it (OpenStreetMap, not checked against the operator's data): 石
 the 石狩湾新港発電所 275 kV switching station, and the 石狩湾新港発電所線 corridor — the 275 kV
 hook the future 300 MW site hangs off.
 
-Waste-heat footnote: the theme-1 model of this app optimizes the existing data centers' heat — an
-18.5 km pipe network serving 24 users (33,021 MWh/yr, ¥160 M net in the base case).
+Waste-heat footnote: the theme-1 model of this app optimizes where the existing data centers' heat
+goes. The published regional plan connects 13 sites with 7.8 km of pipe and is worth 93.8 M yen a
+year in the model (an estimate; about half of the heat goes to two assumed users; see the README).
 
 ---
 
@@ -91,8 +92,8 @@ Waste-heat footnote: the theme-1 model of this app optimizes the existing data c
 |---|---|---|
 | METI press release (2026-09-11) | the GX strategic zone certification itself | https://www.meti.go.jp/press/2026/09/20260911006.html |
 | Ishikari City zone page | certification, 3 existing DCs, the recruitment window | https://www.city.ishikari.hokkaido.jp/sangyo/yuchi/1007457.html |
-| Hokkaido recruitment guidelines (Oct 2026) | the six plots, MW, kV, connection years, areas, prices | https://www.pref.hokkaido.lg.jp/kz/ssg/272100.html |
-| TSH GX Information Platform | 北ガス風力, 厚田風力, 石狩蓄電所, 苫東バイオマス, TJDソーラー, the storage and hydrogen projects | https://tsh-gxpf.jp/en/business/ |
+| Hokkaido recruitment guidelines (Oct 2026) | the five plots, MW, kV, connection years, areas, prices | https://www.pref.hokkaido.lg.jp/kz/ssg/272100.html |
+| TSH GX Information Platform | 北ガス風力, 厚田風力, 石狩蓄電所 | https://tsh-gxpf.jp/en/business/ |
 | Marubeni press release (2024-03-28) | 石狩湾新港第2洋上風力 83 MW | https://www.marubeni.com/ja/news/2024/release/00092/ |
 | Hokkaido Electric press release | 石狩湾新港地域洋上風力 112 MW, Jul 2024 | https://www.hokkaido-electric.co.jp/pressrelease/detail/4319 |
 | Ishikari leading-area plan (rev. 2025-07-04) | 60+ MW onshore wind, the biomass plan, the RE zone, the offshore promising area | https://www.city.ishikari.hokkaido.jp/_res/projects/default_project/_page_/001/002/422/senko20250704.pdf |
