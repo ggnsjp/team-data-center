@@ -6,7 +6,6 @@ app-level switch (session key app_lang), not from a control on this page.
 from __future__ import annotations
 
 import math
-import re
 from dataclasses import replace
 
 import altair as alt
@@ -17,7 +16,7 @@ import streamlit.components.v1 as components
 
 from dcopt.common import llm
 from dcopt.common.geo import fetch_command, geocode, missing_map_data, paths
-from dcopt.common.style import FONT, GRID, GSI_ATTR, GSI_PALE, INK, INK2, SLOTS, SURFACE
+from dcopt.common.style import FONT, GRID, GSI_ATTR, GSI_PALE, INK, INK2, SLOTS, SURFACE, map_tip
 from dcopt.heat import whatif
 from dcopt.heat.network import ishikari_sources
 from dcopt.heat.v1 import (
@@ -300,8 +299,8 @@ if proposed:
         mw = proposed["mw"] if proposed["mw"] is not None else drawn["mw"]
         lat, lon = drawn["lat"], drawn["lon"]
         label = pick("石狩市内にランダムに選んだ地点", "a random point in the study area")
-    elif (m := re.match(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$", place)):
-        lat, lon, label = float(m[1]), float(m[2]), place
+    elif (pair := whatif.parse_latlon(place)):
+        lat, lon, label = *pair, place
         mw = proposed["mw"] if proposed["mw"] is not None else whatif.sample_random_dc()["mw"]
     else:
         try:
@@ -309,15 +308,24 @@ if proposed:
                 lat, lon, label = geocode(place)
         except (LookupError, OSError) as e:
             lat, lon, label = None, None, None
-            st.error(pick(f"場所を読み取れませんでした（「141.3, 43.2」のように緯度経度でも書けます）：{e}",
-                          f"Could not find that place (lat,lon like '141.3, 43.2' works too): {e}"))
+            st.error(pick(f"場所を読み取れませんでした（「{whatif.COORDINATE_EXAMPLE}」のように、緯度, 経度の順でも書けます）：{e}",
+                          f"Could not find that place (latitude, longitude like '{whatif.COORDINATE_EXAMPLE}' works too): {e}"))
         mw = proposed["mw"] if proposed["mw"] is not None else (
             whatif.sample_random_dc()["mw"] if "random" in place.lower() else None)
         if mw is None and lat is not None:
             lat = None
             st.error(pick("MW（IT負荷）が読み取れませんでした。例：手稲区に20MWのデータセンター",
                           "Could not read the MW (IT load). Example: a 20 MW data center in Teine"))
-    if lat is not None and mw is not None:
+    problem = whatif.point_problem(lat, lon) if lat is not None else None
+    if problem == "swapped":
+        st.error(pick(f"緯度と経度の順が逆のようです。緯度を先に書いてください（例：{lon:g}, {lat:g}）。",
+                      f"The two numbers look swapped. Write the latitude first, like '{lon:g}, {lat:g}'."))
+    elif problem == "outside":
+        (south, north), (west, east) = whatif.STUDY_AREA["lat"], whatif.STUDY_AREA["lon"]
+        st.error(pick(f"この地点は対象地域（緯度{south:g}〜{north:g}、経度{west:g}〜{east:g}）の外にあるため、計算しません。",
+                      f"This point is outside the study area (latitude {south:g} to {north:g}, longitude {west:g} "
+                      f"to {east:g}), so it is not solved."))
+    if lat is not None and mw is not None and not problem:
         with st.spinner(pick("マルチDCモデルで解いています（実験と同じ装置、1〜2分）…",
                              "Solving on the multi-DC engine (the experiments' machinery, 1-2 min)…")):
             ndc = solve_with_new_dc(mw, lat, lon)
@@ -349,8 +357,8 @@ with left:
         flow = shown.edge_flow.get((a, b), 0.0)
         folium.PolyLine(shown.paths[a, b], color="#c0392b",
                         weight=2 + 8 * math.sqrt(flow / top) if top > 0 else 2, opacity=0.85,
-                        tooltip=pick(f"導管 {metres / 1000:.2f} km・年 {flow:,.0f} MWh",
-                                     f"Pipe {metres / 1000:.2f} km, {flow:,.0f} MWh/yr")).add_to(m)
+                        tooltip=map_tip(pick(f"導管 {metres / 1000:.2f} km・年 {flow:,.0f} MWh",
+                                             f"Pipe {metres / 1000:.2f} km, {flow:,.0f} MWh/yr"))).add_to(m)
     connected = set(shown.connected)
     for i, s in enumerate(shown.sites):
         kja, ken, _, _ = KINDS[s.kind]
@@ -358,12 +366,12 @@ with left:
         folium.CircleMarker(
             [s.lat, s.lon], radius=4 + 2.2 * math.sqrt(s.annual_mwh / 250), color=KIND_COLOUR[s.kind],
             weight=2, fill=True, fill_color=KIND_COLOUR[s.kind], fill_opacity=0.9 if i in connected else 0.15,
-            tooltip=(f"{s.name if ja else s.name_en}<br>{kja if ja else ken}<br>"
-                     + pick(f"需要 {s.annual_mwh:,.0f} MWh/年・供給 {served:,.0f} MWh/年",
-                            f"Demand {s.annual_mwh:,.0f} MWh/yr, served {served:,.0f}")
-                     + f"<br>{s.source}")).add_to(m)
+            tooltip=map_tip(s.name if ja else s.name_en, kja if ja else ken,
+                            pick(f"需要 {s.annual_mwh:,.0f} MWh/年・供給 {served:,.0f} MWh/年",
+                                 f"Demand {s.annual_mwh:,.0f} MWh/yr, served {served:,.0f}"),
+                            s.source)).add_to(m)
     folium.Marker([dc.lat, dc.lon], icon=folium.Icon(color="black", icon="flash"),
-                  tooltip=pick(f"{dc.name}（熱源）", f"{dc.name_en} (heat source)")).add_to(m)
+                  tooltip=map_tip(pick(f"{dc.name}（熱源）", f"{dc.name_en} (heat source)"))).add_to(m)
     components.html(m.get_root().render(), height=620)
     st.caption(pick("塗りつぶし＝つながる、薄い＝今回はつながない。円の大きさ＝年間の熱需要。赤い線＝導管（太さ＝熱量）。",
                     "Filled: connected; faint: not connected. Circle size: annual heat demand. Red: pipes "

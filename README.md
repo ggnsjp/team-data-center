@@ -393,7 +393,8 @@ uv run pytest                                          # tests; those that need 
   and model with `LLM_MODEL`) maps it onto the page's knobs, the deterministic model re-runs, and the
   LLM explains the result. The model never computes numbers; it chooses inputs and explains outputs.
 - Output check: every number in the explanation must appear in the question, the changes or the results
-  the LLM was given. If one does not, the panel shows the changes and results as plain bullets with a
+  the LLM was given. Numbers written in kanji are read too (三億円 as 3, 十二キロ as 12); quantities without a
+  numeral, such as "half" or "double", are not. If a number does not appear, the panel shows the changes and results as plain bullets with a
   note instead. The caption under each explanation names the model that answered. Questions are capped
   at 500 characters.
 - Optional: route the LLM through [OrcaRouter](https://docs.orcarouter.ai/) with a fallback chain, so a

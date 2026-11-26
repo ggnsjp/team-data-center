@@ -67,6 +67,20 @@ def test_moving_a_slider_alone_does_not_solve(monkeypatch):
     assert at.slider(key="it_load").value == 30
 
 
+def test_a_discount_rate_of_zero_gives_a_plan(monkeypatch):
+    """The undiscounted case: the slider allows 0 %, and the page used to stop with a division by zero."""
+    real = v1.design
+    monkeypatch.setattr(v1, "design", lambda *args, **kw: real(
+        *args, **{**kw, "time_limit": min(kw.get("time_limit", 30.0), 5.0)}))
+    at = AppTest.from_file(PAGE, default_timeout=600).run()
+    assert not at.exception
+    at.slider(key="discount_rate").set_value(0.0)
+    at.button(key="recalculate").click().run()
+    assert not at.exception
+    assert at.slider(key="discount_rate").value == 0.0
+    assert next(m for m in at.metric if m.label.startswith("年間の純便益"))
+
+
 def test_network_beats_pairwise():
     from dcopt.heat.v1 import Assumptions, design, ishikari_sites, pairwise
     A = Assumptions()

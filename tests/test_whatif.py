@@ -1,5 +1,8 @@
 """Tests for the live what-if panel's LLM glue: the knob vocabulary, clamping, and the client."""
+import io
 import json
+import re
+from decimal import Decimal
 
 import pytest
 
@@ -360,3 +363,81 @@ def test_number_check_reads_full_width_digits_and_question_numbers():
 def test_numbers_only_summary_lists_changes_and_results():
     s = whatif.numbers_only_summary({"kerosene_yen_l": 156}, {"kerosene_yen_l": 115}, RESULTS, "en")
     assert "kerosene price (yen/L): 115 → 156" in s and "- pipes (km): 7.8" in s
+
+
+# ---- numbers written in kanji (review issue #45) ----
+
+JA_RESULTS = {"つながる需要家（件）": 13, "導管（km）": 7.8, "期待純便益（百万円/年）": 93.8}
+
+
+def test_number_check_reads_numbers_written_in_kanji():
+    answer = "純便益は三億円増え、導管は十二キロです"                  # neither figure was computed
+    assert whatif.unsupported_numbers(answer, "割引率を下げたら？", {}, {}, RESULTS, "ja") == ["12", "3"]
+
+
+def test_number_check_matches_kanji_and_digits_between_question_and_answer():
+    kanji_answer = "電気料金を二倍にすると、つながる需要家は13件です。"
+    digit_answer = "電気料金を2倍にすると、つながる需要家は13件です。"
+    assert whatif.unsupported_numbers(kanji_answer, "電気料金を2倍にして", {}, {}, RESULTS, "ja") == []
+    assert whatif.unsupported_numbers(digit_answer, "電気料金を二倍にして", {}, {}, RESULTS, "ja") == []
+
+
+def test_number_check_leaves_words_that_contain_kanji_numerals_alone():
+    answer = "二酸化炭素は一方で十分に減り、千歳方面の一部でも一年を通じて同じです。"
+    assert whatif.unsupported_numbers(answer, "なぜ？", {}, {}, RESULTS, "ja") == []
+
+
+def test_number_check_takes_a_unit_label_as_a_unit():
+    answer = "期待純便益は年93.8百万円で、単位は百万円です。"
+    assert whatif.unsupported_numbers(answer, "なぜ？", {}, {}, JA_RESULTS, "ja") == []
+    # 百万円 in a result key does not make 100 a permitted figure
+    assert whatif.unsupported_numbers("つながる需要家は100件です。", "なぜ？", {}, {}, JA_RESULTS, "ja") == ["100"]
+    assert whatif.unsupported_numbers("全体の三分の一にあたります。", "なぜ？", {}, {}, JA_RESULTS, "ja") == ["1", "3"]
+
+
+def test_kanji_numbers_are_read_by_value():
+    assert whatif.kanji_numbers("千二百三十四件、二〇二五年、三百万円、十日、二十か所") == {
+        Decimal(n) for n in (1234, 2025, 300, 10, 20)}
+    assert whatif.kanji_numbers("一億円と一割") == {Decimal(1)}
+    assert whatif.kanji_numbers("一番、一度、一人、一つ、一年") == set()       # words, not counts
+    assert whatif.kanji_numbers("93.8百万円、3千万円") == set()                # after digits a kanji run is a unit
+    assert whatif.numbers_in("13件と十二キロ") == {Decimal(13), Decimal(12)}
+
+
+def test_explain_prompt_asks_for_digits():
+    assert "算用数字" in whatif.explain_prompt("なぜ？", {}, {}, {}, "ja")
+    assert "in digits" in whatif.explain_prompt("why?", {}, {}, {}, "en")
+
+
+# ---- a typed point for a new data center (review issue #45) ----
+
+def test_the_coordinate_example_is_latitude_first_and_inside_the_study_area():
+    lat, lon = whatif.parse_latlon(whatif.COORDINATE_EXAMPLE)
+    assert whatif.point_problem(lat, lon) is None
+
+
+def test_a_typed_point_is_checked_before_it_is_solved():
+    assert whatif.parse_latlon(" 43.2 ,141.3 ") == (43.2, 141.3)
+    assert whatif.parse_latlon("手稲区") is None and whatif.parse_latlon("43.2") is None
+    assert whatif.point_problem(43.2, 141.3) is None
+    assert whatif.point_problem(141.3, 43.2) == "swapped"          # longitude first
+    assert whatif.point_problem(35.68, 139.76) == "outside"        # Tokyo
+    assert whatif.point_problem(-43.2, 141.3) == "outside"
+
+
+def test_random_points_are_inside_the_study_area():
+    for _ in range(100):
+        drawn = whatif.sample_random_dc()
+        assert whatif.point_problem(drawn["lat"], drawn["lon"]) is None
+
+
+def test_the_study_area_is_the_box_the_place_lookup_searches():
+    seen = []
+
+    def fake(url):
+        seen.append(url)
+        return io.BytesIO(json.dumps([{"lat": "43.2", "lon": "141.3", "display_name": "x"}]).encode())
+
+    geocode("新港", transport=fake)
+    west, north, east, south = (float(x) for x in re.search(r"viewbox=([0-9.,]+)", seen[0])[1].split(","))
+    assert whatif.STUDY_AREA == {"lat": (south, north), "lon": (west, east)}

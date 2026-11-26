@@ -141,11 +141,11 @@ def explain_prompt(question: str, changed: dict, before: dict, after: dict, lang
     if ja:
         head = ("あなたは熱供給ネットワークの結果を読み解く説明者です。以下の「変更」と「結果」だけ"
                 "を使って、ユーザーの質問に3〜6文で答えてください。ここに挙げていない数値は"
-                "絶対に使わないでください。")
+                "絶対に使わないでください。数値は算用数字で書き、漢数字は使わないでください。")
     else:
         head = ("You explain what a district-heat network model computed. Use ONLY the numbers in "
                 "'changes' and 'results' below; answer the user's question in 3-6 sentences and "
-                "never introduce numbers of your own.")
+                "never introduce numbers of your own. Write every number in digits, not in words.")
     return head + "\n\n" + explain_facts(question, changed, before, after, lang)
 
 
@@ -164,8 +164,35 @@ def explain_facts(question: str, changed: dict, before: dict, after: dict, lang:
 _NUMBER = re.compile(r"(?<![A-Za-z0-9.])\d+(?:,\d{3})*(?:\.\d+)?")
 
 
-def numbers_in(text: str) -> set[Decimal]:
-    """Every number written in `text`, normalised (full-width digits, commas, trailing zeros)."""
+# Numbers written in kanji. They count when a unit follows: without that rule 二酸化炭素, 一方 and 十分
+# would be read as 2, 1 and 10. A kanji run right after digits is a unit (93.8百万円), and 万, 億 and 兆
+# are units here as they are after digits (3億円 is read as 3), so 三億円 is read as 3 as well.
+_KANJI_DIGITS = {"〇": 0, "零": 0, "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9}
+_KANJI_POWERS = {"十": 10, "百": 100, "千": 1000}
+_KANJI_RUN = "〇零一二三四五六七八九十百千"
+_KANJI_MEASURE = r"[万億兆円倍割%]|パーセント|ポイント|キロ|メートル|メガ|ギガ|トン|km|m(?![a-z])|MW|GW|kW"
+_KANJI_COUNTER = r"[件個台社基棟本回年度つ人日]|[かカヶケ箇]所|[かカヶケ箇]月|時間|種類"
+_KANJI_NUMBER = re.compile(rf"(?<![0-9.,{_KANJI_RUN}])([{_KANJI_RUN}]+)"
+                           rf"(?:(?P<measure>{_KANJI_MEASURE})|(?P<counter>{_KANJI_COUNTER}))")
+_KANJI_FRACTION = re.compile(rf"(?<![0-9.,{_KANJI_RUN}])([{_KANJI_RUN}]+)分の([{_KANJI_RUN}]+)")
+
+
+def _kanji_value(run: str) -> int:
+    """千二百三十四 -> 1234, 十二 -> 12, 二〇二五 -> 2025."""
+    if not any(ch in _KANJI_POWERS for ch in run):
+        return int("".join(str(_KANJI_DIGITS[ch]) for ch in run))
+    total, digit = 0, None
+    for ch in run:
+        if ch in _KANJI_POWERS:
+            total += (1 if digit is None else digit) * _KANJI_POWERS[ch]
+            digit = None
+        else:
+            digit = _KANJI_DIGITS[ch]
+    return total + (digit or 0)
+
+
+def digit_numbers(text: str) -> set[Decimal]:
+    """Every number written in digits in `text`, normalised (full-width digits, commas, trailing zeros)."""
     out = set()
     for m in _NUMBER.finditer(unicodedata.normalize("NFKC", text)):
         try:
@@ -175,16 +202,41 @@ def numbers_in(text: str) -> set[Decimal]:
     return out
 
 
+def kanji_numbers(text: str) -> set[Decimal]:
+    """Every number written in kanji in `text`: a kanji numeral followed by a unit, and fractions (三分の一)."""
+    text = unicodedata.normalize("NFKC", text)
+    out = set()
+    for m in _KANJI_NUMBER.finditer(text):
+        if m.group(1) == "一" and m.group("counter"):
+            continue                       # 一年, 一度, 一人, 一つ: words far more often than counts
+        out.add(Decimal(_kanji_value(m.group(1))).normalize())
+    for m in _KANJI_FRACTION.finditer(text):
+        out.update(Decimal(_kanji_value(run)).normalize() for run in m.groups())
+    return out
+
+
+def numbers_in(text: str) -> set[Decimal]:
+    """Every number written in `text`, in digits or in kanji."""
+    return digit_numbers(text) | kanji_numbers(text)
+
+
 def unsupported_numbers(answer: str, question: str, changed: dict, before: dict, after: dict,
                         lang: str) -> list[str]:
     """Numbers in the explanation that the model was not given (empty list = the answer passes).
 
     The output guardrail: the explanation may cite only the numbers in the question, the changes
     and the results it was shown; anything else (a rounding, a conversion, an invented figure)
-    fails and the page shows the numbers-only summary instead.
+    fails and the page shows the numbers-only summary instead. Numbers in kanji are read as well
+    (三億円 as 3, 十二キロ as 12). Not read: quantities without a numeral (half, double, 半分, 倍増)
+    and numbers spelled out in English words.
     """
-    allowed = numbers_in(explain_facts(question, changed, before, after, lang))
-    return sorted(format(n, "f") for n in numbers_in(answer) - allowed)
+    facts = explain_facts(question, changed, before, after, lang)
+    # Digits in the answer must be digits the model was shown, or a number the user wrote in kanji.
+    # A unit label such as 百万円 in a result key does not make 100 a permitted figure.
+    in_digits = digit_numbers(facts) | kanji_numbers(question[:MAX_QUESTION_CHARS])
+    in_kanji = in_digits | kanji_numbers(facts)
+    extra = (digit_numbers(answer) - in_digits) | (kanji_numbers(answer) - in_kanji)
+    return sorted(format(n, "f") for n in extra)
 
 
 def numbers_only_summary(changed: dict, before: dict, after: dict, lang: str) -> str:
@@ -194,6 +246,34 @@ def numbers_only_summary(changed: dict, before: dict, after: dict, lang: str) ->
              f"{before.get(k, '—')} → {v}" for k, v in changed.items()]
     lines += [f"- {k}: {v}" for k, v in after.items()]
     return "\n".join(lines)
+
+
+# The study area: the box the place lookup searches (dcopt.common.geo.geocode).
+STUDY_AREA = {"lat": (43.05, 43.40), "lon": (141.05, 141.75)}
+COORDINATE_EXAMPLE = "43.2, 141.3"                    # latitude first
+_LATLON = re.compile(r"^\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*$")
+
+
+def parse_latlon(text: str) -> tuple[float, float] | None:
+    """`text` read as "latitude, longitude"; None when it is not a pair of numbers."""
+    m = _LATLON.match(text)
+    return (float(m[1]), float(m[2])) if m else None
+
+
+def in_study_area(lat: float, lon: float) -> bool:
+    (south, north), (west, east) = STUDY_AREA["lat"], STUDY_AREA["lon"]
+    return south <= lat <= north and west <= lon <= east
+
+
+def point_problem(lat: float, lon: float) -> str | None:
+    """Why a point cannot be solved: "swapped" (longitude came first), "outside", or None if it is fine.
+
+    The model snaps any point to the nearest road node, so a point far away would still get a plan;
+    this check is what keeps such a plan from being shown.
+    """
+    if in_study_area(lat, lon):
+        return None
+    return "swapped" if in_study_area(lon, lat) else "outside"
 
 
 def sample_random_dc() -> dict:
