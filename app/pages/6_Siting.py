@@ -16,7 +16,7 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 
-from dcopt.common.style import AXIS, FONT, GRID, GSI_ATTR, GSI_PALE, INK, INK2, MUTED, SLOTS, SURFACE
+from dcopt.common.style import AXIS, FONT, GRID, GSI_ATTR, GSI_PALE, INK, INK2, MUTED, SLOTS, SURFACE, map_tip
 from dcopt.siting.model import annuity, choose_sites, pareto
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -142,23 +142,24 @@ with left:
         for ln in sorted(power["lines"], key=lambda r: r["kv"]):
             color, weight = LINE[ln["kv"]]
             folium.PolyLine([(y, x) for x, y in ln["path"]], color=color, weight=weight, opacity=0.9,
-                            tooltip=f"{ln['name'] or ''} {ln['kv'] // 1000} kV").add_to(m)
+                            tooltip=map_tip(f"{ln['name'] or ''} {ln['kv'] // 1000} kV".strip())).add_to(m)
         for s in power["substations"]:
             if not s["generation"]:
                 folium.CircleMarker([s["lat"], s["lon"]], radius=5 if s["kv"] < 187000 else 7, color=INK, weight=2, fill=True,
                                     fill_color="#ffffff", fill_opacity=1.0,
-                                    tooltip=f"{s['name'] or pick('変電所', 'substation')} {s['kv'] // 1000} kV").add_to(m)
+                                    tooltip=map_tip(f"{s['name'] or pick('変電所', 'substation')} {s['kv'] // 1000} kV")).add_to(m)
     for u in data["users"]:
         folium.CircleMarker([u["lat"], u["lon"]], radius=2.5, color=MUTED, weight=1, fill=True, fill_color=MUTED,
                             fill_opacity=0.9 if u["in_base_plan"] else 0.25,
-                            tooltip=(u["name"] if ja else u["name_en"]) + pick("（熱の需要家）", " (heat user)")).add_to(m)
+                            tooltip=map_tip((u["name"] if ja else u["name_en"]) + pick("（熱の需要家）", " (heat user)"))).add_to(m)
     top = max(max(heat), 1.0)
     for j, x in enumerate(cands):
         share = max(heat[j], 0.0) / top
         chosen = j in rank
-        tip = (f"{site_name(j)}<br>" + pick(f"排熱の価値 年{heat[j] / M:,.1f}百万円", f"heat value {heat[j] / M:,.1f} M yen/yr")
-               + (pick(f"<br>変電所まで {km[j]:.1f} km", f"<br>{km[j]:.1f} km to the substation") if km[j] is not None else "")
-               + (pick(f"<br>選んだ場所（{rank[j]}番目）", f"<br>chosen (no. {rank[j]})") if chosen else ""))
+        tip = map_tip(site_name(j),
+                      pick(f"排熱の価値 年{heat[j] / M:,.1f}百万円", f"heat value {heat[j] / M:,.1f} M yen/yr"),
+                      pick(f"変電所まで {km[j]:.1f} km", f"{km[j]:.1f} km to the substation") if km[j] is not None else None,
+                      pick(f"選んだ場所（{rank[j]}番目）", f"chosen (no. {rank[j]})") if chosen else None)
         if heat[j] <= 1.0 and not chosen:                  # no value here: a small grey dot
             folium.CircleMarker([x["lat"], x["lon"]], radius=4, color=INK2, weight=1, fill=True, fill_color="#ffffff",
                                 fill_opacity=0.9, tooltip=tip).add_to(m)
@@ -168,7 +169,7 @@ with left:
                             tooltip=tip).add_to(m)
     for d in data["data_centers"]:
         folium.Marker([d["lat"], d["lon"]], icon=folium.Icon(color="black", icon="flash"),
-                      tooltip=(d["name"] if ja else d["name_en"]) + pick("（既存・計画中）", " (existing or planned)")).add_to(m)
+                      tooltip=map_tip((d["name"] if ja else d["name_en"]) + pick("（既存・計画中）", " (existing or planned)"))).add_to(m)
     components.html(m.get_root().render(), height=600)
     st.caption(pick("橙の円：排熱に価値が出る候補地（大きく濃いほど価値が高い）。小さな白い点：価値が出ない候補地。太い縁：選ばれた場所。"
                     "灰色の点：熱の需要家（濃い点は今の計画でつながる施設）。線：送電線（橙275 kV、紺187 kV、青66 kV）。白丸：変電所。",

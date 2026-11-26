@@ -13,7 +13,7 @@ from streamlit.testing.v1 import AppTest
 
 from dcopt.common import llm
 from dcopt.common.geo import missing_map_data
-from dcopt.heat import v1
+from dcopt.heat import v1, whatif
 
 ROOT = Path(__file__).resolve().parents[1]
 PAGE = str(ROOT / "app/pages/1_Warm_Ishikari.py")
@@ -47,6 +47,7 @@ def stand_in(explanation: str, calls: list):
 @pytest.mark.parametrize("explanation, shown_as_written", [
     ("電気料金が上がり、仮定の候補地もなくなったので、つながる需要家がなくなりました。", True),
     ("純便益は年987654百万円になります。", False),             # a number the model never computed
+    ("純便益は年九千億円になります。", False),                  # the same, written in kanji
 ])
 def test_a_question_changes_the_inputs_and_is_explained(monkeypatch, explanation, shown_as_written):
     calls: list = []
@@ -64,3 +65,28 @@ def test_a_question_changes_the_inputs_and_is_explained(monkeypatch, explanation
         assert explanation in said
     else:
         assert explanation not in said and any("数値だけを表示しています" in n for n in notes)
+
+
+def asks_for_a_data_center_at(place: str, calls: list):
+    def send(url, payload, headers):
+        calls.append(json.loads(payload))
+        content = json.dumps({"changes": {}, "new_data_center": {"mw": 20, "place": place}, "clarify": ""})
+        return 200, json.dumps({"choices": [{"message": {"content": content}}]}).encode(), {}
+    return send
+
+
+@pytest.mark.parametrize("place, words", [
+    ("141.3, 43.2", "緯度を先に書いてください（例：43.2, 141.3）"),      # longitude first
+    ("35.68, 139.76", "対象地域"),                                       # Tokyo
+])
+def test_a_typed_point_outside_the_study_area_is_not_solved(monkeypatch, place, words):
+    calls: list = []
+    monkeypatch.setattr(llm, "_http", asks_for_a_data_center_at(place, calls))
+    monkeypatch.setattr(whatif, "new_dc_summary", lambda *a, **kw: pytest.fail("the point was solved"))
+    at = AppTest.from_file(PAGE, default_timeout=600).run()
+    assert not at.exception
+    at.chat_input[0].set_value(f"{place} に20MWのデータセンターを建てたら？").run()
+    assert not at.exception
+    assert any(words in e.value for e in at.error)
+    assert len(calls) == 1                                  # the question was read; nothing was solved or explained
+

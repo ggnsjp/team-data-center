@@ -86,6 +86,17 @@ GRID_SCENARIOS = {
 }
 
 
+def capital_recovery(rate: float, years: int) -> float:
+    """The yearly payment per yen invested, repaid over `years` at interest `rate`.
+
+    Without interest (rate 0) it is the plain 1/years; the formula below divides by zero there.
+    """
+    if rate == 0:
+        return 1.0 / years
+    growth = (1 + rate) ** years
+    return rate * growth / (growth - 1)
+
+
 @dataclass(frozen=True)
 class Assumptions:
     it_load_mw: float = 10.0        # data center IT load (assumption)
@@ -126,8 +137,7 @@ class Assumptions:
 
     @property
     def crf(self) -> float:
-        r, n = self.rate, self.years
-        return r * (1 + r) ** n / ((1 + r) ** n - 1)
+        return capital_recovery(self.rate, self.years)
 
     @property
     def co2_t_per_mwh(self) -> float:

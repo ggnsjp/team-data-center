@@ -54,7 +54,7 @@ import numpy as np
 import scipy.sparse as sp
 
 from dcopt.heat.v1 import (DAYS, GRID_KG_CO2_PER_KWH, GRID_SCENARIOS, KEROSENE_KG_CO2_PER_L, KEROSENE_KWH_PER_L, KINDS,
-                           Site, _offset)
+                           Site, _offset, capital_recovery)
 
 if TYPE_CHECKING:
     from dcopt.heat.weather import WeatherYear
@@ -197,13 +197,11 @@ class Params:
 
     @property
     def crf(self) -> float:
-        r, n = self.rate, self.years
-        return r * (1 + r) ** n / ((1 + r) ** n - 1)
+        return capital_recovery(self.rate, self.years)
 
     @property
     def crf_hp(self) -> float:
-        r, n = self.rate, self.hp_years
-        return r * (1 + r) ** n / ((1 + r) ** n - 1)
+        return capital_recovery(self.rate, self.hp_years)
 
     @property
     def own(self) -> float:
