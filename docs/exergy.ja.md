@@ -27,16 +27,18 @@ E = Q \left(1 - \frac{T_0}{T}\right)
 
 かっこの中がカルノー係数です。熱が周囲と同じ温度ならゼロで、熱が高温になるほど大きくなります。
 
+この上限は熱力学第2法則から出てきます。2つの温度のあいだで動く機関は、可逆なカルノーサイクルの効率を超えられません。熱力学の標準的な演習書は、第2法則の章でカルノーサイクルの効率と最大仕事を扱っています [6]。エクセルギーは、この最大仕事を、周囲を基準にして表した量です [1, 2]。
+
 ここから2つのことが言えます。
 
 - **エネルギーが失われなくても、エクセルギーは現実のどの過程でも失われる。** 燃料のエネルギーの85 %を45℃の水に移す灯油ボイラーは、エネルギーの大半を残しますが、エクセルギーは約12 %しか残しません。必要な温度よりはるかに高温の炎で、ぬるい水をつくっているからです。
-- **エネルギーをうまく使うとは、供給の質を需要の質に合わせること。** 低温で足りる需要は低温の熱源でまかない、質の高いエネルギー（電気、燃料）はそれが必要なところに残します。地域熱供給の研究では、これを「質の低い建物の暖房需要」と「排熱や再生可能エネルギーからの質の低い熱供給」を合わせること、と表現しています [6]。第4世代の地域熱供給は導管網の温度を下げるもので、デンマークでは80/40℃から50〜55/25℃へ移行しつつあり [14]、導管の熱損失が減り、低温の熱源を使いやすくなります [7, 8]。スウェーデンとデンマークの事例の分析では、現在の導管網に入れた熱のエクセルギーのほぼ3分の2が配る過程で失われており、温度は下げられる、とされています [9]。
+- **エネルギーをうまく使うとは、供給の質を需要の質に合わせること。** 低温で足りる需要は低温の熱源でまかない、質の高いエネルギー（電気、燃料）はそれが必要なところに残します。地域熱供給の研究では、これを「質の低い建物の暖房需要」と「排熱や再生可能エネルギーからの質の低い熱供給」を合わせること、と表現しています [7]。第4世代の地域熱供給は導管網の温度を下げるもので、デンマークでは80/40℃から50〜55/25℃へ移行しつつあり [15]、導管の熱損失が減り、低温の熱源を使いやすくなります [8, 9]。スウェーデンとデンマークの事例の分析では、現在の導管網に入れた熱のエクセルギーのほぼ3分の2が配る過程で失われており、温度は下げられる、とされています [10]。
 
 ## 2. データセンターの排熱でなぜ大事か
 
-データセンターが使う電気は最後には熱になりますが、その温度は低いです。回収方法のレビューは、難しさを「熱の質が低いこと」だと述べています [10]。モデルの仮定である30℃で計算すると、使える排熱（石狩の4つのデータセンターの合計、シナリオの平均）は年95.7 GWhで、そのうちエクセルギーは6.5 GWh（6.8 %）です。1月は11.0 %、8月は2.5 %です。
+データセンターが使う電気は最後には熱になりますが、その温度は低いです。回収方法のレビューは、難しさを「熱の質が低いこと」だと述べています [11]。モデルの仮定である30℃で計算すると、使える排熱（石狩の4つのデータセンターの合計、シナリオの平均）は年95.7 GWhで、そのうちエクセルギーは6.5 GWh（6.8 %）です。1月は11.0 %、8月は2.5 %です。
 
-この質の熱で蒸気はつくれませんし、高温の用途の熱源としても不向きです。一方で、もともと周囲に近い温度で足りる用途には、ちょうどよい質です。融雪、養殖の水槽、部屋や温室の暖房がそうです。需要が熱源より高温のときは、ヒートポンプが電気を使って温度を上げます。上げる幅が大きいほど、電気が多く要ります。地中に近い温度で運転し、需要家側にヒートポンプを置く導管網は [13] にまとめられています。データセンターの排熱を地域熱供給に入れる事例研究には、フィンランドのエスポー [11] と、バルセロナの空冷データセンター [12] があり、後者では結果が冷却方式で変わります。給湯はレジオネラ対策があるため、低温供給で難しいとされる部分です [14]。エクセルギー解析は、データセンター内部の冷却系にも使われています [15]。
+この質の熱で蒸気はつくれませんし、高温の用途の熱源としても不向きです。一方で、もともと周囲に近い温度で足りる用途には、ちょうどよい質です。融雪、養殖の水槽、部屋や温室の暖房がそうです。需要が熱源より高温のときは、ヒートポンプが電気を使って温度を上げます。上げる幅が大きいほど、電気が多く要ります。地中に近い温度で運転し、需要家側にヒートポンプを置く導管網は [14] にまとめられています。データセンターの排熱を地域熱供給に入れる事例研究には、フィンランドのエスポー [12] と、バルセロナの空冷データセンター [13] があり、後者では結果が冷却方式で変わります。給湯はレジオネラ対策があるため、低温供給で難しいとされる部分です [15]。エクセルギー解析は、データセンター内部の冷却系にも使われています [16]。
 
 ## 3. モデルのどこに入っているか
 
@@ -139,23 +141,24 @@ uv run python scripts/exergy_balance.py             # 4章の表
 
 ## 参考文献
 
-[1]〜[5] は教科書と、この言葉を提案した文献で、書誌を確認しました。[6]〜[15] は要旨を読み、上の記述はその内容にもとづいています。
+[1]〜[6] は教科書と、この言葉を提案した文献で、書誌を確認しました（[6] は、出版社が公開している目次で章と節の題も確認しました）。[7]〜[16] は要旨を読み、上の記述はその内容にもとづいています。
 
 1. Kotas, T.J. (1985). *The Exergy Method of Thermal Plant Analysis*. Butterworths. https://doi.org/10.1016/C2013-0-00894-8
 2. Dincer, I., Rosen, M.A. (2021). *Exergy: Energy, Environment and Sustainable Development* (3rd ed.). Elsevier. https://doi.org/10.1016/C2016-0-02067-3
 3. Rant, Z. (1956). Exergie, ein neues Wort für "technische Arbeitsfähigkeit". *Forschung auf dem Gebiete des Ingenieurwesens*, 22, 36-37（Rundschau欄）. https://doi.org/10.1007/BF02592661
 4. 宿谷昌則 編著 (2010). エクセルギーと環境の理論：流れ・循環のデザインとは何か（改訂版）. 井上書院. 英語版：Shukuya, M. (2013). *Exergy: Theory and Applications in the Built Environment*. Springer. https://doi.org/10.1007/978-1-4471-4573-8
 5. 日本機械学会 (2002). 熱力学（JSMEテキストシリーズ）. 日本機械学会.
-6. Li, H., Svendsen, S. (2012). Energy and exergy analysis of low temperature district heating network. *Energy*, 45(1), 237-246. https://doi.org/10.1016/j.energy.2012.03.056
-7. Lund, H., Werner, S., Wiltshire, R., Svendsen, S., Thorsen, J.E., Hvelplund, F., Mathiesen, B.V. (2014). 4th Generation District Heating (4GDH): Integrating smart thermal grids into future sustainable energy systems. *Energy*, 68, 1-11. https://doi.org/10.1016/j.energy.2014.02.089
-8. Lund, H., Østergaard, P.A., Chang, M., Werner, S., Svendsen, S., Sorknæs, P., et al. (2018). The status of 4th generation district heating: Research and results. *Energy*, 164, 147-159. https://doi.org/10.1016/j.energy.2018.08.206
-9. Gong, M., Werner, S. (2015). Exergy analysis of network temperature levels in Swedish and Danish district heating systems. *Renewable Energy*, 84, 106-113. https://doi.org/10.1016/j.renene.2015.06.001
-10. Ebrahimi, K., Jones, G.F., Fleischer, A.S. (2014). A review of data center cooling technology, operating conditions and the corresponding low-grade waste heat recovery opportunities. *Renewable and Sustainable Energy Reviews*, 31, 622-638. https://doi.org/10.1016/j.rser.2013.12.007
-11. Wahlroos, M., Pärssinen, M., Manner, J., Syri, S. (2017). Utilizing data center waste heat in district heating – Impacts on energy efficiency and prospects for low-temperature district heating networks. *Energy*, 140, 1228-1238. https://doi.org/10.1016/j.energy.2017.08.078
-12. Oró, E., Taddeo, P., Salom, J. (2019). Waste heat recovery from urban air cooled data centres to increase energy efficiency of district heating networks. *Sustainable Cities and Society*, 45, 522-542. https://doi.org/10.1016/j.scs.2018.12.012
-13. Buffa, S., Cozzini, M., D'Antoni, M., Baratieri, M., Fedrizzi, R. (2019). 5th generation district heating and cooling systems: A review of existing cases in Europe. *Renewable and Sustainable Energy Reviews*, 104, 504-522. https://doi.org/10.1016/j.rser.2018.12.059
-14. Yang, X., Li, H., Svendsen, S. (2016). Energy, economy and exergy evaluations of the solutions for supplying domestic hot water from low-temperature district heating in Denmark. *Energy Conversion and Management*, 122, 142-152. https://doi.org/10.1016/j.enconman.2016.05.057
-15. Shah, A.J., Carey, V.P., Bash, C.E., Patel, C.D. (2008). Exergy analysis of data center thermal management systems. *Journal of Heat Transfer*, 130(2), 021401. https://doi.org/10.1115/1.2787024
+6. 久保亮五 編、久保亮五・市村浩・碓井恒丸・橋爪夏樹 執筆 (1998). 大学演習 熱学・統計力学（修訂版）. 裳華房. 第2章「熱力学第2法則とエントロピー」の §2.4「一般的なCarnotサイクルの効率」と §2.11「最大仕事と最小仕事」. https://www.shokabo.co.jp/mybooks/ISBN978-4-7853-8032-8.htm 熱力学の部分の英語版：Kubo, R., in cooperation with Ichimura, H., Usui, T., Hashitsume, N. (1968). *Thermodynamics: An Advanced Course with Problems and Solutions*. North-Holland.
+7. Li, H., Svendsen, S. (2012). Energy and exergy analysis of low temperature district heating network. *Energy*, 45(1), 237-246. https://doi.org/10.1016/j.energy.2012.03.056
+8. Lund, H., Werner, S., Wiltshire, R., Svendsen, S., Thorsen, J.E., Hvelplund, F., Mathiesen, B.V. (2014). 4th Generation District Heating (4GDH): Integrating smart thermal grids into future sustainable energy systems. *Energy*, 68, 1-11. https://doi.org/10.1016/j.energy.2014.02.089
+9. Lund, H., Østergaard, P.A., Chang, M., Werner, S., Svendsen, S., Sorknæs, P., et al. (2018). The status of 4th generation district heating: Research and results. *Energy*, 164, 147-159. https://doi.org/10.1016/j.energy.2018.08.206
+10. Gong, M., Werner, S. (2015). Exergy analysis of network temperature levels in Swedish and Danish district heating systems. *Renewable Energy*, 84, 106-113. https://doi.org/10.1016/j.renene.2015.06.001
+11. Ebrahimi, K., Jones, G.F., Fleischer, A.S. (2014). A review of data center cooling technology, operating conditions and the corresponding low-grade waste heat recovery opportunities. *Renewable and Sustainable Energy Reviews*, 31, 622-638. https://doi.org/10.1016/j.rser.2013.12.007
+12. Wahlroos, M., Pärssinen, M., Manner, J., Syri, S. (2017). Utilizing data center waste heat in district heating – Impacts on energy efficiency and prospects for low-temperature district heating networks. *Energy*, 140, 1228-1238. https://doi.org/10.1016/j.energy.2017.08.078
+13. Oró, E., Taddeo, P., Salom, J. (2019). Waste heat recovery from urban air cooled data centres to increase energy efficiency of district heating networks. *Sustainable Cities and Society*, 45, 522-542. https://doi.org/10.1016/j.scs.2018.12.012
+14. Buffa, S., Cozzini, M., D'Antoni, M., Baratieri, M., Fedrizzi, R. (2019). 5th generation district heating and cooling systems: A review of existing cases in Europe. *Renewable and Sustainable Energy Reviews*, 104, 504-522. https://doi.org/10.1016/j.rser.2018.12.059
+15. Yang, X., Li, H., Svendsen, S. (2016). Energy, economy and exergy evaluations of the solutions for supplying domestic hot water from low-temperature district heating in Denmark. *Energy Conversion and Management*, 122, 142-152. https://doi.org/10.1016/j.enconman.2016.05.057
+16. Shah, A.J., Carey, V.P., Bash, C.E., Patel, C.D. (2008). Exergy analysis of data center thermal management systems. *Journal of Heat Transfer*, 130(2), 021401. https://doi.org/10.1115/1.2787024
 
 **関連文献。** このページの記述の根拠には使っていません。書誌は確認しました。
 

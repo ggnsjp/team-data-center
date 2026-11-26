@@ -85,7 +85,7 @@ The stochastic plan with an ambient loop earns **93.8** in expectation, against 
 
 ### Heat quality: the plan in exergy terms
 
-Exergy is the part of energy that can do work [72, 73]. Electricity is all exergy, and heat is worth more the further its temperature is from the surroundings. Data-center waste heat is plentiful but "of low quality" [74]: at 30 °C, only 6.8 % of the 95.7 GWh on offer each year is exergy (11.0 % in January, 2.5 % in August). The model therefore treats heat by temperature and not only by quantity. Each kind of user has a supply temperature; users that need 27 °C or less take the heat directly; the others pay heat-pump electricity that follows from the temperature lift (COP at half the Carnot value). This is the match of low-quality supply to low-quality demand described for low-temperature district heating [75], where lower network temperatures are the direction of development [76, 77].
+Exergy is the part of energy that can do work [72, 73]. Electricity is all exergy, and heat is worth more the further its temperature is from the surroundings; the Carnot efficiency of the second law sets the limit [78]. Data-center waste heat is plentiful but "of low quality" [74]: at 30 °C, only 6.8 % of the 95.7 GWh on offer each year is exergy (11.0 % in January, 2.5 % in August). The model therefore treats heat by temperature and not only by quantity. Each kind of user has a supply temperature; users that need 27 °C or less take the heat directly; the others pay heat-pump electricity that follows from the temperature lift (COP at half the Carnot value). This is the match of low-quality supply to low-quality demand described for low-temperature district heating [75], where lower network temperatures are the direction of development [76, 77].
 
 | The same 15,147 MWh a year (exergy 1,533 MWh) | High-grade input | Exergy efficiency |
 |---|---|---|
@@ -496,7 +496,7 @@ Checking results on large, realistic models may need a solver of that strength. 
 
 ## References
 
-Facts and parameters [1–22], then related literature: waste-heat networks and data-center heat reuse [23–30], robust optimization [31–36], grid hosting capacity [37–47], siting and flexible loads [48–52]. CO₂ factors and policy sources [53–58]. Methods and the solver of theme 2 [59–64]. Grid connection costs [65]. Renewable matching: the records and the published curtailment [66, 67], studies of clean-electricity procurement [68, 69], costs [70, 71]. Exergy and the quality of heat [72–77].
+Facts and parameters [1–22], then related literature: waste-heat networks and data-center heat reuse [23–30], robust optimization [31–36], grid hosting capacity [37–47], siting and flexible loads [48–52]. CO₂ factors and policy sources [53–58]. Methods and the solver of theme 2 [59–64]. Grid connection costs [65]. Renewable matching: the records and the published curtailment [66, 67], studies of clean-electricity procurement [68, 69], costs [70, 71]. Exergy and the quality of heat [72–78].
 
 1. Hack × Hokkaido Build Week 2026, AI build week in Sapporo, 23–27 November 2026. https://www.hackhokkaido.com/ (accessed 2026-11-24).
 2. Broadband Tower (2025-11-28). Press release on Ishikari Renewable Energy Data Center No. 1 (in Japanese). https://www.bbtower.co.jp/ir/pr/docs/20251128_ishikari_release.pdf
@@ -575,6 +575,7 @@ Facts and parameters [1–22], then related literature: waste-heat networks and 
 75. Li, H., Svendsen, S. (2012). Energy and exergy analysis of low temperature district heating network. *Energy*, 45(1), 237-246. https://doi.org/10.1016/j.energy.2012.03.056
 76. Gong, M., Werner, S. (2015). Exergy analysis of network temperature levels in Swedish and Danish district heating systems. *Renewable Energy*, 84, 106-113. https://doi.org/10.1016/j.renene.2015.06.001
 77. Lund, H., Werner, S., Wiltshire, R., Svendsen, S., Thorsen, J.E., Hvelplund, F., Mathiesen, B.V. (2014). 4th Generation District Heating (4GDH): Integrating smart thermal grids into future sustainable energy systems. *Energy*, 68, 1-11. https://doi.org/10.1016/j.energy.2014.02.089
+78. 久保亮五 編 (1998). 大学演習 熱学・統計力学（修訂版）. 裳華房 (Kubo, R., ed., problem book on thermodynamics and statistical mechanics, revised edition): chapter 2 treats the efficiency of the Carnot cycle and maximum work. https://www.shokabo.co.jp/mybooks/ISBN978-4-7853-8032-8.htm In English, the thermodynamics part: Kubo, R., in cooperation with Ichimura, H., Usui, T., Hashitsume, N. (1968). *Thermodynamics: An Advanced Course with Problems and Solutions*. North-Holland.
 
 ## Team
 
