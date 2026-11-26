@@ -378,10 +378,18 @@ uv run pytest                                          # tests; those that need 
   (carbonforge-flash, OpenAI-compatible via `CF_API_KEY`, override endpoint with `CARBONFORGE_BASE_URL`
   and model with `LLM_MODEL`) maps it onto the page's knobs, the deterministic model re-runs, and the
   LLM explains the result. The model never computes numbers; it chooses inputs and explains outputs.
+- Optional: OrcaRouter, an OpenAI-compatible gateway, in place of the default service. Set `ORCAROUTER_API_KEY`
+  (and `LLM_PROVIDER=orcarouter` when both keys are set). The default model there is `orcarouter/fusion-flash`;
+  `LLM_MODEL` and `ORCAROUTER_BASE_URL` override the model and the endpoint. With no key at all the box stays
+  off and the rest of the page works as before.
 - The assumption sliders sit in a form: nothing is solved until you press 再計算 / Recalculate. Solved plans
   are kept on disk in `data/cache/warm_ishikari_plans/` (not committed; set `DCOPT_PLAN_CACHE` to keep them
   elsewhere), so a setting solved before loads at once; a change to the model's code (`v1.py`) sets the saved
   plans aside. The caption shows the solve time, the MIP gap and whether the plan was a saved one.
+
+**The plan as a graph (optional)**
+- `uv run python scripts/export_plan_graph.py` turns a plan from `scripts/export_heat_network_v2.py` into a graph of junctions, pipes, data centers and heat users, and answers three questions: the route from a data center to each user, the users that lose their supply when one pipe is out, and the pipes most users share. It writes four tables and a Cypher script to `out/plan_graph/`. This runs with NetworkX; nothing else is needed.
+- With a Neo4j database (`uv sync --extra graph`, then `NEO4J_URI`, `NEO4J_USERNAME` and `NEO4J_PASSWORD`), `--neo4j` loads the same graph, asks the same questions in Cypher and checks that the answers agree. The app and every other script run without Neo4j.
 
 **Redrawing the animations**
 1. Base map and theme-1 plans: `uv run python scripts/export_heat_story.py` and `uv run python scripts/export_heat_network_v2.py`
@@ -394,7 +402,7 @@ Add `--lang ja` for the Japanese versions; they need a Japanese font such as Not
 ## Repository layout
 
 ```
-src/dcopt/heat      theme 1: model v1 (v1.py), v2 (network.py), proposals (proposal.py), weather years (weather.py), live what-if knobs (whatif.py), pipe heat loss (loss.py)
+src/dcopt/heat      theme 1: model v1 (v1.py), v2 (network.py), proposals (proposal.py), weather years (weather.py), live what-if knobs (whatif.py), pipe heat loss (loss.py), the plan as a graph (plangraph.py)
 src/dcopt/grid      theme 2: networks (cases.py), the lifted model the relaxations and the AC problem share (lifted.py), relaxations (relax.py), AC points (ac.py), brackets (hosting.py)
 src/dcopt/siting    theme 3: candidate sites (candidates.py), heat value (heat_value.py), grid distances (gridmap.py), location model (model.py)
 src/dcopt/matching  theme 4: area records (records.py), counting (score.py), replay of the records (system.py), cheapest portfolio (portfolio.py)

@@ -238,9 +238,10 @@ st.session_state["last_summary"] = summary
 
 st.markdown("**" + pick("ライブ・シミュレーション（文章で試す）", "Live simulation (ask in plain language)") + "**")
 if not llm.settings()["has_key"]:
-    st.info(pick("環境変数 CF_API_KEY を設定すると、この欄で文章からシナリオを変えられます。"
+    st.info(pick("環境変数 CF_API_KEY（OrcaRouter を使う場合は ORCAROUTER_API_KEY）を設定すると、この欄で文章からシナリオを変えられます。"
                  "数値はすべて左のモデルが計算します。",
-                 "Set the CF_API_KEY environment variable to change scenarios in plain language here. "
+                 "Set the CF_API_KEY environment variable (or ORCAROUTER_API_KEY to use OrcaRouter) to change "
+                 "scenarios in plain language here. "
                  "Every number is still computed by the model."))
     st.chat_input(pick("例：電気料金を2倍にして", "e.g. double the electricity price"), disabled=True)
 else:

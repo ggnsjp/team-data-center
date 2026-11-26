@@ -5,6 +5,10 @@ environment at call time — CARBONFORGE_BASE_URL (default: the carbonforge endp
 LLM_MODEL (default: carbonforge-flash) and CF_API_KEY. The key is never logged and never
 appears in error messages; the model only ever explains numbers the deterministic model
 computed, it does not compute them.
+
+A second service is optional: OrcaRouter, an OpenAI-compatible gateway. It is used when
+LLM_PROVIDER=orcarouter, or when ORCAROUTER_API_KEY is set and CF_API_KEY is not; its endpoint
+can be overridden with ORCAROUTER_BASE_URL and its model with LLM_MODEL.
 """
 import json
 import os
@@ -14,17 +18,36 @@ import urllib.request
 DEFAULT_BASE = "https://endpoint.carbonforge.ai/v1"
 DEFAULT_MODEL = "carbonforge-flash"
 TIMEOUT_S = 180
+# service: (endpoint, model, variable holding the key, variable that overrides the endpoint)
+PROVIDERS = {
+    "carbonforge": (DEFAULT_BASE, DEFAULT_MODEL, "CF_API_KEY", "CARBONFORGE_BASE_URL"),
+    "orcarouter": ("https://api.orcarouter.ai/v1", "orcarouter/fusion-flash", "ORCAROUTER_API_KEY",
+                   "ORCAROUTER_BASE_URL"),
+}
 
 
 class LLMError(RuntimeError):
     """A chat call failed; the message is safe to show in the UI (no key, no URL)."""
 
 
+def provider() -> str:
+    """The service in use: LLM_PROVIDER when it names one; otherwise OrcaRouter when only its key is
+    set; otherwise the default."""
+    name = (os.environ.get("LLM_PROVIDER") or "").strip().lower()
+    if name in PROVIDERS:
+        return name
+    if os.environ.get("ORCAROUTER_API_KEY") and not os.environ.get("CF_API_KEY"):
+        return "orcarouter"
+    return "carbonforge"
+
+
 def settings() -> dict:
-    """{base_url, model, has_key} for the UI to decide whether the panel is available."""
-    return {"base_url": os.environ.get("CARBONFORGE_BASE_URL") or DEFAULT_BASE,
-            "model": os.environ.get("LLM_MODEL") or DEFAULT_MODEL,
-            "has_key": bool(os.environ.get("CF_API_KEY"))}
+    """{provider, base_url, model, key_env, has_key} for the UI to decide whether the panel is available."""
+    name = provider()
+    base, model, key_env, base_env = PROVIDERS[name]
+    return {"provider": name, "base_url": os.environ.get(base_env) or base,
+            "model": os.environ.get("LLM_MODEL") or model,
+            "key_env": key_env, "has_key": bool(os.environ.get(key_env))}
 
 
 def _http(url: str, payload: bytes, headers: dict) -> tuple[int, bytes]:
@@ -43,10 +66,10 @@ def chat(messages: list[dict], *, max_tokens: int = 1600, json_mode: bool = Fals
         body["response_format"] = {"type": "json_object"}
     payload = json.dumps(body).encode("utf-8")
     headers = {"Content-Type": "application/json",
-               "Authorization": "Bearer " + (os.environ.get("CF_API_KEY") or "")}
+               "Authorization": "Bearer " + (os.environ.get(cfg["key_env"]) or "")}
     send = transport or _http
     if transport is None and not cfg["has_key"]:
-        raise LLMError("CF_API_KEY is not set")
+        raise LLMError(f"{cfg['key_env']} is not set")
     try:
         status, raw = send(cfg["base_url"].rstrip("/") + "/chat/completions", payload, headers)
     except urllib.error.HTTPError as e:

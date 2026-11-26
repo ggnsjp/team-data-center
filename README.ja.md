@@ -377,7 +377,12 @@ uv run pytest                                          # テスト（地図デ�
 
 **ライブ・シミュレーション（アプリのWarm Ishikariページ）**
 - もしもの条件を、日本語でも英語でも文章で入力できます（「電気料金を2倍にして」/ "double the electricity price"）。LLM（carbonforge-flash、OpenAI互換、`CF_API_KEY` で利用。接続先は `CARBONFORGE_BASE_URL`、モデルは `LLM_MODEL` で変更できます）がそれをページの設定値に当てはめ、決定的なモデルが計算し直し、LLMが結果を説明します。LLMは数値を計算しません。入力を選び、出力を説明するだけです。
+- 任意：既定のサービスの代わりに、OpenAI互換のゲートウェイ OrcaRouter も使えます。`ORCAROUTER_API_KEY` を設定します（両方の鍵があるときは `LLM_PROVIDER=orcarouter` も）。既定のモデルは `orcarouter/fusion-flash` で、モデルは `LLM_MODEL`、接続先は `ORCAROUTER_BASE_URL` で変えられます。鍵が何もなければこの欄は使えないままで、ページのほかの部分はこれまでどおり動きます。
 - 仮定のスライダーはフォームにまとめてあり、「再計算」を押すまで計算しません。解いた計画は `data/cache/warm_ishikari_plans/` に保存され（コミットしません。別の場所にするには `DCOPT_PLAN_CACHE`）、一度解いた条件はすぐに表示されます。モデルのコード（`v1.py`）を変えると、保存した計画は使われなくなります。画面の説明に、計算時間、MIPギャップ、保存済みの結果かどうかが表示されます。
+
+**計画をグラフとして見る（任意）**
+- `uv run python scripts/export_plan_graph.py` は、`scripts/export_heat_network_v2.py` の計画を、分岐点・導管・データセンター・需要家のグラフにして、3つの問いに答えます。データセンターから各需要家までの経路、ある導管が止まると供給を失う需要家、多くの需要家が共有する導管です。4つの表とCypherのスクリプトを `out/plan_graph/` に書き出します。ここまではNetworkXだけで動き、ほかに何も要りません。
+- Neo4jのデータベースがあれば（`uv sync --extra graph` のあと、`NEO4J_URI`、`NEO4J_USERNAME`、`NEO4J_PASSWORD` を設定）、`--neo4j` で同じグラフを読み込み、同じ問いをCypherで尋ねて、答えが一致するかを確かめます。アプリもほかのスクリプトも、Neo4jなしで動きます。
 
 **アニメーションの作り直し方**
 1. 地図とテーマ1の計画：`uv run python scripts/export_heat_story.py` と `uv run python scripts/export_heat_network_v2.py`
@@ -390,7 +395,7 @@ uv run pytest                                          # テスト（地図デ�
 ## 構成
 
 ```
-src/dcopt/heat      テーマ1：モデルv1（v1.py）、v2（network.py）、提案書（proposal.py）、気象年（weather.py）、ライブ・シミュレーションの設定値（whatif.py）、導管の熱損失（loss.py）
+src/dcopt/heat      テーマ1：モデルv1（v1.py）、v2（network.py）、提案書（proposal.py）、気象年（weather.py）、ライブ・シミュレーションの設定値（whatif.py）、導管の熱損失（loss.py）、計画のグラフ（plangraph.py）
 src/dcopt/grid      テーマ2：系統データ（cases.py）、緩和と交流の問題に共通の持ち上げモデル（lifted.py）、緩和（relax.py）、交流の運転点（ac.py）、上限と下限（hosting.py）
 src/dcopt/siting    テーマ3：候補地（candidates.py）、排熱の価値（heat_value.py）、系統までの距離（gridmap.py）、立地のモデル（model.py）
 src/dcopt/matching  テーマ4：需給実績（records.py）、数え方（score.py）、実績をなぞる再計算（system.py）、いちばん安い組み合わせ（portfolio.py）

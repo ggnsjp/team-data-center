@@ -33,6 +33,9 @@ conic = [
 gurobi = [
     "gurobipy>=14.0.0",
 ]
+graph = [
+    "neo4j>=5.20",
+]
 
 [dependency-groups]
 dev = [
