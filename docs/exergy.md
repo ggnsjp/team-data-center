@@ -56,7 +56,7 @@ The model maximizes money, not exergy. But it treats heat by temperature and not
 **Definitions.**
 
 - *Reference state:* the outdoor air, month by month (the monthly normals of Sapporo that the model uses).
-- *Delivered heat* is valued at the temperature its user needs, $E_u = Q_u\,(1 - T_0/T_u)$. Heat sent hotter than needed does not count for more.
+- *Delivered heat* is valued at the temperature its user needs, $`E_u = Q_u (1 - T_0/T_u)`$. Heat sent hotter than needed does not count for more.
 - *Electricity* counts in full. *Waste heat* counts at 30 °C. *Kerosene* counts at 10.17 kWh/L (an assumption, see section 5).
 - *Exergy efficiency:* the exergy of the delivered heat divided by the exergy spent to deliver it.
 
