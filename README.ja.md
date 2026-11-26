@@ -85,7 +85,7 @@
 
 ### 熱の質：エクセルギーで見た計画
 
-エクセルギーは、エネルギーのうち仕事に換えられる部分です [72, 73]。電気はすべてエクセルギーで、熱は周囲との温度差が大きいほど価値があります。データセンターの排熱は量は多いものの「質が低い」熱です [74]。30℃では、毎年使える95.7 GWhのうちエクセルギーは6.8 %しかありません（1月は11.0 %、8月は2.5 %）。そこでモデルは、熱を量だけでなく温度で扱っています。需要家の種類ごとに送り温度があり、27℃以下で足りる需要家は熱をそのまま使い、それ以外は昇温の幅で決まるヒートポンプの電気（COPはカルノー値の半分）を負担します。これは、低温の地域熱供給について述べられている、質の低い供給と質の低い需要を合わせる考え方で [75]、導管網の温度を下げることが発展の方向とされています [76, 77]。
+エクセルギーは、エネルギーのうち仕事に換えられる部分です [72, 73]。電気はすべてエクセルギーで、熱は周囲との温度差が大きいほど価値があります。その上限は、熱力学第2法則のカルノー効率で決まります [78]。データセンターの排熱は量は多いものの「質が低い」熱です [74]。30℃では、毎年使える95.7 GWhのうちエクセルギーは6.8 %しかありません（1月は11.0 %、8月は2.5 %）。そこでモデルは、熱を量だけでなく温度で扱っています。需要家の種類ごとに送り温度があり、27℃以下で足りる需要家は熱をそのまま使い、それ以外は昇温の幅で決まるヒートポンプの電気（COPはカルノー値の半分）を負担します。これは、低温の地域熱供給について述べられている、質の低い供給と質の低い需要を合わせる考え方で [75]、導管網の温度を下げることが発展の方向とされています [76, 77]。
 
 | 同じ年15,147 MWh（エクセルギー1,533 MWh）を届けるのに | 質の高いエネルギーの投入 | エクセルギー効率 |
 |---|---|---|
@@ -479,7 +479,7 @@ tests/              合成データでの単体テストとアプリのテスト
 
 ## 参考文献
 
-事実とパラメータの出典 [1–22]、関連文献：排熱の導管網とデータセンター排熱の利用 [23–30]、ロバスト最適化 [31–36]、系統の受け入れ余地 [37–47]、立地と柔軟な負荷 [48–52]、CO₂の排出係数と政策の出典 [53–58]、テーマ2の手法とソルバー [59–64]、系統接続の費用 [65]、再エネの一致：需給実績と公表されている抑制量 [66, 67]、電力調達に関する研究 [68, 69]、費用 [70, 71]、エクセルギーと熱の質 [72–77]。
+事実とパラメータの出典 [1–22]、関連文献：排熱の導管網とデータセンター排熱の利用 [23–30]、ロバスト最適化 [31–36]、系統の受け入れ余地 [37–47]、立地と柔軟な負荷 [48–52]、CO₂の排出係数と政策の出典 [53–58]、テーマ2の手法とソルバー [59–64]、系統接続の費用 [65]、再エネの一致：需給実績と公表されている抑制量 [66, 67]、電力調達に関する研究 [68, 69]、費用 [70, 71]、エクセルギーと熱の質 [72–78]。
 
 1. Hack × Hokkaido Build Week 2026, AI build week in Sapporo, 23–27 November 2026. https://www.hackhokkaido.com/ (accessed 2026-11-24).
 2. Broadband Tower (2025-11-28). Press release on Ishikari Renewable Energy Data Center No. 1 (in Japanese). https://www.bbtower.co.jp/ir/pr/docs/20251128_ishikari_release.pdf
@@ -558,6 +558,7 @@ tests/              合成データでの単体テストとアプリのテスト
 75. Li, H., Svendsen, S. (2012). Energy and exergy analysis of low temperature district heating network. *Energy*, 45(1), 237-246. https://doi.org/10.1016/j.energy.2012.03.056
 76. Gong, M., Werner, S. (2015). Exergy analysis of network temperature levels in Swedish and Danish district heating systems. *Renewable Energy*, 84, 106-113. https://doi.org/10.1016/j.renene.2015.06.001
 77. Lund, H., Werner, S., Wiltshire, R., Svendsen, S., Thorsen, J.E., Hvelplund, F., Mathiesen, B.V. (2014). 4th Generation District Heating (4GDH): Integrating smart thermal grids into future sustainable energy systems. *Energy*, 68, 1-11. https://doi.org/10.1016/j.energy.2014.02.089
+78. 久保亮五 編 (1998). 大学演習 熱学・統計力学（修訂版）. 裳華房（第2章でカルノーサイクルの効率と最大仕事を扱う）. https://www.shokabo.co.jp/mybooks/ISBN978-4-7853-8032-8.htm 熱力学の部分の英語版：Kubo, R., in cooperation with Ichimura, H., Usui, T., Hashitsume, N. (1968). *Thermodynamics: An Advanced Course with Problems and Solutions*. North-Holland.
 
 ## メンバー
 
