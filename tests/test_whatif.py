@@ -441,3 +441,36 @@ def test_the_study_area_is_the_box_the_place_lookup_searches():
     geocode("新港", transport=fake)
     west, north, east, south = (float(x) for x in re.search(r"viewbox=([0-9.,]+)", seen[0])[1].split(","))
     assert whatif.STUDY_AREA == {"lat": (south, north), "lon": (west, east)}
+
+
+# ---- what the model returns for an input is read strictly (review issue #45) ----
+
+def changes_from(answer: dict) -> dict:
+    return whatif.parse_patch("x", CURRENT, llm_chat=fake_chat(json.dumps(answer)))["changes"]
+
+
+@pytest.mark.parametrize("written, read", [
+    ("false", False), ("False", False), ("no", False), ("0", False), (0, False), (False, False),
+    ("true", True), (" TRUE ", True), ("yes", True), ("1", True), (1, True), (True, True),
+])
+def test_a_switch_is_read_as_written(written, read):
+    assert changes_from({"changes": {"assumed_sites": written}}) == {"assumed_sites": read}
+
+
+@pytest.mark.parametrize("written", ["maybe", "", None, 2, 0.5, [], {"on": True}])
+def test_an_unclear_switch_is_left_alone(written):
+    assert changes_from({"changes": {"assumed_sites": written}}) == {}
+
+
+@pytest.mark.parametrize("written", [float("nan"), float("inf"), float("-inf"), "NaN", True, None, "many"])
+def test_a_value_that_is_not_a_finite_number_is_left_alone(written):
+    # json.dumps writes NaN and Infinity as bare words, and json.loads reads them back
+    assert changes_from({"changes": {"kerosene_yen_l": written, "rate": written, "years": 20}}) == {"years": 20}
+
+
+def test_a_new_data_center_needs_a_finite_size():
+    answer = {"changes": {}, "new_data_center": {"mw": float("nan"), "place": "手稲"}, "clarify": ""}
+    assert whatif.parse_patch("x", CURRENT, llm_chat=fake_chat(json.dumps(answer)))["new_dc"] is None
+    answer["new_data_center"] = {"mw": 1e9, "place": "手稲"}
+    assert whatif.parse_patch("x", CURRENT, llm_chat=fake_chat(json.dumps(answer)))["new_dc"] == {"mw": 100.0, "place": "手稲"}
+

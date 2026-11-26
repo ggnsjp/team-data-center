@@ -22,6 +22,7 @@ import json
 import urllib.parse
 from pathlib import Path
 
+from dcopt.common.geo import overpass_url
 from dcopt.heat.network import Params, ishikari_sources
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -192,7 +193,7 @@ def grid_layer() -> dict:
              '(nwr["power"="substation"](43.14,141.20,43.26,141.42);'
              '(way(955800108);way(962272954);way(962272955);););'
              "out geom tags;")
-    data = get_json("https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=" + urllib.parse.quote(query))
+    data = get_json(overpass_url() + "/interpreter?data=" + urllib.parse.quote(query))
     lines, substations = [], []
     for el in data.get("elements", []):
         tags = el.get("tags", {})
@@ -219,7 +220,7 @@ def osm_generators(west, south, east, north):
              f'(nwr["power"="generator"]["generator:source"~"wind|solar"]({south},{west},{north},{east});'
              f'nwr["power"="plant"]["plant:source"="solar"]({south},{west},{north},{east}););'
              "out geom tags center;")
-    data = get_json("https://maps.mail.ru/osm/tools/overpass/api/interpreter?data=" + urllib.parse.quote(query))
+    data = get_json(overpass_url() + "/interpreter?data=" + urllib.parse.quote(query))
     wind, solar = [], []
     for el in data.get("elements", []):
         tags = el.get("tags", {})

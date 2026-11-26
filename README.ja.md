@@ -373,6 +373,8 @@ uv run streamlit run app/streamlit_app.py              # デモアプリ
 uv run pytest                                          # テスト（地図データが必要なものは、データがなければスキップ）
 ```
 
+地図データは、OpenStreetMapの2つの公開サービスから取得します。地名の検索は `nominatim.openstreetmap.org`、地物のダウンロードはOverpassサーバーです。Overpassサーバーの既定は公開ミラーの `https://maps.mail.ru/osm/tools/overpass/api` です（本家は混雑で応答しないことが多いため）。別のサーバーを使うには `OVERPASS_URL` を設定します（例：`OVERPASS_URL=https://overpass-api.de/api`）。地図データを取得するスクリプトは、すべてこの設定を読みます。
+
 **実験**
 - v1とv2の比較：`uv run python experiments/heat_v2_compare/run.py`
 - ロバスト計画の掃引：`uv run python experiments/heat_ccg/run.py ambient`
@@ -391,7 +393,7 @@ uv run pytest                                          # テスト（地図デ�
 
 **ライブ・シミュレーション（アプリのWarm Ishikariページ）**
 - もしもの条件を、日本語でも英語でも文章で入力できます（「電気料金を2倍にして」/ "double the electricity price"）。LLM（carbonforge-flash、OpenAI互換、`CF_API_KEY` で利用。接続先は `CARBONFORGE_BASE_URL`、モデルは `LLM_MODEL` で変更できます）がそれをページの設定値に当てはめ、決定的なモデルが計算し直し、LLMが結果を説明します。LLMは数値を計算しません。入力を選び、出力を説明するだけです。
-- 出力のチェック：説明文の数値は、LLMに渡した質問・変更・結果のどれかに含まれていなければなりません。漢数字で書かれた数（「三億円」は3、「十二キロ」は12）も読みます。「半分」「倍増」のように数字を使わない表現は対象外です。含まれない数値があると、説明文の代わりに変更と結果を箇条書きで表示し、その旨を注記します。説明の下には、回答したモデル名を表示します。質問は500文字までです。
+- 出力のチェック：説明文の数値は、LLMに渡した質問・変更・結果のどれかに含まれていなければなりません。漢数字で書かれた数（「三億円」は3、「十二キロ」は12）も読みます。「半分」「倍増」のように数字を使わない表現は対象外です。含まれない数値があると、説明文の代わりに変更と結果を箇条書きで表示し、その旨を注記します。説明の下には、回答したモデル名を表示します。質問は500文字までです。モデルへの1回の問い合わせは60秒で打ち切ります（`LLM_TIMEOUT_S` で変更できます）。質問の2つの段階（質問を読む、結果を説明する）は、それぞれその2倍の時間であきらめます。
 - 任意：LLMへの接続を [OrcaRouter](https://docs.orcarouter.ai/) 経由にして、フォールバックの順番を指定できます。CarbonForgeの障害や429でもパネルが止まりにくくなります。`ORCAROUTER_API_KEY` を設定しなければ、これまでと同じです。
   1. OrcaRouterのコンソールで、BYOKにCarbonForgeをカスタムのOpenAI互換エンドポイントとして追加します（ベースURL `https://endpoint.carbonforge.ai/v1`、CarbonForgeのキー）。`carbonforge-flash` をインポートします。
   2. 必要ならガードレールを追加します（コンソールのGuardrailsで作成し、キーに割り当てる）。例：入力に `max_chars` のルールと個人情報のマスク。ガードレールは入力を確認し、出力は上のチェックが確認します。

@@ -371,6 +371,12 @@ uv run streamlit run app/streamlit_app.py              # the demo app
 uv run pytest                                          # tests; those that need map data skip without it
 ```
 
+The map data comes from OpenStreetMap through two public services: place names are looked up at
+`nominatim.openstreetmap.org`, and features are downloaded from an Overpass server. The default Overpass server
+is the public mirror `https://maps.mail.ru/osm/tools/overpass/api` (the main instance is often at capacity). To
+use another one, set `OVERPASS_URL`, for example `OVERPASS_URL=https://overpass-api.de/api`; every script that
+downloads map data reads it.
+
 **Experiments**
 - Model v1 against v2: `uv run python experiments/heat_v2_compare/run.py`
 - Robust sweep: `uv run python experiments/heat_ccg/run.py ambient`
@@ -396,7 +402,8 @@ uv run pytest                                          # tests; those that need 
   the LLM was given. Numbers written in kanji are read too (三億円 as 3, 十二キロ as 12); quantities without a
   numeral, such as "half" or "double", are not. If a number does not appear, the panel shows the changes and results as plain bullets with a
   note instead. The caption under each explanation names the model that answered. Questions are capped
-  at 500 characters.
+  at 500 characters. One request to the model is cut off after 60 seconds (`LLM_TIMEOUT_S` changes this), and
+  each of the two steps of a question, reading it and explaining the result, gives up after twice that.
 - Optional: route the LLM through [OrcaRouter](https://docs.orcarouter.ai/) with a fallback chain, so a
   CarbonForge outage or 429 does not break the panel. Without `ORCAROUTER_API_KEY` nothing changes.
   1. In the OrcaRouter console, add CarbonForge under BYOK as a custom OpenAI-compatible endpoint with

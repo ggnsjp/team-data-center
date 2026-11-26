@@ -99,7 +99,7 @@ licence = "ODbL 1.0, © OpenStreetMap contributors. Never committed; outputs tha
 sources = ["https://www.openstreetmap.org/copyright"]
 made_by = "uv run python scripts/fetch_data.py --area ishikari"
 code = ["scripts/fetch_data.py", "src/dcopt/common/geo.py"]
-processing = "Downloaded through osmnx (Nominatim and Overpass), clipped to the study area and saved as GeoJSON and GraphML; floor and land areas are computed from the polygons."
+processing = "Downloaded through osmnx (Nominatim and Overpass; the Overpass server is the public mirror maps.mail.ru/osm/tools/overpass/api unless OVERPASS_URL names another), clipped to the study area and saved as GeoJSON and GraphML; floor and land areas are computed from the polygons. Names are kept in Japanese, in English (name:en) and romanised (name:ja-Latn) where OpenStreetMap has them."
 used_by = ["src/dcopt/heat/v1.py", "src/dcopt/heat/network.py", "app/pages/1_Warm_Ishikari.py",
            "app/pages/2_Warm_Ishikari_Map.py"]
 checks = ["tests/test_data_and_docs.py"]

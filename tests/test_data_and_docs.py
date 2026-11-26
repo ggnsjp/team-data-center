@@ -61,14 +61,19 @@ def test_named_facilities_skip_bus_stops_and_post_offices(tmp_path, monkeypatch)
 
     town = box(141.25, 43.10, 141.40, 43.25)
     gpd.GeoDataFrame({"name": ["石狩市"]}, geometry=[town], crs=4326).to_file(tmp_path / "boundary.geojson")
-    gpd.GeoDataFrame({"kind": ["telecom=data_center", "landuse=farmland"], "name": ["DC", None],
-                      "area_m2": [1000.0, 50_000.0]},
-                     geometry=[Point(141.30, 43.18), Point(141.31, 43.17)], crs=4326
+    src = v1.curated_source()                                    # the heat source is found by its OpenStreetMap id
+    gpd.GeoDataFrame({"element": ["way", src["element"], "way"], "id": [7, src["id"], 8],
+                      "kind": ["telecom=data_center", "telecom=data_center", "landuse=farmland"],
+                      "name": ["another operator's data center", "DC", None], "area_m2": [900.0, 1000.0, 50_000.0]},
+                     geometry=[Point(141.33, 43.20), Point(141.30, 43.18), Point(141.31, 43.17)], crs=4326
                      ).to_file(tmp_path / "heat_candidates.geojson")
     names = ["石狩市役所", "石狩市役所前郵便局", "聚富会館前", "花川南コミュニティセンター", "石狩市民図書館",
              "スーパーホテル石狩", "ホテル前", "北斗重工株式会社 石狩第2工場", "中央バス札幌整備工場前",
              "石狩市役所 親船出張所", "石狩病院"]
-    gpd.GeoDataFrame({"name": names}, geometry=[Point(141.30 + 0.001 * i, 43.17) for i in range(len(names))],
+    english = [None] * len(names)
+    english[names.index("石狩病院")] = "Ishikari Hospital"
+    gpd.GeoDataFrame({"name": names, "name:en": english},
+                     geometry=[Point(141.30 + 0.001 * i, 43.17) for i in range(len(names))],
                      crs=4326).to_file(tmp_path / "named.geojson")
     gpd.GeoDataFrame({"kind": ["townhall"], "name": ["石狩市役所"]}, geometry=[Point(141.315, 43.171)],
                      crs=4326).to_file(tmp_path / "pois.geojson")
@@ -76,7 +81,12 @@ def test_named_facilities_skip_bus_stops_and_post_offices(tmp_path, monkeypatch)
                                                    "pois": tmp_path / "pois.geojson",
                                                    "boundary": tmp_path / "boundary.geojson"})
     monkeypatch.setattr(v1, "snap", lambda lon, lat, area: 0)
-    _, sites = v1.ishikari_sites()
+    dc, sites = v1.ishikari_sites()
+    assert (dc.lon, dc.lat) == (141.30, 43.18)                   # not the data center listed first
+    assert (dc.name, dc.name_en) == (src["name"], src["name_en"])
+    english_names = {s.name: s.name_en for s in sites}
+    assert english_names["石狩病院"] == "Ishikari Hospital"       # name:en where OpenStreetMap has one
+    assert english_names["石狩市民図書館"] == "石狩市民図書館"       # else the name as it is
     by_kind: dict[str, set] = {}
     for s in sites:
         by_kind.setdefault(s.kind, set()).add(s.name)

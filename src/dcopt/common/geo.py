@@ -56,13 +56,31 @@ def missing_map_data(area: str = DEFAULT_AREA) -> list[Path]:
 
 
 OVERPASS_MIRROR = "https://maps.mail.ru/osm/tools/overpass/api"
+NAME_COLUMNS = ["name", "name:en", "name:ja-Latn"]     # the name tags kept when map data is fetched
+
+
+def overpass_url() -> str:
+    """The Overpass server every script asks: OVERPASS_URL when it is set, else the public mirror above."""
+    import os
+    return (os.environ.get("OVERPASS_URL") or OVERPASS_MIRROR).rstrip("/")
+
+
+def english_name(row) -> str:
+    """The name to show in English: OpenStreetMap's name:en, else its romanised name, else the name itself.
+
+    `row` holds one feature's attributes. Files fetched before these tags were kept have neither column.
+    """
+    for column in NAME_COLUMNS[1:]:
+        value = row.get(column)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return row["name"]
 
 
 def use_overpass_mirror(timeout: int = 300) -> None:
     """osmnx settings shared by the scripts: a public Overpass mirror (overpass-api.de is often at
     capacity; set OVERPASS_URL to override) and the response cache in data/raw/osmnx_cache."""
-    import os
-    ox.settings.overpass_url = os.environ.get("OVERPASS_URL", OVERPASS_MIRROR)
+    ox.settings.overpass_url = overpass_url()
     ox.settings.overpass_rate_limit = False
     ox.settings.http_user_agent = "team-data-center/0.1 (research code)"
     ox.settings.requests_timeout = timeout

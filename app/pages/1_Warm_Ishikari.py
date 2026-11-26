@@ -26,6 +26,7 @@ from dcopt.heat.v1 import (
     MONTHS_EN,
     MONTHS_JA,
     Assumptions,
+    HeatSourceMissing,
     cached_design,
     ishikari_sites,
     pairwise,
@@ -147,7 +148,11 @@ if missing := missing_map_data():
     st.stop()
 
 with st.spinner(pick("石狩市の地図と施設を読み込み中…", "Loading Ishikari's map and facilities…")):
-    dc, _ = load_sites()
+    try:
+        dc, _ = load_sites()
+    except HeatSourceMissing as e:
+        st.error(pick(e.ja, e.en))
+        st.stop()
 with st.spinner(pick("熱導管ネットワークを最適化中…", "Optimizing the heat network…")):
     opt, from_cache, pw = solve(A, assumed, k)
     solved = opt                               # the plan the solver returned for these settings
@@ -240,7 +245,7 @@ def explain(question: str, changed: dict, before: dict, after: dict) -> None:
     """Ask the LLM to explain the model's numbers; show it only if it cites no number of its own."""
     lang = "ja" if ja else "en"
     try:
-        with st.spinner(pick("結果を説明中…", "Explaining the results…")):
+        with st.spinner(pick("結果を説明中…", "Explaining the results…")), llm.time_budget():
             res = llm.chat_ex([{"role": "user", "content": whatif.explain_prompt(
                 question, changed, before, after, lang)}], max_tokens=1600)
     except llm.LLMError as e:

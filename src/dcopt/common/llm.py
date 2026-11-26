@@ -15,20 +15,29 @@ names the model that answered after a failover. If OrcaRouter itself cannot be r
 5xx / 429, and CF_API_KEY is set, the client calls CarbonForge directly (LLM_MODEL) instead. Other
 errors (401, 403, a guardrail's 400) are final: retrying elsewhere would only hide them.
 
+Time: one request is cut off after LLM_TIMEOUT_S seconds (default 60), counted over the whole
+request and not per read. The steps of one question (the retry with a larger budget, the direct
+call after the router) share a budget of twice that (time_budget): once it has run out, the next
+request is not sent.
+
 Keys are never logged and never appear in error messages. The model only ever explains numbers
 the deterministic model computed; it does not compute them.
 """
+import contextvars
 import json
 import os
+import time
 import urllib.error
 import urllib.request
+from contextlib import contextmanager
 
 DEFAULT_BASE = "https://endpoint.carbonforge.ai/v1"
 DEFAULT_MODEL = "carbonforge-flash"
 DEFAULT_ROUTER_BASE = "https://api.orcarouter.ai/v1"
 MAX_CHAIN = 5                      # OrcaRouter truncates longer fallback chains
-TIMEOUT_S = 180
+DEFAULT_TIMEOUT_S = 60.0           # one request; LLM_TIMEOUT_S overrides
 RETRYABLE = {429, 500, 502, 503, 504}
+_deadline: contextvars.ContextVar[float | None] = contextvars.ContextVar("llm_deadline", default=None)
 
 
 class LLMError(RuntimeError):
@@ -56,10 +65,55 @@ def settings() -> dict:
             "models": chain() if router else []}
 
 
+def timeout_s() -> float:
+    """Seconds one request may take: LLM_TIMEOUT_S when it is a positive number, else the default."""
+    try:
+        value = float(os.environ.get("LLM_TIMEOUT_S") or "")
+    except ValueError:
+        return DEFAULT_TIMEOUT_S
+    return value if 0 < value < float("inf") else DEFAULT_TIMEOUT_S
+
+
+@contextmanager
+def time_budget(seconds: float | None = None):
+    """Requests made inside share one deadline, `seconds` from now (default: twice timeout_s()).
+
+    Each request is cut off at the deadline, and a request that would start after it is not sent.
+    An outer budget stays in force: a nested one can only shorten it.
+    """
+    end = time.monotonic() + (2 * timeout_s() if seconds is None else seconds)
+    outer = _deadline.get()
+    token = _deadline.set(end if outer is None else min(end, outer))
+    try:
+        yield
+    finally:
+        _deadline.reset(token)
+
+
+def out_of_time() -> bool:
+    """True inside a time_budget whose deadline has passed."""
+    end = _deadline.get()
+    return end is not None and time.monotonic() >= end
+
+
 def _http(url: str, payload: bytes, headers: dict) -> tuple[int, bytes, dict]:
+    limit, end = timeout_s(), _deadline.get()
+    if end is not None:
+        limit = min(limit, end - time.monotonic())
+    if limit <= 0:
+        raise TimeoutError("the time budget has run out")
+    stop = time.monotonic() + limit
     req = urllib.request.Request(url, data=payload, headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=TIMEOUT_S) as res:
-        return res.status, res.read(), dict(res.headers.items())
+    with urllib.request.urlopen(req, timeout=limit) as res:
+        chunks = []
+        while True:                        # the socket timeout covers one read; this covers the whole answer
+            chunk = res.read1(65536)
+            if not chunk:
+                break
+            chunks.append(chunk)
+            if time.monotonic() > stop:
+                raise TimeoutError("the answer took too long")
+        return res.status, b"".join(chunks), dict(res.headers.items())
 
 
 def _post(send, url: str, body: dict, key: str, label: str) -> tuple[bytes, dict]:
@@ -101,6 +155,8 @@ def chat_ex(messages: list[dict], *, max_tokens: int = 1600, json_mode: bool = F
     send = transport or _http
     if transport is None and not cfg["has_key"]:
         raise LLMError("neither ORCAROUTER_API_KEY nor CF_API_KEY is set")
+    if out_of_time():
+        raise LLMError("the request took too long")
     base = {"messages": messages, "max_tokens": max_tokens, "temperature": 0.2}
     if json_mode:
         base["response_format"] = {"type": "json_object"}
@@ -115,6 +171,8 @@ def chat_ex(messages: list[dict], *, max_tokens: int = 1600, json_mode: bool = F
             retryable = e.status is None or e.status in RETRYABLE
             if not retryable or not os.environ.get("CF_API_KEY"):
                 raise
+            if out_of_time():              # no time left for the direct call
+                raise LLMError("the request took too long") from None
         else:
             served = headers.get("x-orca-fallback-model") or models[0]
             return {"text": _content(raw, "OrcaRouter"), "model": served, "via": "orcarouter"}

@@ -13,22 +13,25 @@ Model    max  sum_t sum_j v * s_jt  -  sum_e c * len_e * y_e
 """
 from __future__ import annotations
 
+import csv
 import hashlib
 import json
 import math
 import os
 import pickle
+import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import geopandas as gpd
 import numpy as np
+import pandas as pd
 import scipy.sparse as sp
 from scipy.optimize import Bounds, LinearConstraint, milp
 from sklearn.cluster import DBSCAN
 
 from dcopt.common import geo
-from dcopt.common.geo import paths, road_distance_matrix, road_path, snap
+from dcopt.common.geo import english_name, fetch_command, paths, road_distance_matrix, road_path, snap
 
 AREA = "ishikari"
 MONTHS_JA = [f"{m}月" for m in range(1, 13)]
@@ -172,6 +175,54 @@ def _offset(lon, lat, east_m, north_m):
     return lon + east_m / (111_320 * math.cos(math.radians(lat))), lat + north_m / 110_540
 
 
+CURATED_DATA_CENTERS = geo.ROOT / "data" / "curated" / "ishikari_data_centers.csv"
+
+
+class HeatSourceMissing(LookupError):
+    """The data center the model takes its heat from is not in the fetched map data.
+
+    `ja` and `en` are messages for a page; str() gives both.
+    """
+
+    def __init__(self, ja: str, en: str):
+        super().__init__(f"{en} / {ja}")
+        self.ja, self.en = ja, en
+
+
+def curated_source(key: str = "sakura") -> dict:
+    """One data center of the curated list, with the OpenStreetMap object its location refers to."""
+    with CURATED_DATA_CENTERS.open(encoding="utf-8", newline="") as f:
+        row = next(r for r in csv.DictReader(f) if r["key"] == key)
+    ref = re.search(r"OpenStreetMap (node|way|relation) (\d+)", row["location_ref"])
+    if not ref:
+        raise ValueError(f"{CURATED_DATA_CENTERS.name}: the row {key!r} names no OpenStreetMap object")
+    return {"name": row["name_ja"], "name_en": row["name_en"], "element": ref[1], "id": int(ref[2])}
+
+
+def heat_source(cand, src: dict | None = None) -> Site:
+    """The heat source among the fetched candidates: the object the curated list names, by its id.
+
+    Taking the first feature tagged as a data center would follow whatever OpenStreetMap lists first,
+    and the label would keep naming the curated operator.
+    """
+    src = src or curated_source()
+    if {"element", "id"} <= set(cand.columns):
+        found = cand[(cand["element"] == src["element"]) & (pd.to_numeric(cand["id"], errors="coerce") == src["id"])]
+    else:                                              # a file without the OpenStreetMap ids
+        found = cand.iloc[0:0]
+    if found.empty:
+        ref = f"OpenStreetMap {src['element']} {src['id']}"
+        raise HeatSourceMissing(
+            f"熱源の{src['name']}（{ref}）が、取得済みの地図データにありません。地図データを取り直してください："
+            f"{fetch_command(AREA)}　それでも出ない場合は、OpenStreetMap側で建物が変わっています。"
+            f"data/curated/ishikari_data_centers.csv の location_ref を直してください。",
+            f"The heat source, {src['name_en']} ({ref}), is not in the fetched map data. Fetch the map data "
+            f"again: {fetch_command(AREA)} If it is still missing, the building has changed in OpenStreetMap: "
+            f"correct location_ref in data/curated/ishikari_data_centers.csv.")
+    row = found.iloc[0]
+    return Site("dc", src["name"], src["name_en"], "dc", row.geometry.x, row.geometry.y, 0.0, "OSM")
+
+
 def ishikari_sites() -> tuple[Site, list[Site]]:
     """The data center and candidate heat users in southern Ishikari (OSM), plus clearly marked
     assumed sites (new greenhouses on farmland, a fish farm, snow melting)."""
@@ -180,9 +231,7 @@ def ishikari_sites() -> tuple[Site, list[Site]]:
     named = gpd.read_file(p["named"])
     pois = gpd.read_file(p["pois"])
     town = gpd.read_file(p["boundary"]).geometry.iloc[0]
-    dc_row = cand[cand["kind"] == "telecom=data_center"].iloc[0]
-    dc = Site("dc", dc_row["name"], "Sakura Internet Ishikari Data Center", "dc", dc_row.geometry.x,
-              dc_row.geometry.y, 0.0, "OSM")
+    dc = heat_source(cand)
     sites: list[Site] = []
 
     gh = cand[cand["kind"] == "building=greenhouse"].to_crs(6680)
@@ -203,7 +252,7 @@ def ishikari_sites() -> tuple[Site, list[Site]]:
             if not isinstance(r.get("name"), str) or r["name"] in seen:
                 continue
             seen.add(r["name"])
-            sites.append(Site(f"{kind}{len(sites)}", r["name"], r["name"], kind, r.geometry.x, r.geometry.y,
+            sites.append(Site(f"{kind}{len(sites)}", r["name"], english_name(r), kind, r.geometry.x, r.geometry.y,
                               KINDS[kind][3], "OSM＋需要は仮定 / OSM + assumed demand"))
 
     add_named("onsen", cand[cand["kind"] == "amenity=public_bath"])

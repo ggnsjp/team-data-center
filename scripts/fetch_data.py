@@ -18,7 +18,7 @@ import osmnx as ox
 import pandas as pd
 from shapely.geometry import box
 
-from dcopt.common.geo import AREAS, DEFAULT_AREA, RAW, paths, use_overpass_mirror
+from dcopt.common.geo import AREAS, DEFAULT_AREA, NAME_COLUMNS, RAW, paths, use_overpass_mirror
 
 MARGIN_DEG = 0.03
 
@@ -98,7 +98,7 @@ def classify(row) -> str:
 
 def fetch_pois(bbox, P: dict) -> None:
     gdf = ox.features_from_bbox(bbox=bbox, tags=POI_TAGS).reset_index()
-    keep = [c for c in ["element", "id", "name", "amenity", "shop", "railway", "highway",
+    keep = [c for c in ["element", "id", *NAME_COLUMNS, "amenity", "shop", "railway", "highway",
                         "operator", "healthcare", "geometry"] if c in gdf.columns]
     gdf = gdf[keep].copy()
     gdf["kind"] = gdf.apply(classify, axis=1)
@@ -114,7 +114,7 @@ def fetch_named(town, P: dict) -> None:
     gdf = ox.features_from_polygon(town.geometry.iloc[0], tags={"name": True}).reset_index()
     gdf = gdf[gdf["name"].notna()].copy()
     gdf["geometry"] = gdf.geometry.to_crs(6680).representative_point().to_crs(4326)
-    keep = [c for c in ["element", "id", "name", "amenity", "shop", "highway", "railway", "public_transport",
+    keep = [c for c in ["element", "id", *NAME_COLUMNS, "amenity", "shop", "highway", "railway", "public_transport",
                         "place", "leisure", "building", "tourism"] if c in gdf.columns]
     gdf[keep + ["geometry"]].to_file(P["named"], driver="GeoJSON")
     log(f"named features: {len(gdf):,}")
@@ -141,7 +141,7 @@ def fetch_heat_candidates(town, P: dict) -> None:
         return "other"
 
     g["kind"] = g.apply(kind, axis=1)
-    keep = [c for c in ["element", "id", "name", "kind", "area_m2", "operator", "geometry"] if c in g.columns]
+    keep = [c for c in ["element", "id", *NAME_COLUMNS, "kind", "area_m2", "operator", "geometry"] if c in g.columns]
     g[keep].to_file(P["dir"] / "heat_candidates.geojson", driver="GeoJSON")
     log("heat candidates: " + ", ".join(f"{k} {v}" for k, v in g["kind"].value_counts().items()))
 
