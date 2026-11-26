@@ -20,7 +20,6 @@ import argparse
 import json
 import os
 import time
-from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 import geopandas as gpd
@@ -28,6 +27,7 @@ import numpy as np
 
 from dcopt.common import provenance
 from dcopt.common.geo import paths, road_path, use_overpass_mirror
+from dcopt.common.workers import pool as worker_pool
 from dcopt.heat.network import Params, build_instance, default_scenarios, ishikari_sources, seeded_plan, solver_name
 from dcopt.heat.v1 import ishikari_sites
 from dcopt.siting import gridmap
@@ -100,7 +100,7 @@ def export_networks(path: Path, cands: list[dict], mw: float, n: int, workers: i
     """Solve the n best sites again, keep their plans, and write the pipe networks next to the export."""
     key = f"{mw:g}"
     best = sorted(cands, key=lambda c: -c["by_mw"][key]["value"])[:n]
-    with ProcessPoolExecutor(min(workers, len(best)), initializer=_init, initargs=(base, links, users, P, scens)) as pool:
+    with worker_pool(min(workers, len(best)), initializer=_init, initargs=(base, links, users, P, scens)) as pool:
         rows = list(pool.map(_network, [(c["id"], c["lon"], c["lat"], mw) for c in best]))
     for c, r in zip(best, rows):
         r["value_in_export"] = c["by_mw"][key]["value"]
@@ -148,7 +148,7 @@ def main() -> None:
     sizes = [float(x) for x in args.mw.split(",")]
     tasks = [(c["id"], c["lon"], c["lat"], mw) for mw in sizes for c in cands]
     print(f"{len(cands)} candidate sites x {len(sizes)} size(s) on {args.workers} workers", flush=True)
-    with ProcessPoolExecutor(args.workers, initializer=_init, initargs=(base, links, users, P, scens)) as pool:
+    with worker_pool(args.workers, initializer=_init, initargs=(base, links, users, P, scens)) as pool:
         rows = list(pool.map(_value, tasks))
     by = {(r["id"], r["mw"]): r for r in rows}
     for c in cands:
