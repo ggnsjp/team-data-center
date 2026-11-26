@@ -112,7 +112,7 @@ def test_readme_citations_resolve(name, heading):
     refs = refs.split("\n## ", 1)[0]
     numbered = [int(m) for m in re.findall(r"^(\d+)\. ", refs, flags=re.MULTILINE)]
     assert numbered == list(range(1, len(numbered) + 1)), "references are numbered 1..N without gaps"
-    assert len(numbered) == 71
+    assert len(numbered) == 77
     used = cited_numbers(body)
     assert used, "the body cites something"
     assert used <= set(numbered), f"citations without a reference: {sorted(used - set(numbered))}"
@@ -157,7 +157,10 @@ def test_no_attribution_words_in_the_repository():
     assert not hits, f"attribution words in: {hits}"
 
 
-@pytest.mark.parametrize("page", sorted((ROOT / "docs" / "formulations").glob("*.md")), ids=lambda p: p.name)
+MATH_PAGES = sorted([*(ROOT / "docs" / "formulations").glob("*.md"), *(ROOT / "docs").glob("exergy*.md")])
+
+
+@pytest.mark.parametrize("page", MATH_PAGES, ids=lambda p: p.name)
 def test_math_pages_render_on_github(page):
     text = page.read_text(encoding="utf-8")
     assert "$$" not in text, "use ```math blocks: GitHub escapes backslashes inside $$...$$"

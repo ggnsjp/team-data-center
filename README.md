@@ -83,6 +83,19 @@ With the ambient loop, the two-stage stochastic plan earns 93.8 in expectation, 
 
 The stochastic plan with an ambient loop earns **93.8** in expectation, against **81.5** for a central heat pump feeding a 60 °C network. The ambient loop runs at about 30 °C with heat pumps at the users, and the fish farm and the road heating take the heat directly. At today's kerosene price, the ambient plan connects 16 sites with 10.7 km of pipe and earns 140.3 per year; this is the plan in the animation above.
 
+### Heat quality: the plan in exergy terms
+
+Exergy is the part of energy that can do work [72, 73]. Electricity is all exergy, and heat is worth more the further its temperature is from the surroundings. Data-center waste heat is plentiful but "of low quality" [74]: at 30 °C, only 6.8 % of the 95.7 GWh on offer each year is exergy (11.0 % in January, 2.5 % in August). The model therefore treats heat by temperature and not only by quantity. Each kind of user has a supply temperature; users that need 27 °C or less take the heat directly; the others pay heat-pump electricity that follows from the temperature lift (COP at half the Carnot value). This is the match of low-quality supply to low-quality demand described for low-temperature district heating [75], where lower network temperatures are the direction of development [76, 77].
+
+| The same 15,147 MWh a year (exergy 1,533 MWh) | High-grade input | Exergy efficiency |
+|---|---|---|
+| Kerosene boilers | 18,683 MWh of fuel exergy | 8.2 % |
+| The published plan | 1,267 MWh of electricity, plus 1,172 MWh of waste-heat exergy | 62.9 % |
+
+About half of the heat (49 %) goes to the two users that need no heat pump. Sent through the 60 °C network, the same deliveries would need 2.7 times the electricity; this is the exergy reading of the result above. The model does not represent steam or process heat above 60 °C, and 23 % of the heat goes to a hospital and two hotels whose whole demand is counted as heat that 60 °C water can supply. That is the first assumption to check on site.
+
+What exergy is, the definitions, a worked example, the limits and the references: [docs/exergy.md](docs/exergy.md). Run: `uv run python scripts/exergy_balance.py`.
+
 ### CO₂: the plan pays for itself, and a subsidy moves it more than a carbon price
 
 The stochastic plan above (13 sites, 7.8 km) avoids about **3,900 t of CO₂ a year** when the users' heat pumps run on Hokkaido Electric's standard power (0.526 kg/kWh [54]). It avoids 4,300 t at the national level for FY2030 (0.25 kg/kWh [55]) and 4,600 t on renewable power; kerosene emits 2.50 kg per litre [53]. The plan earns money while it cuts, about 24,000 yen per tonne, so it needs no carbon price.
@@ -153,8 +166,9 @@ A range "a to b" spans the published pipes kept and the plan made again under th
   - To rerun the comparison: `uv run python experiments/solver_compare/run.py`.
 - **Positions.** Two data-center positions are approximate and one is a placeholder.
 - **Model scope.** The model balances energy month by month, and heat losses are a flat percentage. Distance-dependent losses are next.
+- **Heat quality.** The model does not represent steam or process heat above 60 °C, thermal storage or pumping power ([docs/exergy.md](docs/exergy.md)).
 
-Details: the full mathematical model, with every coefficient and worked numbers, is in [docs/formulations/heat-model.md](docs/formulations/heat-model.md); results are in [docs/formulations/heat.md](docs/formulations/heat.md).
+Details: the full mathematical model, with every coefficient and worked numbers, is in [docs/formulations/heat-model.md](docs/formulations/heat-model.md); results are in [docs/formulations/heat.md](docs/formulations/heat.md); the exergy view is in [docs/exergy.md](docs/exergy.md).
 
 ## Results so far (theme 2)
 
@@ -424,7 +438,7 @@ Add `--lang ja` for the Japanese versions; they need a Japanese font such as Not
 ## Repository layout
 
 ```
-src/dcopt/heat      theme 1: model v1 (v1.py), v2 (network.py), proposals (proposal.py), weather years (weather.py), live what-if knobs (whatif.py), pipe heat loss (loss.py), the plan as a graph (plangraph.py)
+src/dcopt/heat      theme 1: model v1 (v1.py), v2 (network.py), proposals (proposal.py), weather years (weather.py), live what-if knobs (whatif.py), pipe heat loss (loss.py), the plan as a graph (plangraph.py), exergy view (exergy.py)
 src/dcopt/grid      theme 2: networks (cases.py), the lifted model the relaxations and the AC problem share (lifted.py), relaxations (relax.py), AC points (ac.py), brackets (hosting.py)
 src/dcopt/siting    theme 3: candidate sites (candidates.py), heat value (heat_value.py), grid distances (gridmap.py), location model (model.py)
 src/dcopt/matching  theme 4: area records (records.py), counting (score.py), replay of the records (system.py), cheapest portfolio (portfolio.py)
@@ -472,6 +486,7 @@ Checking results on large, realistic models may need a solver of that strength. 
 - Certify optimality with a stronger pipe-sizing formulation (cut-set inequalities, Benders cuts) [23, 26].
 - Co-optimize the network layout, the temperature level and where heat pumps go, at street scale.
 - Model heat losses that depend on pipe length, size, temperature and flow.
+- Split heat demand by temperature band (steam, hot water, room heating), and add thermal storage and pumping power [75, 76].
 - Share the cost of a common trunk fairly: the Shapley value against the least core [27, 28].
 - Two-stage robust design when it is uncertain which planned data centers will be built [32–35].
 - A network model for Ishikari: HEPCO Network's published data for 187 kV and above, the IEEJ standard models, or OpenStreetMap.
@@ -481,7 +496,7 @@ Checking results on large, realistic models may need a solver of that strength. 
 
 ## References
 
-Facts and parameters [1–22], then related literature: waste-heat networks and data-center heat reuse [23–30], robust optimization [31–36], grid hosting capacity [37–47], siting and flexible loads [48–52]. CO₂ factors and policy sources [53–58]. Methods and the solver of theme 2 [59–64]. Grid connection costs [65]. Renewable matching: the records and the published curtailment [66, 67], studies of clean-electricity procurement [68, 69], costs [70, 71].
+Facts and parameters [1–22], then related literature: waste-heat networks and data-center heat reuse [23–30], robust optimization [31–36], grid hosting capacity [37–47], siting and flexible loads [48–52]. CO₂ factors and policy sources [53–58]. Methods and the solver of theme 2 [59–64]. Grid connection costs [65]. Renewable matching: the records and the published curtailment [66, 67], studies of clean-electricity procurement [68, 69], costs [70, 71]. Exergy and the quality of heat [72–77].
 
 1. Hack × Hokkaido Build Week 2026, AI build week in Sapporo, 23–27 November 2026. https://www.hackhokkaido.com/ (accessed 2026-11-24).
 2. Broadband Tower (2025-11-28). Press release on Ishikari Renewable Energy Data Center No. 1 (in Japanese). https://www.bbtower.co.jp/ir/pr/docs/20251128_ishikari_release.pdf
@@ -554,6 +569,12 @@ Facts and parameters [1–22], then related literature: waste-heat networks and 
 69. Riepin, I., Brown, T. (2024). On the means, costs, and system-level impacts of 24/7 carbon-free energy procurement. *Energy Strategy Reviews*, 54, 101488. https://doi.org/10.1016/j.esr.2024.101488
 70. 発電コスト検証ワーキンググループ (2025-02-06). 発電コスト検証に関するとりまとめ (Power Generation Cost Verification Working Group, report): utility-scale solar 10.9 and onshore wind 16.3 yen/kWh for a 2023 plant, policy costs included. https://www.enecho.meti.go.jp/committee/council/basic_policy_subcommittee/mitoshi/cost_wg/pdf/cost_wg_20250206_01.pdf
 71. 経済産業省 (2025-03-07). 2024年度 定置用蓄電システム普及拡大検討会の結果とりまとめ (METI, stationary storage study group, results for FY2024): grid-scale battery systems in subsidy projects cost 54,000 yen/kWh on average. https://www.meti.go.jp/shingikai/energy_environment/storage_system/pdf/20250307_1.pdf
+72. Kotas, T.J. (1985). *The Exergy Method of Thermal Plant Analysis*. Butterworths. https://doi.org/10.1016/C2013-0-00894-8
+73. 宿谷昌則 編著 (2010). エクセルギーと環境の理論：流れ・循環のデザインとは何か（改訂版）. 井上書院. In English: Shukuya, M. (2013). *Exergy: Theory and Applications in the Built Environment*. Springer. https://doi.org/10.1007/978-1-4471-4573-8
+74. Ebrahimi, K., Jones, G.F., Fleischer, A.S. (2014). A review of data center cooling technology, operating conditions and the corresponding low-grade waste heat recovery opportunities. *Renewable and Sustainable Energy Reviews*, 31, 622-638. https://doi.org/10.1016/j.rser.2013.12.007
+75. Li, H., Svendsen, S. (2012). Energy and exergy analysis of low temperature district heating network. *Energy*, 45(1), 237-246. https://doi.org/10.1016/j.energy.2012.03.056
+76. Gong, M., Werner, S. (2015). Exergy analysis of network temperature levels in Swedish and Danish district heating systems. *Renewable Energy*, 84, 106-113. https://doi.org/10.1016/j.renene.2015.06.001
+77. Lund, H., Werner, S., Wiltshire, R., Svendsen, S., Thorsen, J.E., Hvelplund, F., Mathiesen, B.V. (2014). 4th Generation District Heating (4GDH): Integrating smart thermal grids into future sustainable energy systems. *Energy*, 68, 1-11. https://doi.org/10.1016/j.energy.2014.02.089
 
 ## Team
 
