@@ -38,8 +38,10 @@ def pick(a, b):
 
 
 @st.cache_data(show_spinner=False)
-def load(stamp: float) -> dict:
-    return json.loads(DATA.read_text(encoding="utf-8"))
+def load_siting(path: str, stamp: float) -> dict:
+    # Streamlit runs every page as __main__ and keys the cache by function name and source, so the
+    # name is unique across pages and the path is part of the key (tests/test_app_cache_keys.py).
+    return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
 st.title(pick("次のデータセンターの立地", "Siting the next data center"))
@@ -56,7 +58,7 @@ if not DATA.exists():
                     "The siting data is missing. Run `uv run python scripts/export_siting.py` first (about a quarter of an hour)."))
     st.stop()
 
-data = load(DATA.stat().st_mtime)
+data = load_siting(str(DATA), DATA.stat().st_mtime)
 cands = data["candidates"]
 has_grid = data.get("power") is not None and all("grid_66" in c for c in cands)
 

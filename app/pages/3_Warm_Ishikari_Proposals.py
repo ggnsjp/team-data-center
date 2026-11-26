@@ -28,8 +28,10 @@ def pick(ja: str, en: str) -> str:
 
 
 @st.cache_data(show_spinner=False)
-def load(stamp: float) -> dict:
-    return json.loads(DATA.read_text(encoding="utf-8"))
+def load_proposals(path: str, stamp: float) -> dict:
+    # Streamlit runs every page as __main__ and keys the cache by function name and source, so the
+    # name is unique across pages and the path is part of the key (tests/test_app_cache_keys.py).
+    return json.loads(Path(path).read_text(encoding="utf-8"))
 
 
 @st.cache_resource(show_spinner=False)
@@ -48,7 +50,7 @@ if not DATA.exists():
                     "The proposal data is missing. Run `uv run python scripts/export_proposals.py` first."))
     st.stop()
 
-data = load(DATA.stat().st_mtime)
+data = load_proposals(str(DATA), DATA.stat().st_mtime)
 dcs = {d["key"]: d for d in data["dcs"]}
 key = st.selectbox(pick("データセンター", "Data center"), list(dcs), key="dc_pick",
                    format_func=lambda k: dcs[k]["name"] if L == "ja" else dcs[k]["name_en"])

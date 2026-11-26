@@ -28,8 +28,10 @@ st.markdown("<style>.block-container{padding-top:1rem;padding-bottom:0}</style>"
 
 
 @st.cache_data(show_spinner=False)
-def page_html(stamp: float) -> str:
-    body = PAGE.read_text(encoding="utf-8")
+def map_page_html(page: str, stamp: float) -> str:
+    # Streamlit runs every page as __main__ and keys the cache by function name and source, so the
+    # name is unique across pages and the page path is part of the key (tests/test_app_cache_keys.py).
+    body = Path(page).read_text(encoding="utf-8")
     data = ",".join(f'"{name}":{path.read_text(encoding="utf-8")}' for name, path in DATA.items())
     data = data.replace("</", "<\\/")                      # keep the JSON from closing the script tag
     shim = ("<script>window.__DATA__={" + data + "};"
@@ -50,4 +52,4 @@ if missing:
                       ". Run `uv run python scripts/export_heat_story.py` first."))
 else:
     stamp = max(p.stat().st_mtime for p in [PAGE, *DATA.values()])
-    components.html(page_html(stamp), height=3400, scrolling=True)
+    components.html(map_page_html(str(PAGE), stamp), height=3400, scrolling=True)
