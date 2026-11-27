@@ -27,6 +27,7 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
+from scipy.optimize import Bounds, LinearConstraint, milp
 from sklearn.cluster import DBSCAN
 
 from dcopt.common import geo
@@ -377,7 +378,11 @@ def _highs(c, A, lo, hi, lb, ub, integrality, time_limit: float, start: dict[int
     """Solve min c.v s.t. lo <= A v <= hi, lb <= v <= ub with HiGHS (the solver scipy's milp wraps,
     with the same time limit and gap). `start` gives values for some variables (the integer part of
     a known plan); HiGHS completes it to a full solution and uses it as its first incumbent, or
-    drops it if it is infeasible. Returns (v, status, gap)."""
+    drops it if it is infeasible. Returns (v, status, gap).
+
+    design() comes here only when it is given a start. highspy is another build of HiGHS than the
+    one inside scipy and uses several threads: its plan can differ from scipy's within the gap, and
+    with the number of CPUs of the machine."""
     import highspy
     Ac = sp.csc_matrix(A)
     lp = highspy.HighsLp()
@@ -409,6 +414,12 @@ def _highs(c, A, lo, hi, lb, ub, integrality, time_limit: float, start: dict[int
     return np.array(h.getSolution().col_value), status, float(info.mip_gap) if mip else 0.0
 
 
+def _in_milp_words(status: str) -> str:
+    """A HiGHS model status in the words scipy's milp uses for the same outcome, so that a reader
+    of the page sees one wording for plans made with and without a start."""
+    return ("Optimization terminated successfully" if status == "Optimal" else status) + ". (HiGHS, warm start)"
+
+
 def _start_values(start: Design, users: list[Site], E: list[tuple[int, int]], iy, ix) -> dict[int, float]:
     """The pipes and connections of a known plan as values for this model's y and x, matched by
     site key; pipes or users the model does not have are left out."""
@@ -430,11 +441,15 @@ def design(dc: Site, sites: list[Site], A: Assumptions, k: int = 4, kinds: set[s
     x_u connects user u, a unit of commodity u flows from the data center to u along built pipes
     (g_ua <= y_e per user and pipe), and u is served s_ut <= D_ut x_u each month.
 
+    Without a start the model goes to scipy's milp, with the options it has always had here: such
+    a plan is the plan this model gave before the warm start existed, on any machine.
+
     start: a nearby plan (for example the same instance under other prices). Its pipes and
-    connections warm-start HiGHS, so a time-limited solve begins from that plan instead of from
-    nothing. The optimum does not depend on it, but the plan returned can: the search stops at a
-    gap of MIP_REL_GAP, and another start can end on another plan within that gap. cached_design
-    therefore lets the inputs decide the start (start_assumptions).
+    connections warm-start HiGHS (through highspy, which can take a start), so a time-limited solve
+    begins from that plan instead of from nothing. The optimum does not depend on it, but the plan
+    returned can: the search stops at a gap of MIP_REL_GAP, and another start, or another solver
+    build, can end on another plan within that gap. cached_design therefore uses a start only when
+    the warm start is switched on (warm_start_on), and lets the inputs decide it (start_assumptions).
     """
     import time
     t0 = time.perf_counter()
@@ -507,8 +522,18 @@ def design(dc: Site, sites: list[Site], A: Assumptions, k: int = 4, kinds: set[s
         lb[:nE] = 1
     integrality = np.zeros(nv)
     integrality[:nE + nU] = 1
-    warm = _start_values(start, users, E, iy, ix) if start is not None else None
-    x, status, gap = _highs(c, Amat, np.array(lo), np.array(hi), lb, ub, integrality, time_limit, warm)
+    if start is None:
+        res = milp(c, constraints=LinearConstraint(Amat, lo, hi), integrality=integrality, bounds=Bounds(lb, ub),
+                   options={"time_limit": time_limit, "mip_rel_gap": MIP_REL_GAP})
+        if res.x is None:
+            raise RuntimeError(f"heat network model has no solution: {res.message}")
+        x, status = res.x, res.message
+        gap = getattr(res, "mip_gap", None)
+        gap = float(gap) if gap is not None else math.nan
+    else:
+        warm = _start_values(start, users, E, iy, ix)
+        x, status, gap = _highs(c, Amat, np.array(lo), np.array(hi), lb, ub, integrality, time_limit, warm)
+        status = _in_milp_words(status)
     served = np.array([[max(0.0, x[isv(u, t)]) for t in range(T)] for u in range(nU)]) if nU else np.zeros((0, T))
     used = served.sum(axis=0) * (1 - 1 / A.cop)
     built = [(a, b, float(dist[a, b])) for e, (a, b) in enumerate(E) if x[iy(e)] > 0.5]
@@ -520,7 +545,7 @@ def design(dc: Site, sites: list[Site], A: Assumptions, k: int = 4, kinds: set[s
             monthly[a, b] = [float(sum(served[u, t] * share[u] for u in range(nU))) for t in range(T)]
             flow[a, b] = float(sum(monthly[a, b]))
     d = Design(users, built, flow, served, used, W, A, status, time.perf_counter() - t0, gap=gap,
-               warm_start=warm is not None)
+               warm_start=start is not None)
     d.edge_flow_month = monthly
     d.paths = {(a, b): road_path(nodes[a].node, nodes[b].node, AREA) for a, b, _ in built}
     return d
@@ -528,6 +553,7 @@ def design(dc: Site, sites: list[Site], A: Assumptions, k: int = 4, kinds: set[s
 
 # ---- disk cache of solved plans (data/cache/ is git-ignored) ----
 PLAN_CACHE_ENV = "DCOPT_PLAN_CACHE"      # set to a folder to keep the cache elsewhere (the tests do)
+WARM_START_ENV = "DCOPT_WARM_START"      # set to 1 to let cached_design warm-start the cases with a policy
 
 
 def plan_cache_dir() -> Path:
@@ -540,10 +566,23 @@ def code_version() -> str:
     return hashlib.sha256(Path(__file__).read_bytes()).hexdigest()[:16]
 
 
+def warm_start_on() -> bool:
+    """The optional warm start: on when DCOPT_WARM_START is 1, true, yes or on; off otherwise.
+
+    Off, every plan comes from scipy's milp, as it always did. On, a case with a policy is solved by
+    highspy from the no-policy plan of the same settings (start_assumptions). That plan is never
+    worse than keeping the no-policy plan, but it can differ from the plan made without a start
+    within the gap, and with the number of CPUs of the machine. Hence opt-in.
+    """
+    return os.environ.get(WARM_START_ENV, "").strip().lower() in ("1", "true", "yes", "on")
+
+
 def plan_key(dc: Site, sites: list[Site], A: Assumptions, k: int, kinds: set[str] | None,
-             time_limit: float) -> str:
+             time_limit: float, warm: bool = False) -> str:
     """A stable key for one solve: the assumptions, the kinds, k, the time limit, the code version
-    and the candidate sites (so a fresh map fetch does not serve plans for the old sites)."""
+    and the candidate sites (so a fresh map fetch does not serve plans for the old sites). `warm`
+    marks a plan solved from a start: it gets another key than the plan the same inputs give without
+    one, so the two are never taken for each other."""
     payload = {
         "A": asdict(A),
         "kinds": sorted(kinds) if kinds is not None else None,
@@ -553,6 +592,8 @@ def plan_key(dc: Site, sites: list[Site], A: Assumptions, k: int, kinds: set[str
         "sites": [[s.key, s.kind, s.node, round(s.annual_mwh, 6), round(s.lon, 7), round(s.lat, 7)]
                   for s in [dc] + list(sites)],
     }
+    if warm:
+        payload["start"] = "the plan of the same assumptions without the policy"
     blob = json.dumps(payload, sort_keys=True, ensure_ascii=True, default=str)
     return hashlib.sha256(blob.encode()).hexdigest()[:32]
 
@@ -563,32 +604,40 @@ def no_policy(A: Assumptions) -> Assumptions:
 
 
 def start_assumptions(A: Assumptions) -> Assumptions | None:
-    """The assumptions whose plan warm-starts the solve under A, or None for a cold solve.
+    """With the warm start on: the assumptions whose plan starts the solve under A, or None for a
+    solve without a start.
 
     The inputs alone decide the start, never what was solved before, so the same inputs always get
     the same plan. A case with a policy (a carbon price or a subsidy) starts from the plan of the
     same assumptions without the policy: the policy changes the value of heat and the cost of
     pipes, not what can be built, so that plan is feasible and the result is never worse than
-    keeping it. Every case without a policy is solved cold, the default settings among them.
+    keeping it. Every case without a policy is solved without a start, the default settings among
+    them.
     """
     base = no_policy(A)
     return base if base != A else None
 
 
 def cached_design(dc: Site, sites: list[Site], A: Assumptions, k: int = 4, kinds: set[str] | None = None,
-                  time_limit: float = 30.0, cache_dir: Path | None = None) -> tuple[Design, bool]:
+                  time_limit: float = 30.0, cache_dir: Path | None = None,
+                  warm_start: bool | None = None) -> tuple[Design, bool]:
     """design() with the optimal network kept on disk. Returns (design, loaded_from_cache).
 
-    A plan in this cache depends on its inputs only. Where the solve is warm-started
-    (start_assumptions), the starting plan comes from this cache too, solved and stored first when
-    it is not there yet, so the start is fixed by the key and is not part of it.
+    warm_start: None reads the switch (warm_start_on, off by default); True or False sets it for
+    this call. Off, design() gets no start and this is the cache it has always been. On, a case
+    with a policy is solved from the no-policy plan of the same settings (start_assumptions), which
+    comes from this cache too, solved and stored first when it is not there yet. The inputs fix the
+    start, so a plan in this cache depends on its inputs and on the switch only; a plan made from a
+    start has its own key and is never returned with the switch off.
 
     The cache holds pickles this function wrote itself in a git-ignored folder; an unreadable file
     is treated as a miss and overwritten. The key contains code_version(), so a plan written by
-    another version of this module (another solver call, another status wording) is never served.
+    another version of this module is never served.
     """
+    on = warm_start_on() if warm_start is None else bool(warm_start)
+    first = start_assumptions(A) if on else None
     folder = Path(cache_dir) if cache_dir is not None else plan_cache_dir()
-    f = folder / f"{plan_key(dc, sites, A, k, kinds, time_limit)}.pkl"
+    f = folder / f"{plan_key(dc, sites, A, k, kinds, time_limit, warm=first is not None)}.pkl"
     if f.exists():
         try:
             with f.open("rb") as fh:
@@ -596,12 +645,14 @@ def cached_design(dc: Site, sites: list[Site], A: Assumptions, k: int = 4, kinds
         except (OSError, EOFError, pickle.UnpicklingError, AttributeError, ImportError, IndexError,
                 TypeError, ValueError):
             d = None                      # a partial or stale file: solve again
-        if isinstance(d, Design):
+        if isinstance(d, Design) and bool(getattr(d, "warm_start", False)) == (first is not None):
             return d, True
-    start, first = None, start_assumptions(A)
-    if first is not None:
-        start, _ = cached_design(dc, sites, first, k=k, kinds=kinds, time_limit=time_limit, cache_dir=cache_dir)
-    d = design(dc, sites, A, k=k, kinds=kinds, time_limit=time_limit, start=start)
+    if first is None:
+        d = design(dc, sites, A, k=k, kinds=kinds, time_limit=time_limit)
+    else:
+        start, _ = cached_design(dc, sites, first, k=k, kinds=kinds, time_limit=time_limit, cache_dir=cache_dir,
+                                 warm_start=True)
+        d = design(dc, sites, A, k=k, kinds=kinds, time_limit=time_limit, start=start)
     try:
         folder.mkdir(parents=True, exist_ok=True)
         tmp = f.with_suffix(f".{os.getpid()}.tmp")

@@ -1,5 +1,6 @@
-"""v1.design on HiGHS: status and gap are reported, and a warm start from a nearby plan never makes
-the answer worse. Synthetic instance on a plane (straight-line distances x 1.3), no map data."""
+"""v1.design: status and gap are reported, and a warm start from a nearby plan never makes the
+answer worse. Without a start the model goes to scipy's milp as it always did; with one, to highspy.
+Synthetic instance on a plane (straight-line distances x 1.3), no map data."""
 from __future__ import annotations
 
 import math
@@ -40,10 +41,42 @@ def tol(x: float) -> float:
     return v1.MIP_REL_GAP * abs(x) + 1.0
 
 
+DONE = "Optimization terminated successfully"        # scipy's words; the warm path reports in the same
+
+
+def test_a_solve_without_a_start_goes_to_scipy_and_never_to_highspy(monkeypatch):
+    real, asked = v1.milp, []
+
+    def watched(c, **kw):
+        asked.append(kw)
+        return real(c, **kw)
+
+    def never(*args, **kw):
+        raise AssertionError("a solve without a start must not reach highspy")
+
+    monkeypatch.setattr(v1, "milp", watched)
+    monkeypatch.setattr(v1, "_highs", never)
+    dc, ss = sites()
+    d = design(dc, ss, A, k=3)
+    pairs = v1.pairwise(dc, ss, A)
+    assert len(asked) == 2 and not d.warm_start and not pairs.warm_start
+    assert asked[0]["options"] == {"time_limit": 30.0, "mip_rel_gap": 0.005}      # the options it always had
+    assert set(asked[0]) == {"constraints", "integrality", "bounds", "options"}
+    assert d.status.startswith(DONE) and "HiGHS Status" in d.status              # scipy's own message
+
+
+def test_a_solve_with_a_start_goes_to_highspy(monkeypatch):
+    dc, ss = sites()
+    base = design(dc, ss, A, k=3)
+    monkeypatch.setattr(v1, "milp", lambda *args, **kw: pytest.fail("a solve with a start must not reach scipy"))
+    warm = design(dc, ss, replace(A, subsidy=0.3), k=3, start=base)
+    assert warm.warm_start and warm.status == DONE + ". (HiGHS, warm start)"
+
+
 def test_cold_solve_reports_status_and_gap():
     dc, ss = sites()
     d = design(dc, ss, A, k=3)
-    assert d.status == "Optimal" and 0.0 <= d.gap <= v1.MIP_REL_GAP and not d.warm_start
+    assert d.status.startswith(DONE) and 0.0 <= d.gap <= v1.MIP_REL_GAP and not d.warm_start
     assert d.connected and d.annual_net > 0
     assert all(u <= w + 1e-6 for u, w in zip(d.supply_used, d.waste_heat))
 
@@ -54,7 +87,7 @@ def test_warm_start_from_the_no_policy_plan_is_never_worse():
     B = replace(A, carbon_yen_t=8000.0, subsidy=0.3)
     cold = design(dc, ss, B, k=3)
     warm = design(dc, ss, B, k=3, start=base)
-    assert warm.warm_start and warm.status == "Optimal"
+    assert warm.warm_start and warm.status.startswith(DONE)      # one wording with and without a start
     assert warm.annual_net >= cold.annual_net - tol(cold.annual_net)
     assert warm.annual_net >= replace(base, A=B).annual_net - 1e-6 * abs(warm.annual_net)   # the start itself
 
@@ -88,19 +121,27 @@ def same_plan(a: v1.Design, b: v1.Design) -> bool:
 def test_the_same_inputs_give_the_same_plan_whatever_was_solved_before(tmp_path):
     dc, ss = sites()
     B = replace(A, carbon_yen_t=8000.0, subsidy=0.3)
-    fresh, _ = v1.cached_design(dc, ss, B, k=3, cache_dir=tmp_path / "fresh")
+    fresh, _ = v1.cached_design(dc, ss, B, k=3, cache_dir=tmp_path / "fresh", warm_start=True)
     for other in (replace(A, kerosene_yen_l=140.0), replace(B, subsidy=0.6),
                   replace(A, it_load_mw=0.2, carbon_yen_t=3000.0)):
-        v1.cached_design(dc, ss, other, k=3, cache_dir=tmp_path / "used")
-    later, hit = v1.cached_design(dc, ss, B, k=3, cache_dir=tmp_path / "used")
+        v1.cached_design(dc, ss, other, k=3, cache_dir=tmp_path / "used", warm_start=True)
+    later, hit = v1.cached_design(dc, ss, B, k=3, cache_dir=tmp_path / "used", warm_start=True)
     assert not hit and fresh.warm_start and later.warm_start
     assert same_plan(later, fresh)
 
 
-def test_cases_without_a_policy_come_from_a_cold_solve(tmp_path):
+def test_cases_without_a_policy_come_from_a_solve_without_a_start(tmp_path):
     dc, ss = sites()
-    v1.cached_design(dc, ss, replace(A, subsidy=0.5), k=3, cache_dir=tmp_path)      # something solved before
+    v1.cached_design(dc, ss, replace(A, subsidy=0.5), k=3, cache_dir=tmp_path, warm_start=True)   # solved before
     for case in (A, replace(A, kerosene_yen_l=140.0)):
+        plan, _ = v1.cached_design(dc, ss, case, k=3, cache_dir=tmp_path, warm_start=True)
+        assert not plan.warm_start and same_plan(plan, design(dc, ss, case, k=3))
+
+
+def test_with_the_warm_start_off_every_plan_is_the_plan_of_a_solve_without_a_start(monkeypatch, tmp_path):
+    monkeypatch.delenv(v1.WARM_START_ENV, raising=False)
+    dc, ss = sites()
+    for case in (A, replace(A, carbon_yen_t=8000.0, subsidy=0.3)):
         plan, _ = v1.cached_design(dc, ss, case, k=3, cache_dir=tmp_path)
         assert not plan.warm_start and same_plan(plan, design(dc, ss, case, k=3))
 
@@ -108,8 +149,8 @@ def test_cases_without_a_policy_come_from_a_cold_solve(tmp_path):
 def test_a_policy_plan_is_never_worse_than_keeping_the_no_policy_plan(tmp_path):
     dc, ss = sites()
     for B in (replace(A, carbon_yen_t=8000.0, subsidy=0.3), replace(A, subsidy=0.6)):
-        plan, _ = v1.cached_design(dc, ss, B, k=3, cache_dir=tmp_path)
-        base, hit = v1.cached_design(dc, ss, v1.no_policy(B), k=3, cache_dir=tmp_path)
+        plan, _ = v1.cached_design(dc, ss, B, k=3, cache_dir=tmp_path, warm_start=True)
+        base, hit = v1.cached_design(dc, ss, v1.no_policy(B), k=3, cache_dir=tmp_path, warm_start=True)
         assert hit and plan.warm_start and not base.warm_start
         assert plan.annual_net >= replace(base, A=B).annual_net - 1e-6 * abs(plan.annual_net)
 
