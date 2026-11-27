@@ -8,6 +8,10 @@ For every move in the config: solve the "from" assumptions (the app's defaults),
 of the machine (HiGHS uses several threads), so run it on a quiet machine and compare times only
 within one run. The objective is the annual net benefit (yen/yr); higher is better.
 
+A solve without a start goes to scipy's milp, which is what the app does by default; a solve with
+a start goes to highspy (dcopt.heat.v1.design). So "cold" against "warm" is the app's default
+against its optional warm start (DCOPT_WARM_START=1), another build of HiGHS included.
+
 Needs the Ishikari map data (data/cache/ishikari). Results go to results/heat_warmstart/<timestamp>/.
 """
 from __future__ import annotations
