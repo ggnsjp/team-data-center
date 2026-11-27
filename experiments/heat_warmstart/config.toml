@@ -1,0 +1,37 @@
+# Warm Ishikari (v1.design): cold vs warm-started HiGHS on a fixed set of slider moves.
+# Each move starts from the app's defaults (dcopt.heat.v1.Assumptions) and changes one setting,
+# the way a user moves one slider. "from" is the plan used as the warm start, "to" is re-solved.
+# The values are slider positions the app offers, not data: none of them is a claim about Ishikari.
+
+time_limit = 60        # seconds per solve, as in the app
+k = 3                  # candidate pipes per site, the app's default
+assumed_sites = true   # include the assumed sites, the app's default
+repeats = 1            # solves per move and mode; raise on a quiet machine to see the spread
+
+[[move]]
+name = "kerosene 115 -> 140 yen/L"
+to = { kerosene_yen_l = 140.0 }
+
+[[move]]
+name = "kerosene 115 -> 90 yen/L"
+to = { kerosene_yen_l = 90.0 }
+
+[[move]]
+name = "electricity 25 -> 30 yen/kWh"
+to = { power_yen_kwh = 30.0 }
+
+[[move]]
+name = "pipe cost 10 -> 12 (10k yen/m)"
+to = { pipe_yen_m = 120000.0 }
+
+[[move]]
+name = "IT load 10 -> 15 MW"
+to = { it_load_mw = 15.0 }
+
+[[move]]
+name = "carbon price 0 -> 8000 yen/t (policy solve from the no-policy plan)"
+to = { carbon_yen_t = 8000.0 }
+
+[[move]]
+name = "subsidy 0 -> 50 % (policy solve from the no-policy plan)"
+to = { subsidy = 0.5 }

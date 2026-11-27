@@ -27,7 +27,6 @@ import geopandas as gpd
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
-from scipy.optimize import Bounds, LinearConstraint, milp
 from sklearn.cluster import DBSCAN
 
 from dcopt.common import geo
@@ -308,7 +307,8 @@ class Design:
     seconds: float = 0.0
     paths: dict = field(default_factory=dict)
     edge_flow_month: dict = field(default_factory=dict)   # (a, b) -> 12 monthly MWh
-    gap: float = math.nan                   # relative MIP gap reported by the solver (nan if none)
+    gap: float = math.nan                   # relative MIP gap at the end of the solve (nan if none)
+    warm_start: bool = False                # HiGHS was given a start from another plan
 
     @property
     def delivered(self) -> float:
@@ -369,13 +369,67 @@ class Design:
         return [i for i in range(len(self.sites)) if self.served[i].sum() > 1e-6]
 
 
+MIP_REL_GAP = 0.005
+
+
+def _highs(c, A, lo, hi, lb, ub, integrality, time_limit: float, start: dict[int, float] | None = None):
+    """Solve min c.v s.t. lo <= A v <= hi, lb <= v <= ub with HiGHS (the solver scipy's milp wraps,
+    with the same time limit and gap). `start` gives values for some variables (the integer part of
+    a known plan); HiGHS completes it to a full solution and uses it as its first incumbent, or
+    drops it if it is infeasible. Returns (v, status, gap)."""
+    import highspy
+    Ac = sp.csc_matrix(A)
+    lp = highspy.HighsLp()
+    lp.num_col_, lp.num_row_ = len(c), Ac.shape[0]
+    lp.col_cost_ = np.asarray(c, float)
+    lp.col_lower_, lp.col_upper_ = np.asarray(lb, float), np.asarray(ub, float)
+    lp.row_lower_, lp.row_upper_ = np.asarray(lo, float), np.asarray(hi, float)
+    lp.a_matrix_.format_ = highspy.MatrixFormat.kColwise
+    lp.a_matrix_.start_, lp.a_matrix_.index_, lp.a_matrix_.value_ = Ac.indptr, Ac.indices, Ac.data
+    mip = bool(np.any(integrality))
+    if mip:
+        kinds = [highspy.HighsVarType.kContinuous, highspy.HighsVarType.kInteger]
+        lp.integrality_ = [kinds[int(i > 0)] for i in integrality]
+    h = highspy.Highs()
+    h.setOptionValue("output_flag", False)
+    h.setOptionValue("time_limit", float(time_limit))
+    h.setOptionValue("mip_rel_gap", MIP_REL_GAP)
+    h.passModel(lp)
+    if start and mip:
+        idx = np.fromiter(start.keys(), dtype=np.int32)
+        h.setSolution(len(idx), idx, np.fromiter(start.values(), dtype=float))
+    h.run()
+    info = h.getInfo()
+    status = h.modelStatusToString(h.getModelStatus())
+    if info.primal_solution_status == 0:
+        raise RuntimeError(f"heat network model has no solution: {status}")
+    return np.array(h.getSolution().col_value), status, float(info.mip_gap) if mip else 0.0
+
+
+def _start_values(start: Design, users: list[Site], E: list[tuple[int, int]], iy, ix) -> dict[int, float]:
+    """The pipes and connections of a known plan as values for this model's y and x, matched by
+    site key; pipes or users the model does not have are left out."""
+    key_old = ["\0dc"] + [s.key for s in start.sites]
+    key_new = ["\0dc"] + [s.key for s in users]
+    built = {frozenset((key_old[a], key_old[b])) for a, b, _ in start.edges}
+    on = {start.sites[i].key for i in start.connected}
+    vals = {iy(e): float(frozenset((key_new[a], key_new[b])) in built) for e, (a, b) in enumerate(E)}
+    vals.update({ix(u): float(s.key in on) for u, s in enumerate(users)})
+    return vals
+
+
 def design(dc: Site, sites: list[Site], A: Assumptions, k: int = 4, kinds: set[str] | None = None,
-           links: list[tuple[int, int]] | None = None, time_limit: float = 30.0) -> Design:
+           links: list[tuple[int, int]] | None = None, time_limit: float = 30.0,
+           start: Design | None = None) -> Design:
     """Optimal network (links=None) or the given links built and used as well as possible.
 
     Prize-collecting Steiner tree with monthly supply limits, in the strong multi-commodity form:
     x_u connects user u, a unit of commodity u flows from the data center to u along built pipes
     (g_ua <= y_e per user and pipe), and u is served s_ut <= D_ut x_u each month.
+
+    start: a nearby plan (for example the same instance under other prices). Its pipes and
+    connections warm-start HiGHS, so a time-limited solve begins from that plan instead of from
+    nothing. The optimum does not depend on it; only how fast it is found does.
     """
     import time
     t0 = time.perf_counter()
@@ -448,11 +502,8 @@ def design(dc: Site, sites: list[Site], A: Assumptions, k: int = 4, kinds: set[s
         lb[:nE] = 1
     integrality = np.zeros(nv)
     integrality[:nE + nU] = 1
-    res = milp(c, constraints=LinearConstraint(Amat, lo, hi), integrality=integrality, bounds=Bounds(lb, ub),
-               options={"time_limit": time_limit, "mip_rel_gap": 0.005})
-    if res.x is None:
-        raise RuntimeError(f"heat network model has no solution: {res.message}")
-    x = res.x
+    warm = _start_values(start, users, E, iy, ix) if start is not None else None
+    x, status, gap = _highs(c, Amat, np.array(lo), np.array(hi), lb, ub, integrality, time_limit, warm)
     served = np.array([[max(0.0, x[isv(u, t)]) for t in range(T)] for u in range(nU)]) if nU else np.zeros((0, T))
     used = served.sum(axis=0) * (1 - 1 / A.cop)
     built = [(a, b, float(dist[a, b])) for e, (a, b) in enumerate(E) if x[iy(e)] > 0.5]
@@ -463,9 +514,8 @@ def design(dc: Site, sites: list[Site], A: Assumptions, k: int = 4, kinds: set[s
             share = [x[ig(u, e)] + x[ig(u, e + nE)] for u in range(nU)]
             monthly[a, b] = [float(sum(served[u, t] * share[u] for u in range(nU))) for t in range(T)]
             flow[a, b] = float(sum(monthly[a, b]))
-    d = Design(users, built, flow, served, used, W, A, res.message, time.perf_counter() - t0)
-    gap = getattr(res, "mip_gap", None)
-    d.gap = float(gap) if gap is not None else math.nan
+    d = Design(users, built, flow, served, used, W, A, status, time.perf_counter() - t0, gap=gap,
+               warm_start=warm is not None)
     d.edge_flow_month = monthly
     d.paths = {(a, b): road_path(nodes[a].node, nodes[b].node, AREA) for a, b, _ in built}
     return d
