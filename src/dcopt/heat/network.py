@@ -149,9 +149,11 @@ HP_COST_BASIS = ("users: assumption for small heat pumps (100 kW to 2 MW), to ch
                  "EUR 0.65M per MW of heat at Odense (two ammonia heat pumps, 44.6 MW, DKK 215M; Dansk Fjernvarme, "
                  "https://danskfjernvarme.dk/media/eqbhcqlv/inspirationskatalog-for-store-varmepumper-2022.pdf), "
                  "taken as 100M yen/MW (assumption, including the exchange rate)")
-TIE_BASIS = ("assumption, not a real cost: a tie-break so that equal-cost users go to the nearer data center "
-             "(solver-independent); about 2 millionths of the annuity of the cheapest pipe (DN50, about 4,300 "
-             "yen/m/yr), so the plan's net benefit moves by at most this times the distances of connected users")
+TIE_BASIS = ("optional tie-break, off by default (0), and not a real cost: with a positive value a user that two "
+             "data centers can serve at the same cost goes to the nearer one, whatever the solver. The value tested "
+             "is 0.01, about 2 millionths of the annuity of the cheapest pipe (DN50, about 4,300 yen/m/yr); the "
+             "objective moves by at most the value times the distances of connected users, and the reported net "
+             "benefits leave it out. The published plan was made with it off")
 PIPE_SIZES = tuple(PipeSize(dn, d / 1000, v, pipe_cost_yen_m(dn)) for dn, d, v in [
     (50, 52.9, 1.0), (80, 80.7, 1.2), (100, 105.3, 1.5), (150, 155.2, 1.8), (200, 204.7, 2.0), (250, 254.2, 2.2)])
 
@@ -206,7 +208,7 @@ class Params:
     formulation: str = "aggregated"  # "aggregated": shares per arc (fast LP); "extended": per arc and size (larger, barely tighter here)
     solver: str | None = None        # "highs" (default) or "gurobi"; else DCOPT_SOLVER
     heuristic_effort: float = 0.3    # HiGHS mip_heuristic_effort (default 0.05): more incumbent search
-    tie_yen_m: float = 0.01          # assumption: tie-break, yen per metre per year from data center to user (TIE_BASIS)
+    tie_yen_m: float = 0.0           # optional tie-break, off by default: yen per metre per year from data center to user (TIE_BASIS)
 
     @property
     def crf(self) -> float:
@@ -697,7 +699,8 @@ class Model:
     E: list
     ud: UserData
     Wc: np.ndarray
-    tie: np.ndarray           # nv: tie-break cost on z (tie_cost), added to every objective but not to `cost`
+    tie: np.ndarray | None = None   # nv: the optional tie-break on z (tie_cost); None while Params.tie_yen_m is 0.
+                                    # Added to every objective, never to `cost`
 
 
 def build_model(inst: Instance, P: Params, scens: list[Scenario], *, edges: list[tuple[int, int]] | None = None,
@@ -904,19 +907,20 @@ def build_model(inst: Instance, P: Params, scens: list[Scenario], *, edges: list
     if decided:
         offs["yu"] = oyu
     return Model(cost, Amat, np.concatenate(lo), np.concatenate(hi), lb, ub, integrality, offs, E, ud, Wc,
-                 tie_cost(inst, P, nv, oz))
+                 tie_cost(inst, P, nv, oz) if P.tie_yen_m > 0 else None)
 
 
 def tie_cost(inst: Instance, P: Params, nv: int, oz: int) -> np.ndarray:
-    """Tie-break cost on the assignment z_ud: tie_yen_m x (distance from data center d to user u, plus
-    less than one metre for d's place in the order of the data center keys). When two data centers can
+    """Optional tie-break cost on the assignment z_ud (Params.tie_yen_m > 0; off by default, and then
+    build_model does not call this): tie_yen_m x (distance from data center d to user u, plus less
+    than one metre for d's place in the order of the data center keys). When two data centers can
     serve a user at the same cost, the nearer one wins (the one with the smaller key if they are equally
     far), whatever the solver or the column order. It is kept out of `cost`, so the reported net benefit
     and the rows of the robust objectives do not include it; it moves the objective by at most
-    tie_yen_m x the distances of the connected users (TIE_BASIS)."""
+    tie_yen_m x the distances of the connected users (TIE_BASIS), and the solver's bound moves with it."""
     D, U = inst.D, inst.U
     tie = np.zeros(nv)
-    if P.tie_yen_m == 0 or not U or not D:
+    if P.tie_yen_m <= 0 or not U or not D:
         return tie
     dist = np.array(inst.dist[:D, D:D + U], dtype=float).T                 # U x D
     finite = np.isfinite(dist)
@@ -930,16 +934,21 @@ def _with_objective(m: Model, scens: list[Scenario], objective: str, own_opt, ep
     """Objective, matrix and bounds for one objective; robust ones add one epigraph variable t."""
     prob = np.array([s.prob for s in scens])
     Wn = len(scens)
+
+    def tied(c: np.ndarray) -> np.ndarray:
+        """c plus the optional tie-break; with the tie-break off (the default) c itself, untouched."""
+        return c if m.tie is None else c + m.tie
+
     if objective == "expected":
-        return prob @ m.cost + m.tie, m.A, m.lo, m.hi, m.lb, m.ub, m.integrality
+        return tied(prob @ m.cost), m.A, m.lo, m.hi, m.lb, m.ub, m.integrality
     if objective == "worst":              # t + cost_w . v <= 0   (t <= net_w)
         col, rhi, tlb = np.ones((Wn, 1)), np.zeros(Wn), -np.inf
-        c = np.r_[eps * (prob @ m.cost) + m.tie, -1.0]
+        c = np.r_[tied(eps * (prob @ m.cost)), -1.0]
     elif objective == "regret":           # cost_w . v - t <= -own_opt_w   (t >= own_opt_w - net_w)
         if own_opt is None or len(own_opt) != Wn:
             raise ValueError("objective='regret' needs own_opt, each scenario's own optimum")
         col, rhi, tlb = -np.ones((Wn, 1)), -np.asarray(own_opt, float), 0.0
-        c = np.r_[eps * (prob @ m.cost) + m.tie, 1.0]
+        c = np.r_[tied(eps * (prob @ m.cost)), 1.0]
     else:
         raise ValueError(f"unknown objective {objective!r}; use one of {list(OBJECTIVES)}")
     A = sp.vstack([sp.hstack([m.A, sp.csr_matrix((m.A.shape[0], 1))]),
@@ -1069,8 +1078,8 @@ def solve(inst: Instance, P: Params, scens: list[Scenario], *, objective: str = 
       "worst"     max t  s.t. t <= net_w for every w                         (max-min, epigraph t)
       "regret"    min t  s.t. t >= own_opt_w - net_w for every w             (min-max regret)
     The robust objectives add eps x the expected net benefit to break ties among equally robust plans.
-    Every objective adds the tiny cost of `tie_cost`, so that a user two data centers can serve at the
-    same cost always goes to the same one.
+    With Params.tie_yen_m > 0 (off by default) every objective also adds the tiny cost of `tie_cost`,
+    so that a user two data centers can serve at the same cost always goes to the same one.
     `fix` holds a plan's build (y on the same `edges`, x, assign) to evaluate it on other scenarios;
     `design_peak` keeps the evaluated plan's own pipe sizing (see user_data); `off` lists users that
     may not connect; `force_edges` builds every given edge (pair by pair); `start` is a plan on a

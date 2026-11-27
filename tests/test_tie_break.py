@@ -1,14 +1,16 @@
-"""Ties between data centers that serve a user at the same cost are broken the same way every time:
-by the nearer data center, then by key (Params.tie_yen_m, network.tie_cost)."""
+"""With the optional tie-break on (Params.tie_yen_m > 0, network.tie_cost), ties between data centers
+that serve a user at the same cost are broken the same way every time: by the nearer data center,
+then by key. It is off by default, and a model built with it off carries no tie term at all."""
 from dataclasses import replace
 
 import numpy as np
 import pytest
 from synthetic import SCENS, equidistant_two_dc, instance, permuted_sources, tiny
 
-from dcopt.heat.network import Params, build_model, solve
+from dcopt.heat.network import Params, _with_objective, build_model, solve
 
-P = Params(mip_rel_gap=0.0, time_limit=60, solver="highs")
+TIE = 0.01                                   # yen per metre per year: the value the tie-break is tested with
+P = Params(mip_rel_gap=0.0, time_limit=60, solver="highs", tie_yen_m=TIE)
 
 
 def served_by(plan) -> dict[str, str | None]:
@@ -24,8 +26,33 @@ def test_tie_cost_prefers_the_nearer_data_center_then_the_smaller_key():
     eq = build_model(equidistant_two_dc(), P, SCENS)
     t2 = eq.tie[eq.off["z"]:eq.off["g"]]
     assert 0 < t2[1] - t2[0] < P.tie_yen_m                      # same distance: dc0 (smaller key) first
-    assert not build_model(inst, replace(P, tie_yen_m=0.0), SCENS).tie.any()
+    assert build_model(inst, replace(P, tie_yen_m=0.0), SCENS).tie is None       # off: no tie vector at all
     assert m.tie[:m.off["z"]].sum() == 0 and m.tie[m.off["g"]:].sum() == 0      # only on z
+
+
+def test_the_tie_break_is_off_by_default_and_then_adds_nothing():
+    """The published plans were made without the tie-break: the default model has no tie vector, and
+    its objectives are exactly the ones built from the cost rows alone."""
+    assert Params().tie_yen_m == 0.0
+    inst = equidistant_two_dc()
+    off = build_model(inst, replace(P, tie_yen_m=0.0), SCENS)
+    on = build_model(inst, P, SCENS)
+    assert build_model(inst, Params(), SCENS).tie is None and off.tie is None and on.tie is not None
+    prob = np.array([s.prob for s in SCENS])
+    eps, own = 1e-4, [0.0] * len(SCENS)
+    assert np.array_equal(_with_objective(off, SCENS, "expected", None, eps)[0], prob @ off.cost)
+    for objective, last in (("worst", -1.0), ("regret", 1.0)):
+        c = _with_objective(off, SCENS, objective, own, eps)[0]
+        assert np.array_equal(c, np.r_[eps * (prob @ off.cost), last])
+        c_on = _with_objective(on, SCENS, objective, own, eps)[0]
+        assert np.allclose(c_on[:-1] - c[:-1], on.tie, rtol=0, atol=1e-9) and c_on[-1] == last
+    for m in (off, on):                      # everything but the objective is the same model
+        assert m.A.shape == off.A.shape and (m.A != off.A).nnz == 0
+        assert np.array_equal(m.cost, off.cost) and np.array_equal(m.lb, off.lb) and np.array_equal(m.ub, off.ub)
+
+
+def test_a_negative_value_counts_as_off():
+    assert build_model(equidistant_two_dc(), replace(P, tie_yen_m=-1.0), SCENS).tie is None
 
 
 @pytest.mark.parametrize("objective", ["expected", "worst"])
