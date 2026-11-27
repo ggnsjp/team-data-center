@@ -244,6 +244,8 @@ Three objectives are offered. Each is a MILP over (C1)–(C7). For the robust on
 | Worst case (max-min) | $\max\ \eta \ \ \text{s.t.}\ \ \eta \le N_\omega\ \ \forall\omega$ | protect the weakest scenario |
 | Min-max regret | $\min\ \rho \ \ \text{s.t.}\ \ \rho \ge N^\star_\omega - N_\omega\ \ \forall\omega$ | no probabilities; compare each scenario with its own best plan $N^\star_\omega$ [36] |
 
+**Optional tie-break.** When two data centers can serve a user at the same cost, the objectives above do not say which one does, and solvers may choose differently. With `Params.tie_yen_m` $= \tau > 0$ (off by default; the published plans were made without it) every objective also carries the cost $\tau \sum_{u,d} (\ell_{du} + \kappa_d)\, z_{ud}$, where $\ell_{du}$ is the road distance from data center $d$ to user $u$ in metres and $\kappa_d < 1$ m orders the data centers by key. The user then goes to the nearer data center, and to the one with the smaller key when both are equally far. The term is not part of $N_\omega$; at $\tau = 0.01$ yen per metre per year it is about two millionths of the annuity of the cheapest pipe.
+
 **Scenarios.** The default set has four scenarios with equal weight: the IT load at every data center is low or high, crossed with kerosene at 115 or 156.8 yen/L.
 
 **Two-stage structure.** $y, x, z, g$ are fixed before the uncertainty resolves. The deliveries $s$ adapt to each scenario.
