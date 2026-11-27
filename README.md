@@ -381,6 +381,7 @@ downloads map data reads it.
 - Model v1 against v2: `uv run python experiments/heat_v2_compare/run.py`
 - Robust sweep: `uv run python experiments/heat_ccg/run.py ambient`
 - Carbon price and subsidy scenarios: `uv run python experiments/heat_policy/run.py`
+- Model v1 solved by default and with the optional warm start, on fixed slider moves: `uv run python experiments/heat_warmstart/run.py`
 - Theme 2, every bus of six benchmark systems (downloads PGLib-OPF): `uv run python experiments/grid_hosting/run.py --workers 8`
 - Theme 4, the numbers and the figure: `uv run python scripts/export_matching.py --portfolio` and `uv run python scripts/render_matching_figure.py`
 - Weather years, 50 years of Sapporo weather: `uv run python experiments/weather_years/run.py ambient both --bound` (`--decided` makes the connection size a decision)
@@ -430,6 +431,14 @@ downloads map data reads it.
   are kept on disk in `data/cache/warm_ishikari_plans/` (not committed; set `DCOPT_PLAN_CACHE` to keep them
   elsewhere), so a setting solved before loads at once; a change to the model's code (`v1.py`) sets the saved
   plans aside. The caption shows the solve time, the MIP gap and whether the plan was a saved one.
+- **Optional warm start (off by default).** By default the page's model (v1) is solved as it always was, by
+  scipy's `milp`: a setting gives the same plan whatever was solved before, and in our checks also with 4, 16
+  and 32 CPUs. With `DCOPT_WARM_START=1`, a case with a carbon price or a subsidy is solved by HiGHS through
+  highspy, starting from the plan of the same settings without the policy. It is then never worse than keeping
+  that plan, and the caption says that the search started there. Every other case is solved as by default. A
+  plan made this way can differ from the default one within the 0.5 % gap (three cases tried on one machine:
+  the same net benefit, 0.3 % more, 0.13 % less) and with the number of CPUs (one of them: 188.1 M yen a year
+  with 16 or 32 CPUs, 187.3 M with 4). The plan cache keeps the two kinds apart.
 
 **The plan as a graph (optional)**
 - `uv run python scripts/export_plan_graph.py` turns a plan from `scripts/export_heat_network_v2.py` into a graph of junctions, pipes, data centers and heat users, and answers three questions: the route from a data center to each user, the users that lose their supply when one pipe is out, and the pipes most users share. It writes four tables and a Cypher script to `out/plan_graph/`. This runs with NetworkX; nothing else is needed.

@@ -2,7 +2,17 @@
 from __future__ import annotations
 
 import multiprocessing
+import os
 from concurrent.futures import ProcessPoolExecutor
+
+
+def solver_threads() -> int:
+    """Threads per solve from DCOPT_THREADS (0 or unset: the solver's default). Set it when several
+    solves run side by side, so that their time limits mean the same thing on a busy machine.
+
+    Every HiGHS solve of a process has to ask for the same number (see pool), so each call of the
+    solver reads it here: the v1 and the v2 heat model may run in one process."""
+    return max(0, int(os.environ.get("DCOPT_THREADS", "0") or 0))
 
 
 def pool(workers: int, initializer=None, initargs: tuple = ()) -> ProcessPoolExecutor:

@@ -29,8 +29,10 @@ from dcopt.heat.v1 import (
     HeatSourceMissing,
     cached_design,
     ishikari_sites,
+    no_policy,
     pairwise,
     standalone_and_shared,
+    warm_start_on,
 )
 
 lang = st.session_state.get("app_lang", "日本語")
@@ -94,12 +96,13 @@ def solve_with_new_dc(mw: float, lat: float, lon: float):
 
 
 @st.cache_resource(show_spinner=False)
-def solve(A: Assumptions, assumed: bool, k: int):
+def solve(A: Assumptions, assumed: bool, k: int, warm: bool = False):
     """The optimized plan (kept on disk under data/cache/, so it survives a restart), whether it came
-    from that cache, and the top-five-pairs plan."""
+    from that cache, and the top-five-pairs plan. `warm` is the optional warm start (off unless
+    DCOPT_WARM_START is set); it is an argument so that plans made with it stay apart here too."""
     dc, sites = load_sites()
     kinds = set(KIND_ORDER) if assumed else set(KIND_ORDER) - ASSUMED
-    opt, hit = cached_design(dc, sites, A, k=k, kinds=kinds, time_limit=60)
+    opt, hit = cached_design(dc, sites, A, k=k, kinds=kinds, time_limit=60, warm_start=warm)
     return opt, hit, pairwise(dc, sites, A, kinds=kinds)
 
 
@@ -133,7 +136,7 @@ with st.sidebar, st.form("assumptions", border=False):
 A = Assumptions(it_load_mw=float(it), recovery=float(rec), cop=float(cop), kerosene_yen_l=float(kero),
                 power_yen_kwh=float(power), pipe_yen_m=float(pipe) * 10_000, years=int(years), rate=rate / 100,
                 renewable_power=renew, carbon_yen_t=float(carbon), subsidy=subsidy_pct / 100)
-A0 = replace(A, carbon_yen_t=0.0, subsidy=0.0)          # the same assumptions with no policy
+A0 = no_policy(A)       # the same assumptions with no policy
 
 
 if missing := missing_map_data():
@@ -154,9 +157,10 @@ with st.spinner(pick("石狩市の地図と施設を読み込み中…", "Loadin
         st.error(pick(e.ja, e.en))
         st.stop()
 with st.spinner(pick("熱導管ネットワークを最適化中…", "Optimizing the heat network…")):
-    opt, from_cache, pw = solve(A, assumed, k)
+    warm = warm_start_on()                     # off by default: then no solve is given a start
+    opt, from_cache, pw = solve(A, assumed, k, warm)
     solved = opt                               # the plan the solver returned for these settings
-    base = opt if A == A0 else solve(A0, assumed, k)[0]
+    base = opt if A == A0 else solve(A0, assumed, k, warm)[0]
     if A != A0:
         kept = replace(base, A=A)              # the no-policy plan, valued under the policy
         if kept.annual_net > opt.annual_net:   # a time-limited search must not do worse than keeping that plan
@@ -182,11 +186,14 @@ c[5].metric(pick("CO2削減（t/年）", "CO2 cut (t/yr)"), f"{opt.co2_t:,.0f}",
 gap = getattr(solved, "gap", math.nan)
 gap_ja = f"MIPギャップ {gap:.2%}" if math.isfinite(gap) else "MIPギャップ 不明"
 gap_en = f"MIP gap {gap:.2%}" if math.isfinite(gap) else "MIP gap unknown"
+from_start = getattr(solved, "warm_start", False)   # only with the optional warm start switched on
 st.caption(pick(f"差分は「1件ずつ採算順に上位5件を選ぶ」方法との比較。投資額 {opt.capex / 1e8:,.1f} 億円、"
                 f"最適化 {solved.seconds:.1f} 秒・{gap_ja}（{solved.status.split('.')[0]}）"
+                + ("、政策なしの計画から探索を開始" if from_start else "")
                 + ("、保存済みの結果を表示。" if from_cache else "。"),
                 f"Deltas against picking the top five users one by one. Investment {opt.capex / 1e8:,.1f} "
                 f"hundred-million yen; optimized in {solved.seconds:.1f} s, {gap_en}"
+                + (", search started from the no-policy plan" if from_start else "")
                 + (" (saved result)." if from_cache else ".")))
 
 # ---- CO2 and policy scenarios: what a carbon price or a subsidy changes ----

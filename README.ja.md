@@ -379,6 +379,7 @@ uv run pytest                                          # テスト（地図デ�
 - v1とv2の比較：`uv run python experiments/heat_v2_compare/run.py`
 - ロバスト計画の掃引：`uv run python experiments/heat_ccg/run.py ambient`
 - 炭素価格と補助率のシナリオ：`uv run python experiments/heat_policy/run.py`
+- モデルv1を、既定の解き方と、別の計画を出発点にする解き方で比べる（決まったスライダーの動かし方で）：`uv run python experiments/heat_warmstart/run.py`
 - テーマ2、6つの試験系統の全母線（PGLib-OPFをダウンロードします）：`uv run python experiments/grid_hosting/run.py --workers 8`
 - テーマ4、数値と図：`uv run python scripts/export_matching.py --portfolio` と `uv run python scripts/render_matching_figure.py --lang ja`
 - 気象年、札幌の50年分の気象：`uv run python experiments/weather_years/run.py ambient both --bound`（`--decided` で接続管の太さを決定変数に）
@@ -409,6 +410,7 @@ uv run pytest                                          # テスト（地図デ�
 
   OrcaRouterが次のモデルに切り替えるのは、5xx・429・ネットワークのエラーのときだけです。401/403やガードレールによるブロックは、再試行せずエラーとして表示します。プライバシー：このモードでは、プロンプト（質問とモデルの数値）がモデルの提供元に加えてOrcaRouterも通ります。
 - 仮定のスライダーはフォームにまとめてあり、「再計算」を押すまで計算しません。解いた計画は `data/cache/warm_ishikari_plans/` に保存され（コミットしません。別の場所にするには `DCOPT_PLAN_CACHE`）、一度解いた条件はすぐに表示されます。モデルのコード（`v1.py`）を変えると、保存した計画は使われなくなります。画面の説明に、計算時間、MIPギャップ、保存済みの結果かどうかが表示されます。
+- **別の計画を出発点にして解く方法（ウォームスタート、任意。既定ではオフ）：** 既定では、このページのモデル（v1）を、これまでどおりscipyの `milp` で解きます。同じ条件なら、それまでに何を解いたかに関係なく同じ計画になります。CPUの数を4・16・32に変えた確認でも同じでした。`DCOPT_WARM_START=1` にすると、炭素価格や補助率を入れた条件だけ、同じ条件で政策なしの計画を出発点にして、HiGHS（highspy）で解きます。このとき、政策なしの計画をそのまま使う場合より悪くなることはありません。画面の説明には「政策なしの計画から探索を開始」と表示されます。それ以外の条件は、既定と同じ解き方です。この方法で作った計画は、既定の計画と0.5 %のギャップの範囲で違うことがあります（1台で試した3つの条件では、純便益が同じ、0.3 %多い、0.13 %少ない、でした）。CPUの数でも変わります（そのうち1つの条件で、CPUが16または32のとき年1億8,810万円、4のとき年1億8,730万円）。保存した計画は、2種類を分けて持ちます。
 
 **計画をグラフとして見る（任意）**
 - `uv run python scripts/export_plan_graph.py` は、`scripts/export_heat_network_v2.py` の計画を、分岐点・導管・データセンター・需要家のグラフにして、3つの問いに答えます。データセンターから各需要家までの経路、ある導管が止まると供給を失う需要家、多くの需要家が共有する導管です。4つの表とCypherのスクリプトを `out/plan_graph/` に書き出します。ここまではNetworkXだけで動き、ほかに何も要りません。
