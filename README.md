@@ -381,6 +381,7 @@ downloads map data reads it.
 - Model v1 against v2: `uv run python experiments/heat_v2_compare/run.py`
 - Robust sweep: `uv run python experiments/heat_ccg/run.py ambient`
 - Carbon price and subsidy scenarios: `uv run python experiments/heat_policy/run.py`
+- Model v1 solved with and without a starting plan, on fixed slider moves: `uv run python experiments/heat_warmstart/run.py`
 - Theme 2, every bus of six benchmark systems (downloads PGLib-OPF): `uv run python experiments/grid_hosting/run.py --workers 8`
 - Theme 4, the numbers and the figure: `uv run python scripts/export_matching.py --portfolio` and `uv run python scripts/render_matching_figure.py`
 - Weather years, 50 years of Sapporo weather: `uv run python experiments/weather_years/run.py ambient both --bound` (`--decided` makes the connection size a decision)
@@ -430,6 +431,10 @@ downloads map data reads it.
   are kept on disk in `data/cache/warm_ishikari_plans/` (not committed; set `DCOPT_PLAN_CACHE` to keep them
   elsewhere), so a setting solved before loads at once; a change to the model's code (`v1.py`) sets the saved
   plans aside. The caption shows the solve time, the MIP gap and whether the plan was a saved one.
+- The page's model (v1) is solved with HiGHS through highspy. A case with a carbon price or a subsidy starts
+  its search from the plan of the same settings without the policy, so it is never worse than keeping that
+  plan; every other case is solved from scratch. The settings alone decide where a search starts, not what was
+  solved before.
 
 **The plan as a graph (optional)**
 - `uv run python scripts/export_plan_graph.py` turns a plan from `scripts/export_heat_network_v2.py` into a graph of junctions, pipes, data centers and heat users, and answers three questions: the route from a data center to each user, the users that lose their supply when one pipe is out, and the pipes most users share. It writes four tables and a Cypher script to `out/plan_graph/`. This runs with NetworkX; nothing else is needed.
