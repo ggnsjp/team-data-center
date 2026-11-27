@@ -53,6 +53,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 import scipy.sparse as sp
 
+from dcopt.common.workers import solver_threads
 from dcopt.heat.v1 import (
     DAYS,
     GRID_KG_CO2_PER_KWH,
@@ -966,13 +967,6 @@ def solver_name(P: Params) -> str:
     return name
 
 
-def solver_threads() -> int:
-    """Threads per solve from DCOPT_THREADS (0 or unset: the solver's default). Set it when several
-    solves run side by side, so that their time limits mean the same thing on a busy machine."""
-    import os
-    return max(0, int(os.environ.get("DCOPT_THREADS", "0") or 0))
-
-
 def _run(c, A, lo, hi, lb, ub, integ, P: Params, start: np.ndarray | None, relax: bool = False) -> dict:
     """Solve min c.v s.t. lo <= A v <= hi, lb <= v <= ub; returns v, status, gap and bound (minimisation)."""
     integ = np.zeros_like(integ) if relax else integ
@@ -1178,7 +1172,6 @@ def evaluate(plan: Plan, scens: list[Scenario] | None = None, off: tuple | list 
     target = user_data(plan.inst, plan.P, scens if scens is not None else plan.scens)
     peak = plan.ud.peak
     if plan.conn is not None:
-        K = len(plan.P.sizes)
         cap_k = np.array([s.capacity_mw(plan.P.dT) for s in plan.P.sizes])
         share = np.array([plan.P.per_kind(u.kind)["share"] * (1 + plan.P.loss) for u in plan.inst.users])
         own = np.where(plan.conn >= 0, cap_k[np.maximum(plan.conn, 0)] / share, np.nan)

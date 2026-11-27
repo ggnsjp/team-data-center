@@ -3,6 +3,10 @@ the answer worse. Synthetic instance on a plane (straight-line distances x 1.3),
 from __future__ import annotations
 
 import math
+import os
+import subprocess
+import sys
+import textwrap
 from dataclasses import replace
 
 import numpy as np
@@ -108,3 +112,25 @@ def test_a_policy_plan_is_never_worse_than_keeping_the_no_policy_plan(tmp_path):
         base, hit = v1.cached_design(dc, ss, v1.no_policy(B), k=3, cache_dir=tmp_path)
         assert hit and plan.warm_start and not base.warm_start
         assert plan.annual_net >= replace(base, A=B).annual_net - 1e-6 * abs(plan.annual_net)
+
+
+def test_the_solve_asks_for_the_thread_count_of_the_process():
+    """HiGHS keeps one thread count per process and fails a later solve that asks for another one,
+    so v1 reads DCOPT_THREADS like the v2 solver call does. A fresh interpreter, because this
+    process has already solved with the default count."""
+    code = textwrap.dedent("""
+        import numpy as np
+        import scipy.sparse as sp
+        from dcopt.heat import network, v1
+        A = sp.csr_matrix(np.array([[1.0, 1.0]]))
+        model = (np.array([1.0, 2.0]), A, np.array([3.0]), np.array([np.inf]), np.zeros(2), np.full(2, 4.0),
+                 np.ones(2))
+        x, status, _ = v1._highs(*model, 10.0)                                  # v1 first ...
+        later = network._run(*model, network.Params(time_limit=10.0), None)    # ... then v2 in the same process
+        print(status, [abs(round(float(v), 6)) for v in x], later["status"],
+              [abs(round(float(v), 6)) for v in later["x"]])
+    """)
+    env = {**os.environ, "DCOPT_THREADS": "1", "DCOPT_SOLVER": "highs"}
+    out = subprocess.run([sys.executable, "-c", code], env=env, capture_output=True, text=True, check=False)
+    assert out.returncode == 0, out.stderr[-600:]
+    assert out.stdout.split("\n")[-2] == "Optimal [3.0, 0.0] Optimal [3.0, 0.0]"

@@ -31,6 +31,7 @@ from sklearn.cluster import DBSCAN
 
 from dcopt.common import geo
 from dcopt.common.geo import english_name, fetch_command, paths, road_distance_matrix, road_path, snap
+from dcopt.common.workers import solver_threads
 
 AREA = "ishikari"
 MONTHS_JA = [f"{m}月" for m in range(1, 13)]
@@ -394,6 +395,8 @@ def _highs(c, A, lo, hi, lb, ub, integrality, time_limit: float, start: dict[int
     h.setOptionValue("output_flag", False)
     h.setOptionValue("time_limit", float(time_limit))
     h.setOptionValue("mip_rel_gap", MIP_REL_GAP)
+    if solver_threads():                 # HiGHS keeps one thread count per process: ask for the same as v2
+        h.setOptionValue("threads", solver_threads())
     h.passModel(lp)
     if start and mip:
         idx = np.fromiter(start.keys(), dtype=np.int32)
