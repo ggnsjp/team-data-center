@@ -53,8 +53,17 @@ from typing import TYPE_CHECKING
 import numpy as np
 import scipy.sparse as sp
 
-from dcopt.heat.v1 import (DAYS, GRID_KG_CO2_PER_KWH, GRID_SCENARIOS, KEROSENE_KG_CO2_PER_L, KEROSENE_KWH_PER_L, KINDS,
-                           Site, _offset, capital_recovery)
+from dcopt.heat.v1 import (
+    DAYS,
+    GRID_KG_CO2_PER_KWH,
+    GRID_SCENARIOS,
+    KEROSENE_KG_CO2_PER_L,
+    KEROSENE_KWH_PER_L,
+    KINDS,
+    Site,
+    _offset,
+    capital_recovery,
+)
 
 if TYPE_CHECKING:
     from dcopt.heat.weather import WeatherYear
@@ -140,6 +149,11 @@ HP_COST_BASIS = ("users: assumption for small heat pumps (100 kW to 2 MW), to ch
                  "EUR 0.65M per MW of heat at Odense (two ammonia heat pumps, 44.6 MW, DKK 215M; Dansk Fjernvarme, "
                  "https://danskfjernvarme.dk/media/eqbhcqlv/inspirationskatalog-for-store-varmepumper-2022.pdf), "
                  "taken as 100M yen/MW (assumption, including the exchange rate)")
+TIE_BASIS = ("optional tie-break, off by default (0), and not a real cost: with a positive value a user that two "
+             "data centers can serve at the same cost goes to the nearer one, whatever the solver. The value tested "
+             "is 0.01, about 2 millionths of the annuity of the cheapest pipe (DN50, about 4,300 yen/m/yr); the "
+             "objective moves by at most the value times the distances of connected users, and the reported net "
+             "benefits leave it out. The published plan was made with it off")
 PIPE_SIZES = tuple(PipeSize(dn, d / 1000, v, pipe_cost_yen_m(dn)) for dn, d, v in [
     (50, 52.9, 1.0), (80, 80.7, 1.2), (100, 105.3, 1.5), (150, 155.2, 1.8), (200, 204.7, 2.0), (250, 254.2, 2.2)])
 
@@ -194,6 +208,7 @@ class Params:
     formulation: str = "aggregated"  # "aggregated": shares per arc (fast LP); "extended": per arc and size (larger, barely tighter here)
     solver: str | None = None        # "highs" (default) or "gurobi"; else DCOPT_SOLVER
     heuristic_effort: float = 0.3    # HiGHS mip_heuristic_effort (default 0.05): more incumbent search
+    tie_yen_m: float = 0.0           # optional tie-break, off by default: yen per metre per year from data center to user (TIE_BASIS)
 
     @property
     def crf(self) -> float:
@@ -360,7 +375,7 @@ class Instance:
     def demand(self) -> np.ndarray:
         return np.array([u.monthly() for u in self.users]) if self.users else np.zeros((0, T))
 
-    def subset(self, src_idx: list[int], user_idx: list[int]) -> "Instance":
+    def subset(self, src_idx: list[int], user_idx: list[int]) -> Instance:
         idx = list(src_idx) + [self.D + u for u in user_idx]
         return Instance([self.sources[i] for i in src_idx], [self.users[u] for u in user_idx],
                         self.dist[np.ix_(idx, idx)], self.road, idx)
@@ -684,6 +699,8 @@ class Model:
     E: list
     ud: UserData
     Wc: np.ndarray
+    tie: np.ndarray | None = None   # nv: the optional tie-break on z (tie_cost); None while Params.tie_yen_m is 0.
+                                    # Added to every objective, never to `cost`
 
 
 def build_model(inst: Instance, P: Params, scens: list[Scenario], *, edges: list[tuple[int, int]] | None = None,
@@ -889,23 +906,49 @@ def build_model(inst: Instance, P: Params, scens: list[Scenario], *, edges: list
     offs = {"y": oy, "x": ox, "z": oz, "g": og, "s": osv, "n": nv}
     if decided:
         offs["yu"] = oyu
-    return Model(cost, Amat, np.concatenate(lo), np.concatenate(hi), lb, ub, integrality, offs, E, ud, Wc)
+    return Model(cost, Amat, np.concatenate(lo), np.concatenate(hi), lb, ub, integrality, offs, E, ud, Wc,
+                 tie_cost(inst, P, nv, oz) if P.tie_yen_m > 0 else None)
+
+
+def tie_cost(inst: Instance, P: Params, nv: int, oz: int) -> np.ndarray:
+    """Optional tie-break cost on the assignment z_ud (Params.tie_yen_m > 0; off by default, and then
+    build_model does not call this): tie_yen_m x (distance from data center d to user u, plus less
+    than one metre for d's place in the order of the data center keys). When two data centers can
+    serve a user at the same cost, the nearer one wins (the one with the smaller key if they are equally
+    far), whatever the solver or the column order. It is kept out of `cost`, so the reported net benefit
+    and the rows of the robust objectives do not include it; it moves the objective by at most
+    tie_yen_m x the distances of the connected users (TIE_BASIS), and the solver's bound moves with it."""
+    D, U = inst.D, inst.U
+    tie = np.zeros(nv)
+    if P.tie_yen_m <= 0 or not U or not D:
+        return tie
+    dist = np.array(inst.dist[:D, D:D + U], dtype=float).T                 # U x D
+    finite = np.isfinite(dist)
+    dist = np.where(finite, dist, dist[finite].max() if finite.any() else 0.0)
+    order = np.argsort(np.argsort([s.key for s in inst.sources], kind="stable"), kind="stable")
+    tie[oz:oz + U * D] = (P.tie_yen_m * (dist + order[None, :] / D)).ravel()
+    return tie
 
 
 def _with_objective(m: Model, scens: list[Scenario], objective: str, own_opt, eps: float):
     """Objective, matrix and bounds for one objective; robust ones add one epigraph variable t."""
     prob = np.array([s.prob for s in scens])
     Wn = len(scens)
+
+    def tied(c: np.ndarray) -> np.ndarray:
+        """c plus the optional tie-break; with the tie-break off (the default) c itself, untouched."""
+        return c if m.tie is None else c + m.tie
+
     if objective == "expected":
-        return prob @ m.cost, m.A, m.lo, m.hi, m.lb, m.ub, m.integrality
+        return tied(prob @ m.cost), m.A, m.lo, m.hi, m.lb, m.ub, m.integrality
     if objective == "worst":              # t + cost_w . v <= 0   (t <= net_w)
         col, rhi, tlb = np.ones((Wn, 1)), np.zeros(Wn), -np.inf
-        c = np.r_[eps * (prob @ m.cost), -1.0]
+        c = np.r_[tied(eps * (prob @ m.cost)), -1.0]
     elif objective == "regret":           # cost_w . v - t <= -own_opt_w   (t >= own_opt_w - net_w)
         if own_opt is None or len(own_opt) != Wn:
             raise ValueError("objective='regret' needs own_opt, each scenario's own optimum")
         col, rhi, tlb = -np.ones((Wn, 1)), -np.asarray(own_opt, float), 0.0
-        c = np.r_[eps * (prob @ m.cost), 1.0]
+        c = np.r_[tied(eps * (prob @ m.cost)), 1.0]
     else:
         raise ValueError(f"unknown objective {objective!r}; use one of {list(OBJECTIVES)}")
     A = sp.vstack([sp.hstack([m.A, sp.csr_matrix((m.A.shape[0], 1))]),
@@ -1035,6 +1078,8 @@ def solve(inst: Instance, P: Params, scens: list[Scenario], *, objective: str = 
       "worst"     max t  s.t. t <= net_w for every w                         (max-min, epigraph t)
       "regret"    min t  s.t. t >= own_opt_w - net_w for every w             (min-max regret)
     The robust objectives add eps x the expected net benefit to break ties among equally robust plans.
+    With Params.tie_yen_m > 0 (off by default) every objective also adds the tiny cost of `tie_cost`,
+    so that a user two data centers can serve at the same cost always goes to the same one.
     `fix` holds a plan's build (y on the same `edges`, x, assign) to evaluate it on other scenarios;
     `design_peak` keeps the evaluated plan's own pipe sizing (see user_data); `off` lists users that
     may not connect; `force_edges` builds every given edge (pair by pair); `start` is a plan on a
@@ -1411,14 +1456,14 @@ def pair_calculator(inst: Instance, P: Params, scens: list[Scenario], d: int, u:
     for w, sc in enumerate(scens):
         rows.append((f"saving_{sc.key}", f"年間の節約（{sc.ja}）", f"Annual saving ({sc.en})", round(float(save_w[w])),
                      "yen", "calculated",
-                     f"kerosene {sc.kerosene_yen_l:g} yen/L ({URL['kerosene'] if sc.kerosene_yen_l == KEROSENE_SURVEY else 'conservative bulk price, assumption'}); "
-                     f"boiler {P.boiler_eff:.0%}, electricity {P.power_yen_kwh:g} yen/kWh (assumptions)"))
+                     (f"kerosene {sc.kerosene_yen_l:g} yen/L ({URL['kerosene'] if sc.kerosene_yen_l == KEROSENE_SURVEY else 'conservative bulk price, assumption'}); "
+                     f"boiler {P.boiler_eff:.0%}, electricity {P.power_yen_kwh:g} yen/kWh (assumptions)")))
     exp_save = float(prob @ save_w)
     rows += [
         ("saving", "年間の節約（期待値）", "Annual saving (expected)", round(exp_save), "yen", "calculated", "probability-weighted"),
         ("co2", "CO2削減（期待値）", "CO2 avoided (expected)", round(float(prob @ heat_w) * ud.co2[u], 1), "t/yr", "calculated",
-         f"kerosene {KEROSENE_KG_CO2_PER_L:.2f} kg/L ({URL['co2']}); grid electricity {P.grid_t_per_mwh:g} t/MWh for user "
-         f"heat pumps ({URL['grid_co2']})"),
+         (f"kerosene {KEROSENE_KG_CO2_PER_L:.2f} kg/L ({URL['co2']}); grid electricity {P.grid_t_per_mwh:g} t/MWh for user "
+         f"heat pumps ({URL['grid_co2']})")),
         ("payback", "単純回収年数", "Simple payback",
          round(P.own * (pipe + ud.hp[u]) / exp_save, 1) if exp_save > 0 else None,
          "years", "calculated", "investment / expected annual saving"),
@@ -1478,6 +1523,8 @@ def assumptions_table(P: Params) -> list[dict]:
         ("hp_capex", "ヒートポンプの投資", "Heat-pump investment", f"{P.hp_yen_per_mw_user:,.0f} / {P.hp_yen_per_mw_central:,.0f}",
          "yen/MW", "user / central; " + HP_COST_BASIS),
         ("alpha", "管とヒートポンプの容量（ピーク比）", "Sized share of each user's peak", P.alpha, "", "assumption"),
+        ("tie", "同じ費用のときの割り当て（タイブレーク）", "Tie-break between equal-cost data centers", P.tie_yen_m,
+         "yen/m/yr", TIE_BASIS),
         ("peak", "ピーク係数", "Peak factors", ", ".join(f"{k} {v:g}" for k, v in P.peak_factor.items()), "", PEAK_BASIS),
         ("pipe_cost", "導管の単価", "Pipe cost per metre", ", ".join(f"DN{s.dn} {s.yen_m:,.0f}" for s in P.sizes), "yen/m", PIPE_COST_BASIS),
         ("pipe_cap", "導管の容量", "Pipe capacity", ", ".join(f"DN{s.dn} {s.capacity_mw(P.dT):.2f}" for s in P.sizes), "MW",
