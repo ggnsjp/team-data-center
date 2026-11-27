@@ -20,7 +20,7 @@ import math
 import os
 import pickle
 import re
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 import geopandas as gpd
@@ -429,7 +429,9 @@ def design(dc: Site, sites: list[Site], A: Assumptions, k: int = 4, kinds: set[s
 
     start: a nearby plan (for example the same instance under other prices). Its pipes and
     connections warm-start HiGHS, so a time-limited solve begins from that plan instead of from
-    nothing. The optimum does not depend on it; only how fast it is found does.
+    nothing. The optimum does not depend on it, but the plan returned can: the search stops at a
+    gap of MIP_REL_GAP, and another start can end on another plan within that gap. cached_design
+    therefore lets the inputs decide the start (start_assumptions).
     """
     import time
     t0 = time.perf_counter()
@@ -552,12 +554,35 @@ def plan_key(dc: Site, sites: list[Site], A: Assumptions, k: int, kinds: set[str
     return hashlib.sha256(blob.encode()).hexdigest()[:32]
 
 
+def no_policy(A: Assumptions) -> Assumptions:
+    """The same assumptions with no carbon price and no subsidy."""
+    return replace(A, carbon_yen_t=0.0, subsidy=0.0)
+
+
+def start_assumptions(A: Assumptions) -> Assumptions | None:
+    """The assumptions whose plan warm-starts the solve under A, or None for a cold solve.
+
+    The inputs alone decide the start, never what was solved before, so the same inputs always get
+    the same plan. A case with a policy (a carbon price or a subsidy) starts from the plan of the
+    same assumptions without the policy: the policy changes the value of heat and the cost of
+    pipes, not what can be built, so that plan is feasible and the result is never worse than
+    keeping it. Every case without a policy is solved cold, the default settings among them.
+    """
+    base = no_policy(A)
+    return base if base != A else None
+
+
 def cached_design(dc: Site, sites: list[Site], A: Assumptions, k: int = 4, kinds: set[str] | None = None,
                   time_limit: float = 30.0, cache_dir: Path | None = None) -> tuple[Design, bool]:
     """design() with the optimal network kept on disk. Returns (design, loaded_from_cache).
 
+    A plan in this cache depends on its inputs only. Where the solve is warm-started
+    (start_assumptions), the starting plan comes from this cache too, solved and stored first when
+    it is not there yet, so the start is fixed by the key and is not part of it.
+
     The cache holds pickles this function wrote itself in a git-ignored folder; an unreadable file
-    is treated as a miss and overwritten.
+    is treated as a miss and overwritten. The key contains code_version(), so a plan written by
+    another version of this module (another solver call, another status wording) is never served.
     """
     folder = Path(cache_dir) if cache_dir is not None else plan_cache_dir()
     f = folder / f"{plan_key(dc, sites, A, k, kinds, time_limit)}.pkl"
@@ -570,7 +595,10 @@ def cached_design(dc: Site, sites: list[Site], A: Assumptions, k: int = 4, kinds
             d = None                      # a partial or stale file: solve again
         if isinstance(d, Design):
             return d, True
-    d = design(dc, sites, A, k=k, kinds=kinds, time_limit=time_limit)
+    start, first = None, start_assumptions(A)
+    if first is not None:
+        start, _ = cached_design(dc, sites, first, k=k, kinds=kinds, time_limit=time_limit, cache_dir=cache_dir)
+    d = design(dc, sites, A, k=k, kinds=kinds, time_limit=time_limit, start=start)
     try:
         folder.mkdir(parents=True, exist_ok=True)
         tmp = f.with_suffix(f".{os.getpid()}.tmp")

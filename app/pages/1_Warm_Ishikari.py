@@ -29,6 +29,7 @@ from dcopt.heat.v1 import (
     HeatSourceMissing,
     cached_design,
     ishikari_sites,
+    no_policy,
     pairwise,
     standalone_and_shared,
 )
@@ -133,7 +134,7 @@ with st.sidebar, st.form("assumptions", border=False):
 A = Assumptions(it_load_mw=float(it), recovery=float(rec), cop=float(cop), kerosene_yen_l=float(kero),
                 power_yen_kwh=float(power), pipe_yen_m=float(pipe) * 10_000, years=int(years), rate=rate / 100,
                 renewable_power=renew, carbon_yen_t=float(carbon), subsidy=subsidy_pct / 100)
-A0 = replace(A, carbon_yen_t=0.0, subsidy=0.0)          # the same assumptions with no policy
+A0 = no_policy(A)       # the same assumptions with no policy; a policy solve starts from this plan (cached_design)
 
 
 if missing := missing_map_data():

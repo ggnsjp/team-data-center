@@ -74,3 +74,37 @@ def test_start_values_map_pipes_and_users_by_key():
     vals = v1._start_values(start, ss[:3], E, lambda e: e, lambda u: 10 + u)
     assert [vals[e] for e in range(4)] == [1.0, 0.0, 1.0, 0.0]
     assert [vals[10 + u] for u in range(3)] == [1.0, 0.0, 1.0]
+
+
+def same_plan(a: v1.Design, b: v1.Design) -> bool:
+    return (a.edges == b.edges and a.connected == b.connected and a.annual_net == b.annual_net
+            and np.array_equal(a.served, b.served))
+
+
+def test_the_same_inputs_give_the_same_plan_whatever_was_solved_before(tmp_path):
+    dc, ss = sites()
+    B = replace(A, carbon_yen_t=8000.0, subsidy=0.3)
+    fresh, _ = v1.cached_design(dc, ss, B, k=3, cache_dir=tmp_path / "fresh")
+    for other in (replace(A, kerosene_yen_l=140.0), replace(B, subsidy=0.6),
+                  replace(A, it_load_mw=0.2, carbon_yen_t=3000.0)):
+        v1.cached_design(dc, ss, other, k=3, cache_dir=tmp_path / "used")
+    later, hit = v1.cached_design(dc, ss, B, k=3, cache_dir=tmp_path / "used")
+    assert not hit and fresh.warm_start and later.warm_start
+    assert same_plan(later, fresh)
+
+
+def test_cases_without_a_policy_come_from_a_cold_solve(tmp_path):
+    dc, ss = sites()
+    v1.cached_design(dc, ss, replace(A, subsidy=0.5), k=3, cache_dir=tmp_path)      # something solved before
+    for case in (A, replace(A, kerosene_yen_l=140.0)):
+        plan, _ = v1.cached_design(dc, ss, case, k=3, cache_dir=tmp_path)
+        assert not plan.warm_start and same_plan(plan, design(dc, ss, case, k=3))
+
+
+def test_a_policy_plan_is_never_worse_than_keeping_the_no_policy_plan(tmp_path):
+    dc, ss = sites()
+    for B in (replace(A, carbon_yen_t=8000.0, subsidy=0.3), replace(A, subsidy=0.6)):
+        plan, _ = v1.cached_design(dc, ss, B, k=3, cache_dir=tmp_path)
+        base, hit = v1.cached_design(dc, ss, v1.no_policy(B), k=3, cache_dir=tmp_path)
+        assert hit and plan.warm_start and not base.warm_start
+        assert plan.annual_net >= replace(base, A=B).annual_net - 1e-6 * abs(plan.annual_net)
