@@ -487,7 +487,7 @@ Checking results on large, realistic models may need a solver of that strength. 
 | 3. Siting | HiGHS, for the heat value of every site and for the location model | The same values at the four best sites, and better plans at 17 of the 56 sites |
 | 4. Renewable matching | HiGHS: the linear program of one year in 26 to 44 s | The same result in 2 to 4 s |
 
-- **Checked with both solvers.** The test suite passes with `DCOPT_SOLVER=gurobi` as it does with HiGHS, and the exports give the same regional plan with either (93.8 M yen a year, 13 sites, the same pipes). Where two neighbouring data centers can serve a site at the same cost, the two solvers may break the tie differently, so a data center's list of partners can differ in a few entries.
+- **Checked with both solvers.** The test suite passes with `DCOPT_SOLVER=gurobi` as it does with HiGHS, and the exports give the same regional plan with either (93.8 M yen a year, 13 sites, the same pipes). Where two neighbouring data centers can serve a site at the same cost, the two solvers used to break the tie differently, so a data center's list of partners could differ in a few entries. The model now adds a tiny tie-break cost (0.01 yen per metre per year from data center to site, see [docs/data-sources.md](docs/data-sources.md)), so such a site goes to the nearer data center with either solver; the solver tests check that both give the same assignment and pipes on small instances. The regional partner lists have not yet been compared again with Gurobi.
 
 ## Next research questions
 
