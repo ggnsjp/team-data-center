@@ -105,6 +105,22 @@ def main(argv: list[str] | None = None) -> int:
         print(table(t(["Distance (km)", "Size", "Investment (M yen)", "Annuity (M yen/yr)", "Heat loss (MWh/yr)",
                        "Loss / heat delivered"],
                       ["距離（km）", "管径", "投資額（百万円）", "年額（百万円/年）", "熱損失（MWh/年）", "損失÷届ける熱"]), rows))
+        print("\n" + t("Straight lines from the data-center block to named places (a pipe route is longer)\n",
+                       "データセンターの街区から、名前のわかる場所までの直線距離（導管の経路はこれより長くなります）\n"))
+        rows = []
+        for name_ja, name_en, point in gr.PLACES.values():
+            km = float(round(gr.straight_km(point)))
+            ln = gr.line_for(s["peak_mw"], km, P)
+            rows.append([t(name_en, name_ja), f"{km:g}"] + (["-"] * 5 if ln is None else
+                        [f"DN{ln.dn}", m(ln.investment), m(ln.annuity), f"{ln.loss_mwh:,.0f}", f"{ln.loss_mwh / s['heat']:.0%}"]))
+        print(table(t(["Place", "Straight line (km)", "Size", "Investment (M yen)", "Annuity (M yen/yr)",
+                       "Heat loss (MWh/yr)", "Loss / heat delivered"],
+                      ["場所", "直線距離（km）", "管径", "投資額（百万円）", "年額（百万円/年）", "熱損失（MWh/年）",
+                       "損失÷届ける熱"]), rows))
+        net = plan.get("kpi", {}).get("expected_net_m")
+        if net:
+            print("\n" + t(f"The plan's expected net benefit: {net:g} M yen a year.",
+                           f"計画の純便益（期待値）：年{net:g}百万円。"))
         cooler = gr.line_for(s["peak_mw"], 10.0, P, P.central_c, P.central_c - P.dT_central)
         if cooler is not None:
             print("\n" + t(f"At {P.central_c:g}/{P.central_c - P.dT_central:g} C (the model's central network): DN{cooler.dn}, "

@@ -108,6 +108,16 @@ def test_line_for_picks_the_smallest_size_that_also_carries_its_own_loss():
     assert gr.line_for(4.0, 10.0, P, 30.0, 20.0).dn == 250 and gr.line_for(6.0, 10.0, P, 30.0, 20.0) is None   # at the loop's 10 K
 
 
+def test_straight_lines_to_the_named_places():
+    """Great-circle distances from the data-center block, as docs/ground-heat.md quotes them."""
+    km = {key: gr.straight_km(point) for key, (_, _, point) in gr.PLACES.items()}
+    assert {key: round(d) for key, d in km.items()} == {"jozankei": 26, "toyoha": 30, "noboribetsu": 77, "mori": 135}
+    assert gr.straight_km(gr.PLACES["jozankei"][2], gr.PLACES["toyoha"][2]) == pytest.approx(9.6, abs=0.05)
+    assert gr.straight_km(gr.DATA_CENTER_BLOCK) == 0.0
+    assert gr.straight_km((0.0, 0.0), (0.0, 1.0)) == pytest.approx(111.195, abs=0.01)   # one degree on the equator
+    assert gr.straight_km((43.0, 141.0), (44.0, 141.0)) == pytest.approx(gr.straight_km((44.0, 141.0), (43.0, 141.0)))
+
+
 def test_summary_of_a_small_plan():
     P = Params()
     s = gr.summary(PLAN, P)
@@ -161,6 +171,9 @@ def test_the_page_quotes_the_computed_figures(page, money):
               f"{hot.loss_mwh:,.0f}", f"{s['loss_share']:.0%}".replace("%", " %"), f"{s['km_same_investment']:.1f} km",
               f"{s['km_paid_by_heat_pumps']:.1f} km", money(hot.investment), money(s["pipe_investment"]),
               money(s["ground_loop_budget"]),
+              money(gr.line_for(s["peak_mw"], 26.0).investment), money(gr.line_for(s["peak_mw"], 30.0).investment),
+              f"{gr.line_for(s['peak_mw'], 26.0).loss_mwh / s['heat']:.0%}".replace("%", " %"),
+              f"{gr.line_for(s['peak_mw'], 30.0).loss_mwh / s['heat']:.0%}".replace("%", " %"),
               f"{gr.ground_cop('public'):.2f}", f"{gr.ground_cop('hospital'):.2f}", f"{gr.ground_cop('snow'):.2f}"]
     for value in quoted:
         assert value in text, f"{page} does not show {value}"

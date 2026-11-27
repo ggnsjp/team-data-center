@@ -20,6 +20,7 @@ Run   uv run python scripts/ground_heat.py
 """
 from __future__ import annotations
 
+import math
 from collections.abc import Iterable
 from dataclasses import dataclass
 
@@ -36,6 +37,27 @@ HOT_SUPPLY_C, HOT_RETURN_C = 80.0, 40.0
 # Environment, 地中熱とは？, https://www.env.go.jp/water/jiban/post_117.html).
 GROUND_C = 10.0
 GROUND_RISE_AT_100M_K = (2.0, 4.0)
+
+# Where the nearest hot resources named in docs/ground-heat.md are: (latitude, longitude). The
+# data-center block is 石狩市新港中央一丁目 by the address search of the Geospatial Information Authority
+# of Japan (https://msearch.gsi.go.jp/address-search/AddressSearch); the places are the coordinates of
+# the Japanese Wikipedia articles of the same names (read 2026-11-28). Japanese name, English name, point.
+DATA_CENTER_BLOCK = (43.17971, 141.29475)
+PLACES = {
+    "jozankei": ("定山渓温泉", "Jozankei hot springs", (42.96444444, 141.16138889)),
+    "toyoha": ("豊羽鉱山", "Toyoha mine", (42.97919444, 141.04452778)),
+    "noboribetsu": ("登別温泉", "Noboribetsu hot springs", (42.49506, 141.14406)),
+    "mori": ("森発電所", "Mori geothermal power station", (42.13, 140.46)),
+}
+EARTH_RADIUS_KM = 6371.0088
+
+
+def straight_km(a: tuple[float, float], b: tuple[float, float] = DATA_CENTER_BLOCK) -> float:
+    """Great-circle distance in km between two (latitude, longitude) points; a pipe route is longer."""
+    lat1, lat2 = math.radians(a[0]), math.radians(b[0])
+    half = (math.sin((lat2 - lat1) / 2) ** 2
+            + math.cos(lat1) * math.cos(lat2) * math.sin(math.radians(b[1] - a[1]) / 2) ** 2)
+    return 2 * EARTH_RADIUS_KM * math.asin(math.sqrt(half))
 
 
 def connected(sites: list[dict]) -> list[dict]:

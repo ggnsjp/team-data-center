@@ -96,6 +96,12 @@ About half of the heat (49 %) goes to the two users that need no heat pump. Sent
 
 What exergy is, the definitions, a worked example, the limits and the references: [docs/exergy.md](docs/exergy.md). Run: `uv run python scripts/exergy_balance.py`.
 
+### Geothermal heat or ground heat instead?
+
+A question that is often asked is whether heat from the ground would not serve better than waste heat. Hot geothermal water is better heat, since it needs no heat pump, but it has to be piped from where the geology has it, and how far heat can be carried is a matter of cost [79]. With the model's own pipe costs, a line that carries hot water to the plan's 13 users costs 2,704 M yen per 10 km and loses, per 10 km, 17 % of the heat it delivers. At 7.0 km the line alone costs as much as the plan's whole network, and what hot water saves on heat pumps pays for 4.3 km of it. The nearest hot resource that a source names, in the mountains south-west of Sapporo, lies about 26 to 30 km from the data centers in a straight line; a survey for a geothermal power station there was suspended in 2014, after four wells gave less steam than assumed [80]. Shallow ground heat is under every building and needs no network, but the ground is at about 10 °C in Hokkaido [81], so every use needs a heat pump: for the plan's deliveries, 2.4 times the electricity of the loop.
+
+Wells, exploration and ground loops are not costed, so this does not say which source is cheaper, and no source is better everywhere. The tables, the sources and the limits: [docs/ground-heat.md](docs/ground-heat.md). Run: `uv run python scripts/ground_heat.py`.
+
 ### CO₂: the plan pays for itself, and a subsidy moves it more than a carbon price
 
 The stochastic plan above (13 sites, 7.8 km) avoids about **3,900 t of CO₂ a year** when the users' heat pumps run on Hokkaido Electric's standard power (0.526 kg/kWh [54]). It avoids 4,300 t at the national level for FY2030 (0.25 kg/kWh [55]) and 4,600 t on renewable power; kerosene emits 2.50 kg per litre [53]. The plan earns money while it cuts, about 24,000 yen per tonne, so it needs no carbon price.
@@ -168,7 +174,7 @@ A range "a to b" spans the published pipes kept and the plan made again under th
 - **Model scope.** The model balances energy month by month, and heat losses are a flat percentage. Distance-dependent losses are next.
 - **Heat quality.** The model does not represent steam or process heat above 60 °C, thermal storage or pumping power ([docs/exergy.md](docs/exergy.md)).
 
-Details: the full mathematical model, with every coefficient and worked numbers, is in [docs/formulations/heat-model.md](docs/formulations/heat-model.md); results are in [docs/formulations/heat.md](docs/formulations/heat.md); the exergy view is in [docs/exergy.md](docs/exergy.md).
+Details: the full mathematical model, with every coefficient and worked numbers, is in [docs/formulations/heat-model.md](docs/formulations/heat-model.md); results are in [docs/formulations/heat.md](docs/formulations/heat.md); the exergy view is in [docs/exergy.md](docs/exergy.md); the comparison with geothermal heat and ground heat is in [docs/ground-heat.md](docs/ground-heat.md).
 
 ## Results so far (theme 2)
 
@@ -455,7 +461,7 @@ Add `--lang ja` for the Japanese versions; they need a Japanese font such as Not
 ## Repository layout
 
 ```
-src/dcopt/heat      theme 1: model v1 (v1.py), v2 (network.py), proposals (proposal.py), weather years (weather.py), live what-if knobs (whatif.py), pipe heat loss (loss.py), the plan as a graph (plangraph.py), exergy view (exergy.py)
+src/dcopt/heat      theme 1: model v1 (v1.py), v2 (network.py), proposals (proposal.py), weather years (weather.py), live what-if knobs (whatif.py), pipe heat loss (loss.py), the plan as a graph (plangraph.py), exergy view (exergy.py), heat from the ground (ground.py)
 src/dcopt/grid      theme 2: networks (cases.py), the lifted model the relaxations and the AC problem share (lifted.py), relaxations (relax.py), AC points (ac.py), brackets (hosting.py)
 src/dcopt/siting    theme 3: candidate sites (candidates.py), heat value (heat_value.py), grid distances (gridmap.py), location model (model.py)
 src/dcopt/matching  theme 4: area records (records.py), counting (score.py), replay of the records (system.py), cheapest portfolio (portfolio.py)
@@ -514,7 +520,7 @@ Checking results on large, realistic models may need a solver of that strength. 
 
 ## References
 
-Facts and parameters [1–22], then related literature: waste-heat networks and data-center heat reuse [23–30], robust optimization [31–36], grid hosting capacity [37–47], siting and flexible loads [48–52]. CO₂ factors and policy sources [53–58]. Methods and the solver of theme 2 [59–64]. Grid connection costs [65]. Renewable matching: the records and the published curtailment [66, 67], studies of clean-electricity procurement [68, 69], costs [70, 71]. Exergy and the quality of heat [72–78].
+Facts and parameters [1–22], then related literature: waste-heat networks and data-center heat reuse [23–30], robust optimization [31–36], grid hosting capacity [37–47], siting and flexible loads [48–52]. CO₂ factors and policy sources [53–58]. Methods and the solver of theme 2 [59–64]. Grid connection costs [65]. Renewable matching: the records and the published curtailment [66, 67], studies of clean-electricity procurement [68, 69], costs [70, 71]. Exergy and the quality of heat [72–78]. Geothermal heat and ground heat [79–81].
 
 1. Hack × Hokkaido Build Week 2026, AI build week in Sapporo, 23–27 November 2026. https://www.hackhokkaido.com/ (accessed 2026-11-24).
 2. Broadband Tower (2025-11-28). Press release on Ishikari Renewable Energy Data Center No. 1 (in Japanese). https://www.bbtower.co.jp/ir/pr/docs/20251128_ishikari_release.pdf
@@ -594,6 +600,9 @@ Facts and parameters [1–22], then related literature: waste-heat networks and 
 76. Gong, M., Werner, S. (2015). Exergy analysis of network temperature levels in Swedish and Danish district heating systems. *Renewable Energy*, 84, 106-113. https://doi.org/10.1016/j.renene.2015.06.001
 77. Lund, H., Werner, S., Wiltshire, R., Svendsen, S., Thorsen, J.E., Hvelplund, F., Mathiesen, B.V. (2014). 4th Generation District Heating (4GDH): Integrating smart thermal grids into future sustainable energy systems. *Energy*, 68, 1-11. https://doi.org/10.1016/j.energy.2014.02.089
 78. 久保亮五 編 (1998). 大学演習 熱学・統計力学（修訂版）. 裳華房 (Kubo, R., ed., problem book on thermodynamics and statistical mechanics, revised edition): chapter 2 treats the efficiency of the Carnot cycle and maximum work. https://www.shokabo.co.jp/mybooks/ISBN978-4-7853-8032-8.htm In English, the thermodynamics part: Kubo, R., in cooperation with Ichimura, H., Usui, T., Hashitsume, N. (1968). *Thermodynamics: An Advanced Course with Problems and Solutions*. North-Holland.
+79. Kavvadias, K.C., Quoilin, S. (2018). Exploiting waste heat potential by long distance heat transmission: Design considerations and techno-economic assessment. *Applied Energy*, 216, 452-465. https://doi.org/10.1016/j.apenergy.2018.02.080
+80. 環境省 (2016). 「平成27年度地熱発電と温泉地の共生事例調査委託業務」ヒアリングメモ（札幌市） (Ministry of the Environment, commissioned study of fiscal 2015 on geothermal power and hot-spring resorts: memo of a hearing with the City of Sapporo on 22 December 2015, on the geothermal survey at Toyoha). https://www.env.go.jp/nature/onsen/pdf/2-5_p_36.pdf
+81. 環境省. 地中熱とは？ (Ministry of the Environment, "What is ground heat?": the ground temperature, 10 °C in Hokkaido). https://www.env.go.jp/water/jiban/post_117.html (accessed 2026-11-28).
 
 ## Team
 
