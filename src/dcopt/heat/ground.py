@@ -119,6 +119,18 @@ def line_for(peak_mw: float, km: float, P: Params | None = None, supply_c: float
     return None
 
 
+def yen_per_m_per_mw(dn: int, P: Params | None = None, dT: float = HOT_SUPPLY_C - HOT_RETURN_C) -> float:
+    """Cost of a metre of line of size `dn` for each MW it carries at the temperature difference `dT`.
+
+    It falls steeply with the size: the cost of a pipe grows with its diameter, what it carries with
+    the square of the diameter and the higher velocity a larger pipe allows. The ratio between two
+    sizes does not depend on `dT`. This is why a line for a whole city is another question than a
+    line for a dozen users."""
+    P = P or Params()
+    size = next(s for s in P.sizes if s.dn == dn)
+    return size.yen_m / size.capacity_mw(dT)
+
+
 def pipe_investment(pipes: Iterable[tuple[int, float]], P: Params | None = None) -> float:
     """Yen for pipes given as (nominal size, km of route), at the model's cost per metre."""
     P = P or Params()
@@ -203,6 +215,7 @@ def summary(plan: dict, P: Params | None = None, km: float = 10.0) -> dict:
     loop, ground = heat_pumps(sites, P), heat_pumps(sites, P, GROUND_C)
     invested = pipe_investment(pipes, P)
     out = {"users": len(connected(sites)), "heat": float(sum(sum(s["served"]) for s in connected(sites))),
+           "waste_heat": float(sum(plan.get("waste_month", []))),      # on offer at the data centers, MWh a year
            "peak_mw": peak, "pipe_km": sum(k for _, k in pipes), "pipe_investment": invested,
            "pipe_annuity": invested * P.crf, "loop": loop, "ground": ground, "line": hot,
            "ground_loop_budget": (invested * P.crf - (ground.yearly_yen - loop.yearly_yen)) / P.crf}

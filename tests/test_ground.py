@@ -98,6 +98,18 @@ def test_hotter_water_carries_more_in_the_same_pipe_and_loses_more():
     assert hot.investment == central.investment == loop.investment            # the cost is by size and length only
 
 
+def test_a_larger_line_costs_less_for_each_mw_it_carries():
+    P = Params()
+    per_mw = [gr.yen_per_m_per_mw(s.dn, P) for s in sorted(P.sizes, key=lambda s: s.dn)]
+    assert per_mw == sorted(per_mw, reverse=True)                             # falls with every step up in size
+    small = next(s for s in P.sizes if s.dn == 50)
+    assert gr.yen_per_m_per_mw(50, P) == pytest.approx(pipe_cost_yen_m(50) / small.capacity_mw(40.0))
+    ratio = gr.yen_per_m_per_mw(50, P) / gr.yen_per_m_per_mw(250, P)
+    assert ratio == pytest.approx(12.9, abs=0.05)                             # DN250 at a thirteenth of DN50
+    assert gr.yen_per_m_per_mw(50, P, 10.0) / gr.yen_per_m_per_mw(250, P, 10.0) == pytest.approx(ratio)   # whatever the dT
+    assert gr.yen_per_m_per_mw(50, P, 10.0) == pytest.approx(4 * gr.yen_per_m_per_mw(50, P, 40.0))
+
+
 def test_line_for_picks_the_smallest_size_that_also_carries_its_own_loss():
     P = Params()
     dn150 = gr.line(150, 10.0, P)
@@ -122,7 +134,8 @@ def test_summary_of_a_small_plan():
     P = Params()
     s = gr.summary(PLAN, P)
     invested = pipe_cost_yen_m(100) * 1000 + pipe_cost_yen_m(50) * 500
-    assert (s["users"], s["heat"], s["pipe_km"]) == (2, 2700.0, 1.5)
+    assert (s["users"], s["heat"], s["pipe_km"], s["waste_heat"]) == (2, 2700.0, 1.5, 0.0)   # the small plan lists no waste heat
+    assert gr.summary(PLAN | {"waste_month": [10.0] * 12}, P)["waste_heat"] == 120.0
     assert s["pipe_investment"] == pytest.approx(invested) and s["pipe_annuity"] == pytest.approx(invested * P.crf)
     hot = s["line"]
     assert hot.km == 10.0 and hot.capacity_mw >= s["peak_mw"] + hot.loss_peak_mw
@@ -166,7 +179,8 @@ def test_the_page_quotes_the_computed_figures(page, money):
     s, _ = _published()
     loop, ground, hot = s["loop"], s["ground"], s["line"]
     text = (ROOT / "docs" / page).read_text(encoding="utf-8")
-    quoted = [f"{s['heat']:,.0f}", f"{loop.electricity:,.0f}", f"{ground.electricity:,.0f}",
+    quoted = [f"{s['heat']:,.0f}", f"{s['waste_heat'] / 1000:.1f} GWh", f"{s['heat'] / 1000:.1f} GWh",
+              f"{loop.electricity:,.0f}", f"{ground.electricity:,.0f}",
               f"{ground.electricity / loop.electricity:.1f}", f"{s['peak_mw']:.1f} MW", f"DN{hot.dn}",
               f"{hot.loss_mwh:,.0f}", f"{s['loss_share']:.0%}".replace("%", " %"), f"{s['km_same_investment']:.1f} km",
               f"{s['km_paid_by_heat_pumps']:.1f} km", money(hot.investment), money(s["pipe_investment"]),
@@ -174,7 +188,8 @@ def test_the_page_quotes_the_computed_figures(page, money):
               money(gr.line_for(s["peak_mw"], 26.0).investment), money(gr.line_for(s["peak_mw"], 30.0).investment),
               f"{gr.line_for(s['peak_mw'], 26.0).loss_mwh / s['heat']:.0%}".replace("%", " %"),
               f"{gr.line_for(s['peak_mw'], 30.0).loss_mwh / s['heat']:.0%}".replace("%", " %"),
-              f"{gr.ground_cop('public'):.2f}", f"{gr.ground_cop('hospital'):.2f}", f"{gr.ground_cop('snow'):.2f}"]
+              f"{gr.ground_cop('public'):.2f}", f"{gr.ground_cop('hospital'):.2f}", f"{gr.ground_cop('snow'):.2f}",
+              f"{gr.yen_per_m_per_mw(50):,.0f}", f"{gr.yen_per_m_per_mw(250):,.0f}"]
     for value in quoted:
         assert value in text, f"{page} does not show {value}"
 

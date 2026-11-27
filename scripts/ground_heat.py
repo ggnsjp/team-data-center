@@ -57,6 +57,8 @@ def main(argv: list[str] | None = None) -> int:
     loop, ground, hot = s["loop"], s["ground"], s["line"]
     direct = t("direct", "直接")
 
+    print(t(f"Waste heat on offer: {s['waste_heat'] / 1000:.1f} GWh a year, of which the plan delivers {s['heat'] / 1000:.1f} GWh.",
+            f"使える排熱：年{s['waste_heat'] / 1000:.1f} GWh。そのうち計画が届けるのは{s['heat'] / 1000:.1f} GWh。"))
     print(t(f"Plan '{args.plan}': {s['users']} users, {s['heat']:,.0f} MWh a year. Hot-water line at "
             f"{gr.HOT_SUPPLY_C:g}/{gr.HOT_RETURN_C:g} C, ground at {gr.GROUND_C:g} C, loop at {P.network_c:g} C; heat pumps at "
             f"{P.carnot_eff:.0%} of the Carnot COP (cap {P.cop_cap:g}, approach {P.approach_k:g} K); electricity "
@@ -73,14 +75,21 @@ def main(argv: list[str] | None = None) -> int:
     for size in P.sizes:
         ln = gr.line(size.dn, 10.0, P)
         rows.append([f"DN{size.dn}", f"{size.yen_m:,.0f}", f"{size.capacity_mw(P.dT_ambient):.2f}", f"{ln.capacity_mw:.2f}",
-                     m(ln.investment), m(ln.annuity), f"{ln.loss_mwh:,.0f}"])
+                     f"{gr.yen_per_m_per_mw(size.dn, P):,.0f}", m(ln.investment), m(ln.annuity), f"{ln.loss_mwh:,.0f}"])
     print(table(t(["Size", "Cost (yen/m)", f"Carries at {P.dT_ambient:g} K (MW)",
-                   f"Carries at {gr.HOT_SUPPLY_C - gr.HOT_RETURN_C:g} K (MW)", "10 km: investment (M yen)",
+                   f"Carries at {gr.HOT_SUPPLY_C - gr.HOT_RETURN_C:g} K (MW)", "Yen per metre for each MW carried",
+                   "10 km: investment (M yen)",
                    "Annuity (M yen/yr)", "Heat loss (MWh/yr)"],
                   ["管径", "単価（円/m）", f"温度差{P.dT_ambient:g} Kで運べる熱（MW）",
-                   f"温度差{gr.HOT_SUPPLY_C - gr.HOT_RETURN_C:g} Kで運べる熱（MW）", "10 kmの投資額（百万円）",
+                   f"温度差{gr.HOT_SUPPLY_C - gr.HOT_RETURN_C:g} Kで運べる熱（MW）", "運ぶ熱1 MWあたりの単価（円/m）",
+                   "10 kmの投資額（百万円）",
                    "年額（百万円/年）", "熱損失（MWh/年）"]), rows))
 
+    small, large = min(sz.dn for sz in P.sizes), max(sz.dn for sz in P.sizes)
+    print("\n" + t(f"Per MW carried, DN{large} costs 1/{gr.yen_per_m_per_mw(small, P) / gr.yen_per_m_per_mw(large, P):.1f} of DN{small} "
+                   f"(at any temperature difference).",
+                   f"運ぶ熱1 MWあたりの単価は、DN{large}がDN{small}の{gr.yen_per_m_per_mw(small, P) / gr.yen_per_m_per_mw(large, P):.1f}分の1です"
+                   f"（温度差によりません）。"))
     print("\n" + t(f"The plan's users: design peaks {s['peak_mw']:.2f} MW in sum. The plan's own pipes: {s['pipe_km']:.1f} km, "
                    f"{m(s['pipe_investment'])} M yen, {m(s['pipe_annuity'])} M yen a year.",
                    f"計画の需要家：設計ピークの合計 {s['peak_mw']:.2f} MW。計画の導管：{s['pipe_km']:.1f} km、"

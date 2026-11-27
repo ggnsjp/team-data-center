@@ -8,7 +8,7 @@ This page is for a town or a heat user who weighs a connection to a data-center 
 
 **The answer in short.**
 
-- **Hot geothermal water is better heat** than the 30 °C waste heat of a data center: it needs no heat pump. **What decides is distance.** Heat is costly to move, hot resources are where the geology puts them, and the data centers stand next to the users. With the model's own pipe costs, a line that carries hot water to the plan's users costs 2,704 M yen per 10 km and loses, per 10 km, 17 % of the heat it delivers. At 7.0 km the line alone costs as much as the plan's whole network. What hot water saves on heat pumps pays for 4.3 km of it. The nearest hot resource that a source names, in the mountains south-west of Sapporo, lies about 26 to 30 km from the data centers in a straight line.
+- **Hot geothermal water is better heat** than the 30 °C waste heat of a data center: it needs no heat pump. **What decides is distance.** Heat is costly to move, hot resources are where the geology puts them, and the data centers stand next to the users. With the model's own pipe costs, a line that carries hot water to the plan's users costs 2,704 M yen per 10 km and loses, per 10 km, 17 % of the heat it delivers. At 7.0 km the line alone costs as much as the plan's whole network. What hot water saves on heat pumps pays for 4.3 km of it. The nearest hot resource that a source names, in the mountains south-west of Sapporo, lies about 26 to 30 km from the data centers in a straight line. A line that carries a whole city's heat is a different case, which this page does not assess.
 - **Shallow ground heat is under every building,** so it needs no network. It is colder than the waste heat, about 10 °C in Hokkaido, so every use needs a heat pump: for the plan's deliveries, 2.4 times the electricity. It fits small users far from a data center.
 - **No source is better everywhere.** Which one fits a user depends on where the user is, how warm the heat has to be and how much of it is needed.
 
@@ -16,7 +16,7 @@ This page is for a town or a heat user who weighs a connection to a data-center 
 
 | | Data-center waste heat | Hot geothermal or hot-spring water (地熱・温泉熱) | Shallow ground heat (地中熱) |
 |---|---|---|---|
-| Temperature | about 30 °C (the model's assumption) | from about 50 °C up to steam | about 10 °C in Hokkaido [5] |
+| Temperature | about 30 °C (the model's assumption) | from about 50 °C up to steam (the classes of the resource maps start at 53 °C [8]) | about 10 °C in Hokkaido [5] |
 | Where | at the data centers, next to the users of the port area | where the geology has it | under every building |
 | To use it | a pipe network, and a heat pump for needs above 27 °C | wells, and a line to the users | boreholes or wells, and a heat pump for every use |
 | Exergy of 1 kWh of heat in January | 0.110 kWh (at 30 °C) | 0.236 kWh (at 80 °C) | 0.047 kWh (at 10 °C) |
@@ -36,20 +36,20 @@ The two Japanese words are easily confused. The Ministry of the Environment expl
 
 ### What decides: distance
 
-In the three examples the heat is used within a kilometre or two of the source. Moving heat takes an insulated two-pipe line, and both its cost and its heat loss grow with every metre, whatever the line carries. The model already holds what is needed to put numbers on this: a cost per metre for each pipe size (an assumption from quotes of 2019, [data-sources.md](data-sources.md)), the heat each size carries, and published loss coefficients for buried pre-insulated pipes with the ground temperature of Sapporo (`src/dcopt/heat/loss.py`).
+In these examples the heat is used close to its source: 1.8 km away in Teshikaga, and at Mori within one basin about 2.5 km across [11]. Moving heat takes an insulated two-pipe line, and both its cost and its heat loss grow with every metre, whatever the line carries. The model already holds what is needed to put numbers on this: a cost per metre for each pipe size (an assumption from quotes of 2019, [data-sources.md](data-sources.md)), the heat each size carries, and published loss coefficients for buried pre-insulated pipes with the ground temperature of Sapporo (`src/dcopt/heat/loss.py`).
 
-**The line assumed here.** Water leaves the field at 80 °C and comes back at 40 °C, hot enough for the model's hottest need (60 °C). The line is two single pipes of the middle insulation class, buried 1.2 m deep and kept at temperature all year.
+**The line assumed here.** Water leaves the field at 80 °C and comes back at 40 °C, hot enough for the model's hottest need (60 °C). The line is two single pipes of the middle of three insulation classes, buried 1.2 m deep and kept at temperature all year.
 
-| Size | Cost (yen/m) | Carries at 10 K, as the loop (MW) | Carries at 40 K, as the hot line (MW) | 10 km: investment (M yen) | Annuity (M yen/yr) | Heat loss (MWh/yr) |
-|---|---|---|---|---|---|---|
-| DN50 | 84,233 | 0.09 | 0.36 | 842.3 | 43.0 | 1,568 |
-| DN80 | 121,473 | 0.25 | 1.02 | 1,214.7 | 62.0 | 1,848 |
-| DN100 | 146,300 | 0.54 | 2.16 | 1,463.0 | 74.6 | 1,932 |
-| DN150 | 208,367 | 1.41 | 5.64 | 2,083.7 | 106.3 | 2,497 |
-| DN200 | 270,433 | 2.72 | 10.89 | 2,704.3 | 138.0 | 2,641 |
-| DN250 | 332,500 | 4.62 | 18.48 | 3,325.0 | 169.6 | 2,589 |
+| Size | Cost (yen/m) | Carries at 10 K, as the loop (MW) | Carries at 40 K, as the hot line (MW) | Yen per metre for each MW carried | 10 km: investment (M yen) | Annuity (M yen/yr) | Heat loss (MWh/yr) |
+|---|---|---|---|---|---|---|---|
+| DN50 | 84,233 | 0.09 | 0.36 | 231,532 | 842.3 | 43.0 | 1,568 |
+| DN80 | 121,473 | 0.25 | 1.02 | 119,561 | 1,214.7 | 62.0 | 1,848 |
+| DN100 | 146,300 | 0.54 | 2.16 | 67,660 | 1,463.0 | 74.6 | 1,932 |
+| DN150 | 208,367 | 1.41 | 5.64 | 36,967 | 2,083.7 | 106.3 | 2,497 |
+| DN200 | 270,433 | 2.72 | 10.89 | 24,822 | 2,704.3 | 138.0 | 2,641 |
+| DN250 | 332,500 | 4.62 | 18.48 | 17,991 | 3,325.0 | 169.6 | 2,589 |
 
-The annuity spreads the investment over 30 years at 3 %, as the model does for its pipes. The loss does not depend on how much heat flows: it is the same in a warm year and in a cold one.
+The fifth column divides the cost of a metre by the heat the line carries at 40 K. The annuity spreads the investment over 30 years at 3 %, as the model does for its pipes. The loss does not depend on how much heat flows: it is the same in a warm year and in a cold one.
 
 **The line for the plan's users.** The 13 users of the published plan take 15,147 MWh a year. The peaks the model sizes their pipes for add up to 6.3 MW (added as the model adds them along a shared pipe, with no allowance for peaks at different hours). The smallest size that carries this on top of its own loss is DN200.
 
@@ -65,7 +65,7 @@ The field has to supply the loss on top of the heat delivered. At 60 °C out and
 
 **Against the plan.**
 
-- The plan's whole network, 7.8 km of pipe from two data centers to the 13 users, costs 1,880 M yen. **A line of 7.0 km costs as much,** and at its end a network that distributes the heat among the users is still needed.
+- The plan's whole network, 7.8 km of pipe from two data centers to the 13 users, costs 1,880 M yen (the plan's pipe list at the model's cost per metre). **A line of 7.0 km costs as much,** and at its end a network that distributes the heat among the users is still needed.
 - What hot water saves is the heat pumps. The plan has them at 11 users (2.8 MW): an investment of 420 M yen, or 28.2 M yen a year, and 1,267 MWh of electricity, 31.7 M yen a year. Together 59.9 M yen a year, which pays the annuity of **4.3 km** of line.
 - So with the model's inputs a hot source has to lie within a few kilometres of the users to start level with the data centers next door, and that is before its wells are paid for.
 
@@ -100,10 +100,12 @@ A line of 26 to 30 km costs 7,031 M yen to 8,113 M yen, about four times the pla
 
 **Long lines exist where the load is large.** Reykjavik brings hot water from the Nesjavellir plant through a pipeline about 25 km long and 800 to 900 mm in diameter, designed for 1,870 litres a second of water of up to 100 °C. In its first stage it carried 560 litres a second; the water took less than seven hours and cooled by less than 2 °C on the way [14]. The plant gives about 200 MW of heat [14], some thirty times the 6.3 MW of the plan's users. The size of the load is the point. A pipe's loss depends on its size and its temperature, not on how much flows through it, so the more heat a line carries, the smaller the share it loses, and the more users share its cost.
 
+**What about a whole city?** For a city's heat, distance stops being the obstacle, because a larger pipe costs much less for each unit of heat it carries. In the table of pipe sizes above, a metre of the smallest line (DN50) costs 231,532 yen for each MW it carries and a metre of the largest (DN250) 17,991 yen, a thirteenth; the ratio is the same at any temperature difference. The Reykjavik line, about 25 km long for about 200 MW of heat, is the example [14]. What decides then is no longer the distance. It is whether a resource of that size is proven (the survey at Toyoha was suspended when the steam fell short [12]) and whether a network exists that distributes the heat to the buildings. This page does not assess a project of that scale.
+
 ### Other differences
 
-- **Time and risk before the first heat.** A geothermal field has to be found and drilled. At Mori, full-scale surveys began in 1972 and the station started in November 1982; its deepest production well reaches 2,500 m [11]. At Toyoha, four wells and three years of drilling and tests ended in a suspended survey [12]. The data centers of the port area are running or being built, and their heat is rejected to the air today.
-- **What the supply depends on.** Waste heat depends on a data center's operator and its load; the plan's scenarios vary the IT load, and the robust plan is built for the low one. Geothermal heat depends on the reservoir and its wells; in the prefecture's survey, municipalities report wells more than 30 years old with failures from age [9].
+- **Time and risk before the first heat.** A geothermal field has to be found and drilled. At Mori, full-scale surveys began in 1972 and the station started in November 1982; its deepest production well reaches 2,500 m [11]. At Toyoha, four wells and three years of drilling and tests ended in a suspended survey [12]. The data centers of the port area are running or being built, and the heat of those that run is rejected today.
+- **What the supply depends on.** Waste heat depends on a data center's operator and its load; the plan's scenarios vary the IT load, and a robust plan with 7 users is published next to the expected one with 13. Geothermal heat depends on the reservoir and its wells; in the prefecture's survey, one municipality reports that many of its wells are more than 30 years old and failing with age [9].
 
 ## 3. Shallow ground heat
 
@@ -165,6 +167,8 @@ In money, with the model's own prices and nothing else:
 - **Together.** Storing heat in aquifers bridges the seasons between supply and demand; it is used mostly at low temperature (below 25 °C) and for large users such as public buildings and district heating [4]. A data center has heat to spare in summer. The two could complement each other; this is not modelled.
 
 ## 4. Where each fits
+
+What speaks for the waste heat is said above in pieces. It is warmer than the ground, so it needs less electricity (section 3). It stands next to the users, so it needs no long line (section 2). And it is there and otherwise rejected: the four data centers of the port area offer 95.7 GWh a year at the model's assumptions, of which the published plan delivers 15.1 GWh.
 
 | | Data-center waste heat | Hot geothermal water | Shallow ground heat |
 |---|---|---|---|
