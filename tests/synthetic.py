@@ -59,6 +59,20 @@ def small_two_dc() -> Instance:
                     it=[{"low": 0.3, "high": 0.6}, {"low": 0.2, "high": 0.5}])
 
 
+def equidistant_two_dc() -> Instance:
+    """Two identical data centers at the same distance from one user: every plan has a twin that
+    swaps them, so only the tie-break decides which one serves the user."""
+    return instance([(-300, 0), (300, 0)], [("fish", "aquaculture", (0, 400), 1800.0)])
+
+
+def permuted_sources(inst: Instance, perm: list[int]) -> Instance:
+    """The same instance with the data centers (keys kept) in the order perm: the columns of z permuted."""
+    D = inst.D
+    order = list(perm) + list(range(D, inst.n))
+    return Instance([inst.sources[i] for i in perm], list(inst.users), inst.dist[np.ix_(order, order)].copy(),
+                    inst.road)
+
+
 def scaled_it(inst: Instance, factor: float) -> Instance:
     """The same instance with every data center's IT load multiplied by factor."""
     srcs = [replace(s, it_mw={k: v * factor for k, v in s.it_mw.items()}) for s in inst.sources]
