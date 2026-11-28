@@ -571,7 +571,7 @@ tests/              合成データでの単体テストとアプリのテスト
 77. Lund, H., Werner, S., Wiltshire, R., Svendsen, S., Thorsen, J.E., Hvelplund, F., Mathiesen, B.V. (2014). 4th Generation District Heating (4GDH): Integrating smart thermal grids into future sustainable energy systems. *Energy*, 68, 1-11. https://doi.org/10.1016/j.energy.2014.02.089
 78. 久保亮五 編 (1998). 大学演習 熱学・統計力学（修訂版）. 裳華房（第2章でカルノーサイクルの効率と最大仕事を扱う）. https://www.shokabo.co.jp/mybooks/ISBN978-4-7853-8032-8.htm 熱力学の部分の英語版：Kubo, R., in cooperation with Ichimura, H., Usui, T., Hashitsume, N. (1968). *Thermodynamics: An Advanced Course with Problems and Solutions*. North-Holland.
 79. Kavvadias, K.C., Quoilin, S. (2018). Exploiting waste heat potential by long distance heat transmission: Design considerations and techno-economic assessment. *Applied Energy*, 216, 452-465. https://doi.org/10.1016/j.apenergy.2018.02.080
-80. 環境省 (2016). 「平成27年度地熱発電と温泉地の共生事例調査委託業務」ヒアリングメモ（札幌市）（2015年12月22日の聞き取り。豊羽地域の地熱調査について）. https://www.env.go.jp/nature/onsen/pdf/2-5_p_36.pdf
+80. 環境省. 「平成27年度地熱発電と温泉地の共生事例調査委託業務」ヒアリングメモ（札幌市）（2015年12月22日の聞き取り。豊羽地域の地熱調査について）. https://www.env.go.jp/nature/onsen/pdf/2-5_p_36.pdf
 81. 環境省. 地中熱とは？（地温：北海道で10℃）. https://www.env.go.jp/water/jiban/post_117.html （2026-11-28閲覧）
 
 ## メンバー
