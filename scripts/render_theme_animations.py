@@ -296,10 +296,10 @@ def siting(records: list[dict], lang: str) -> Stage:
                 for ddx, ddy, ha in spots]
         return spots[int(np.argmax(room))]
 
-    from dcopt.siting.model import annuity
+    from dcopt.siting.model import LINE_COST_M_YEN_KM, annuity
     # M yen a year per km of connection line: the middle of the published standard unit costs for a
     # two-circuit tower line, 66/77 kV class and 154/187 kV class (docs/input-evidence.md)
-    line66, line187 = annuity(0.03, 30) * 410.0, annuity(0.03, 30) * 510.0
+    line66, line187 = (annuity(0.03, 30) * LINE_COST_M_YEN_KM[k] for k in ("66", "187"))
     g66, g187 = top["grid_66"], top["grid_187"]
     solver = (nets.get("provenance") or {}).get("solver", "")
     T = {

@@ -2,8 +2,8 @@
 
 For every point of a grid over the municipality, the regional heat plan of theme 1 is solved with
 a new data center there (dcopt.siting.heat_value). The script also measures each site's distance to
-the nearest substation and lines in OpenStreetMap, and checks the pair of sites the location model
-picks with one joint solve. It writes
+the nearest substation and lines in OpenStreetMap, and checks with one joint solve the pair of sites
+the location model picks for two new data centers at the app's other default settings. It writes
   out/siting/siting.json     read by the app page "Siting"
   out/siting/networks.json   the pipe networks of today's plan and of the plans for the best sites,
                              read by scripts/render_siting_animation.py
@@ -11,6 +11,7 @@ picks with one joint solve. It writes
 Run: uv run python scripts/export_siting.py [--spacing 1500] [--mw 10] [--workers 8]
      DCOPT_SOLVER=gurobi uv run python scripts/export_siting.py --workers 4 --out results/siting/gurobi.json   # optional check
      uv run python scripts/export_siting.py --networks-only    # redo networks.json for an export that is already there
+     uv run python scripts/export_siting.py --pair-check-only  # redo only the pair check of an export that is already there
 Takes about a quarter of an hour with 8 workers. Needs the Ishikari map data (scripts/fetch_data.py);
 the power lines are downloaded on first use, and the study runs without them if that fails.
 """
@@ -33,11 +34,12 @@ from dcopt.heat.v1 import ishikari_sites
 from dcopt.siting import gridmap
 from dcopt.siting.candidates import grid_candidates, name_places
 from dcopt.siting.heat_value import LOW_SHARE, heat_value, heat_value_of
-from dcopt.siting.model import annuity, choose_sites
+from dcopt.siting.model import LINE_COST_M_YEN_KM, annuity, choose_sites
 
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "out" / "siting"
 M = 1e6
+PAIR_SPACING_M = 3000.0   # the pair check: the app's default distance between two new data centers
 _W: dict = {}
 
 
@@ -115,6 +117,27 @@ def export_networks(path: Path, cands: list[dict], mw: float, n: int, workers: i
     print(f"wrote {path}")
 
 
+def pair_check(cands: list[dict], mw: float, base, links, users, P, scens) -> dict | None:
+    """The pair the location model picks for two new data centers at the app's other default settings (at
+    least 3 km apart, each connected to the nearest 66 kV substation at the middle of the published unit
+    costs), solved together once to see whether the single values add up."""
+    key = f"{mw:g}"
+    heat = [c["by_mw"][key]["value"] for c in cands]
+    km = [(c.get("grid_66") or {}).get("substation_km") or 0.0 for c in cands]
+    line = LINE_COST_M_YEN_KM["66"]
+    pick = choose_sites(heat, km, [(c["x"], c["y"]) for c in cands], n=2, yen_per_km_year=annuity(0.03, 30) * line * 1e6,
+                        spacing_m=PAIR_SPACING_M)
+    if len(pick.chosen) != 2:
+        return None
+    pair = [cands[j] for j in pick.chosen]
+    jv = heat_value_of(base, links, users, [(c["lon"], c["lat"], mw) for c in pair], P, scens)
+    joint = {"ids": [c["id"] for c in pair], "sum_of_single_values": pick.heat, "joint_value": jv.value,
+             "sites": jv.sites, "sites_from_candidates": jv.sites_from_candidate, "pipe_km": jv.pipe_km,
+             "line_m_yen_km": line, "spacing_m": PAIR_SPACING_M}
+    print(f"pair {joint['ids']}: single values add up to {pick.heat / M:.1f}M, joint value {jv.value / M:.1f}M", flush=True)
+    return joint
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--spacing", type=float, default=1500.0, help="grid spacing of the candidate sites, metres")
@@ -124,6 +147,7 @@ def main() -> None:
     ap.add_argument("--out", default=str(OUT / "siting.json"), help="where to write (the app reads the default path)")
     ap.add_argument("--networks", type=int, default=3, help="keep the pipe networks of this many best sites (0: none)")
     ap.add_argument("--networks-only", action="store_true", help="read the export at --out and only redo networks.json")
+    ap.add_argument("--pair-check-only", action="store_true", help="read the export at --out and only redo the pair check")
     args = ap.parse_args()
 
     use_overpass_mirror()
@@ -136,6 +160,16 @@ def main() -> None:
     print(f"regional plan without a new data center: {base.expected_net / M:.1f}M, {len(base.connected)} sites, "
           f"{base.pipe_m / 1000:.1f} km  [{time.perf_counter() - t0:.0f}s]", flush=True)
     out = Path(args.out)
+    if args.pair_check_only:
+        done = json.loads(out.read_text(encoding="utf-8"))
+        if abs(done["base"]["net"] - base.expected_net) > 0.05 * M:
+            print(f"note: the export has a regional plan of {done['base']['net'] / M:.1f}M, this run {base.expected_net / M:.1f}M")
+        done["pair_check"] = pair_check(done["candidates"], done["sizes_mw"][0], base, links, users, P, scens)
+        if done["pair_check"]:
+            done["pair_check"]["provenance"] = provenance.stamp(solver=solver_name(P))
+        out.write_text(json.dumps(done, ensure_ascii=False), encoding="utf-8")
+        print(f"wrote {out}  [{time.perf_counter() - t0:.0f}s]")
+        return
     if args.networks_only:
         done = json.loads(out.read_text(encoding="utf-8"))
         if abs(done["base"]["net"] - base.expected_net) > 0.05 * M:
@@ -171,19 +205,7 @@ def main() -> None:
     else:
         print("power lines not available: the study carries on with heat values only")
 
-    # the pair the location model picks at its default settings, checked by one joint solve
-    mw0 = sizes[0]
-    heat = [c["by_mw"][f"{mw0:g}"]["value"] for c in cands]
-    km = [c.get("grid_66", {}).get("substation_km") or 0.0 for c in cands]
-    pick = choose_sites(heat, km, [(c["x"], c["y"]) for c in cands], n=2, yen_per_km_year=annuity(0.03, 30) * 100e6,
-                        spacing_m=3000.0)
-    joint = None
-    if len(pick.chosen) == 2:
-        pair = [cands[j] for j in pick.chosen]
-        jv = heat_value_of(base, links, users, [(c["lon"], c["lat"], mw0) for c in pair], P, scens)
-        joint = {"ids": [c["id"] for c in pair], "sum_of_single_values": pick.heat, "joint_value": jv.value,
-                 "sites": jv.sites, "sites_from_candidates": jv.sites_from_candidate, "pipe_km": jv.pipe_km}
-        print(f"pair {joint['ids']}: single values add up to {pick.heat / M:.1f}M, joint value {jv.value / M:.1f}M")
+    joint = pair_check(cands, sizes[0], base, links, users, P, scens)
 
     out.parent.mkdir(parents=True, exist_ok=True)
     data = {
@@ -199,7 +221,7 @@ def main() -> None:
     out.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
     print(f"wrote {out}  [{time.perf_counter() - t0:.0f}s]")
     if args.networks > 0:
-        export_networks(out.with_name("networks.json"), cands, mw0, args.networks, args.workers, base, links, users, P, scens)
+        export_networks(out.with_name("networks.json"), cands, sizes[0], args.networks, args.workers, base, links, users, P, scens)
 
 
 if __name__ == "__main__":

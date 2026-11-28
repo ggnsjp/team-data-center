@@ -236,9 +236,9 @@ For each of 56 candidate sites in Ishikari (a 1.5 km grid, each point moved to t
 - **The heat has value at 19 of the 56 sites.** At the best one it is 45.2 M yen a year, almost half of what the whole regional plan earns today (93.8).
 - **What counts is being nearer to the heat users.** The best sites are 1 to 2 km from the existing data centers, on the town side. At the port itself heat is already in surplus: the regional plan uses about 15 % of what the existing data centers could supply, so one more data center there adds nothing.
 - **The grid connection costs as much as the heat is worth.** Published standard unit costs for a two-circuit tower line are 140 to 670 M yen/km in the 66/77 kV class [65]. At the middle of that range, the best site keeps 15.3 of its 45.2 if it connects at the 66 kV substation 1.4 km away, and only one other site keeps a positive net. If the connection has to be made at 187 kV, 5.2 km away, the heat value does not cover the line at any site.
-- **A second new data center adds about a third of the heat value of the first** (16.6 on top), which is less than its own connection costs.
+- **A second new data center adds less than half of what the first does** (at most 19.9 on top of 45.2), which is less than its own connection costs.
 
-The app's *Siting* page shows the map and solves the location model for a chosen number of data centers, connection level and cost. The values are lower bounds from a heuristic search, computed one site at a time. They are from the run with Gurobi; HiGHS alone gives the same values at the four best sites (within 1.0) and lower ones at 17 others. Formulation, method and limits: [docs/formulations/siting.md](docs/formulations/siting.md).
+The app's *Siting* page shows the map and solves the location model for a chosen number of data centers, connection level and cost. The values are lower bounds from a heuristic search, computed one site at a time. They are from the run with Gurobi; HiGHS alone gives the same values at the four best sites (within 1.0) and lower ones at 15 others. Formulation, method and limits: [docs/formulations/siting.md](docs/formulations/siting.md).
 
 ## Results so far (theme 4)
 
