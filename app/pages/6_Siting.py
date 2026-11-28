@@ -17,17 +17,17 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from dcopt.common.style import AXIS, FONT, GRID, GSI_ATTR, GSI_PALE, INK, INK2, MUTED, SLOTS, SURFACE, map_tip
-from dcopt.siting.model import annuity, choose_sites, pareto
+from dcopt.siting.model import LINE_COST_M_YEN_KM, annuity, choose_sites, pareto
 
 ROOT = Path(__file__).resolve().parents[2]
 DATA = ROOT / "out" / "siting" / "siting.json"
 M = 1e6
 LINE = {275000: ("#B3541E", 5), 187000: ("#14213D", 4), 66000: ("#3987E5", 3)}
 RATE, YEARS = 0.03, 30                 # the annuity of the heat model, used for the grid connection too
-# Connection line, M yen per km: the middle and the range of the standard unit costs for a two-circuit
-# tower line that OCCTO published in March 2026 (land excluded); "66" is its 66/77 kV class and
-# "187" its 154/187 kV class. Source and reading: docs/input-evidence.md.
-LINE_COST = {"66": (410, 140, 670), "187": (510, 190, 830)}
+# Connection line, M yen per km: the middle (dcopt.siting.model) and the range of the standard unit costs
+# for a two-circuit tower line that OCCTO published in March 2026 (land excluded); "66" is its 66/77 kV
+# class and "187" its 154/187 kV class. Source and reading: docs/input-evidence.md.
+LINE_COST = {"66": (LINE_COST_M_YEN_KM["66"], 140, 670), "187": (LINE_COST_M_YEN_KM["187"], 190, 830)}
 
 lang = st.session_state.get("app_lang", "日本語")
 ja = lang == "日本語"

@@ -20,6 +20,11 @@ import numpy as np
 import scipy.sparse as sp
 from scipy.optimize import Bounds, LinearConstraint, milp
 
+# Connection line, M yen per km: the middle of the standard unit costs for a two-circuit tower line that
+# OCCTO published in March 2026 (land excluded); "66" is its 66/77 kV class and "187" its 154/187 kV class.
+# The app's default, the export's pair check and the animation stills all read it. Source: docs/input-evidence.md.
+LINE_COST_M_YEN_KM = {"66": 410, "187": 510}
+
 
 @dataclass
 class Choice:

@@ -149,7 +149,7 @@ Generated from `dcopt.heat.network.assumptions_table(Params())`. Values with two
 | Investment subsidy (scenario) | 0 | | scenario, zero by default: share of the pipe and heat-pump investment |
 | Pipe life, discount rate | 30 / 3% |  | assumption (as v1) |
 | Heat-pump life | 20 | years | assumption |
-| Heat-pump investment | 0 / 0 | yen/MW | user / central; off by default (to verify with makers) |
+| Heat-pump investment | 150 M / 100 M | yen per MW of heat | at the users / central. Users: assumption for small heat pumps (100 kW to 2 MW), to check with makers. Central: about EUR 0.65M per MW of heat at Odense (two ammonia heat pumps, 44.6 MW, DKK 215M; Dansk Fjernvarme, https://danskfjernvarme.dk/media/eqbhcqlv/inspirationskatalog-for-store-varmepumper-2022.pdf), taken as 100 M yen/MW (assumption, including the exchange rate) |
 | Sized share of each user's peak | 1.0 |  | assumption |
 | Tie-break between equal-cost data centers | 0.0 | yen/m/yr | optional tie-break, off by default (0), and not a real cost: with a positive value a user that two data centers can serve at the same cost goes to the nearer one, whatever the solver. The value tested is 0.01, about 2 millionths of the annuity of the cheapest pipe (DN50, about 4,300 yen/m/yr); the objective moves by at most the value times the distances of connected users, and the reported net benefits leave it out. The published plan was made with it off |
 | Peak factors | greenhouse 2.5, new_greenhouse 2.5, aquaculture 1.2, snow 3, pool 1.4, onsen 1.4, hospital 1.8, school 2 |  | assumption: greenhouses heat mostly at night (2.5); snow melting follows snowfall events (3.0); space heating 1.8-2.0; pools and baths are steady (1.4); fish farms very steady (1.2) |
