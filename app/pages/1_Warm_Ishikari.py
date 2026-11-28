@@ -268,16 +268,17 @@ def explain(question: str, changed: dict, before: dict, after: dict) -> None:
                             "so only the numbers are shown."))
         else:
             st.markdown(res["text"])
-        via = "OrcaRouter" if res["via"] == "orcarouter" else pick("直接接続", "direct")
+        via = pick("ルーター経由", "through a router") if res["via"] == "orcarouter" else pick("直接接続", "direct")
         st.caption(pick(f"回答したモデル：{res['model']}（{via}）", f"Answered by {res['model']} ({via})"))
 
 
 st.markdown("**" + pick("ライブ・シミュレーション（文章で試す）", "Live simulation (ask in plain language)") + "**")
 if not llm.settings()["has_key"]:
-    st.info(pick("環境変数 CF_API_KEY（または ORCAROUTER_API_KEY）を設定すると、この欄で文章からシナリオを"
-                 "変えられます。数値はすべて左のモデルが計算します。",
-                 "Set the CF_API_KEY (or ORCAROUTER_API_KEY) environment variable to change scenarios in "
-                 "plain language here. Every number is still computed by the model."))
+    st.info(pick("OpenAI互換の言語モデルを環境変数 LLM_API_KEY・LLM_BASE_URL・LLM_MODEL で設定すると、"
+                 "この欄で文章からシナリオを変えられます。数値はすべて左のモデルが計算します。",
+                 "Set an OpenAI-compatible language model with the environment variables LLM_API_KEY, "
+                 "LLM_BASE_URL and LLM_MODEL to change scenarios in plain language here. Every number is "
+                 "still computed by the model."))
     st.chat_input(pick("例：電気料金を2倍にして", "e.g. double the electricity price"), disabled=True)
 else:
     q = st.chat_input(pick("例：電気料金を2倍にして、仮定の候補地も除いて",

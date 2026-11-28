@@ -405,38 +405,18 @@ downloads map data reads it.
 - Eight pages: *Waste-heat network* (Warm Ishikari: model v1 for one data center, every assumption adjustable, and the live simulation), *Animation* (Warm Ishikari Map), *Proposals* (Warm Ishikari Proposals), *Weather years*, *Grid hosting capacity*, *Siting*, *Renewable matching* and *GX overlay*.
 
 **Live simulation (the app's Warm Ishikari page)**
-- Type a what-if in either language ("電気料金を2倍にして" / "double the electricity price"); the LLM
-  (carbonforge-flash, OpenAI-compatible via `CF_API_KEY`, override endpoint with `CARBONFORGE_BASE_URL`
-  and model with `LLM_MODEL`) maps it onto the page's knobs, the deterministic model re-runs, and the
-  LLM explains the result. The model never computes numbers; it chooses inputs and explains outputs.
+- Type a what-if in either language ("電気料金を2倍にして" / "double the electricity price"); a language
+  model (any OpenAI-compatible service, set by `LLM_API_KEY`, `LLM_BASE_URL` and `LLM_MODEL`; the earlier
+  settings `CF_API_KEY` and `CARBONFORGE_BASE_URL` still work) maps it onto the page's knobs, the deterministic
+  model re-runs, and the language model explains the result. It never computes numbers; it chooses inputs and
+  explains outputs. Without these settings the page shows a hint in place of the box.
 - Output check: every number in the explanation must appear in the question, the changes or the results
   the LLM was given. Numbers written in kanji are read too (三億円 as 3, 十二キロ as 12); quantities without a
   numeral, such as "half" or "double", are not. If a number does not appear, the panel shows the changes and results as plain bullets with a
   note instead. The caption under each explanation names the model that answered. Questions are capped
   at 500 characters. One request to the model is cut off after 60 seconds (`LLM_TIMEOUT_S` changes this), and
   each of the two steps of a question, reading it and explaining the result, gives up after twice that.
-- Optional: route the LLM through [OrcaRouter](https://docs.orcarouter.ai/) with a fallback chain, so a
-  CarbonForge outage or 429 does not break the panel. Without `ORCAROUTER_API_KEY` nothing changes.
-  1. In the OrcaRouter console, add CarbonForge under BYOK as a custom OpenAI-compatible endpoint with
-     base URL `https://endpoint.carbonforge.ai/v1` and your CarbonForge key, and import `carbonforge-flash`.
-  2. Optionally add guardrails (console → Guardrails, attached to the key), for example a `max_chars`
-     input rule and a PII mask. They screen inputs; the number check above covers the outputs.
-  3. Set the environment variables below. The first entry of `LLM_MODELS` is the CarbonForge model id as
-     the console shows it after the import.
-     Any model id of OrcaRouter can be in the chain: `LLM_MODELS=orcarouter/fusion-flash`, for example, uses
-     its own router model and needs no CarbonForge import.
-
-  | Variable | Meaning |
-  | --- | --- |
-  | `ORCAROUTER_API_KEY` | OrcaRouter key (`sk-orca-...`); turns OrcaRouter mode on |
-  | `ORCAROUTER_BASE_URL` | default `https://api.orcarouter.ai/v1` |
-  | `LLM_MODELS` | comma-separated fallback chain, at most 5, CarbonForge first |
-  | `CF_API_KEY` | still used when OrcaRouter is unreachable or answers 5xx/429: the app then calls CarbonForge directly |
-  | `CARBONFORGE_BASE_URL`, `LLM_MODEL` | the direct endpoint and model, as before |
-
-  OrcaRouter fails over to the next model only on a 5xx, 429 or network error; a 401/403 or a guardrail
-  block is shown as an error, not retried. Privacy: in this mode the prompts (your question and the
-  model's numbers) pass through OrcaRouter as well as the model provider.
+- Optional add-on: a router with a fallback chain for the language model ([docs/optional-addons.md](docs/optional-addons.md)).
 - The assumption sliders sit in a form: nothing is solved until you press 再計算 / Recalculate. Solved plans
   are kept on disk in `data/cache/warm_ishikari_plans/` (not committed; set `DCOPT_PLAN_CACHE` to keep them
   elsewhere), so a setting solved before loads at once; a change to the model's code (`v1.py`) sets the saved
@@ -452,7 +432,7 @@ downloads map data reads it.
 
 **The plan as a graph (optional)**
 - `uv run python scripts/export_plan_graph.py` turns a plan from `scripts/export_heat_network_v2.py` into a graph of junctions, pipes, data centers and heat users, and answers three questions: the route from a data center to each user, the users that lose their supply when one pipe is out, and the pipes most users share. It writes four tables and a Cypher script to `out/plan_graph/`. This runs with NetworkX; nothing else is needed.
-- With a Neo4j database (`uv sync --extra graph`, then `NEO4J_URI`, `NEO4J_USERNAME` and `NEO4J_PASSWORD`), `--neo4j` loads the same graph, asks the same questions in Cypher and checks that the answers agree. The app and every other script run without Neo4j.
+- Loading the same graph into a graph database is an optional add-on ([docs/optional-addons.md](docs/optional-addons.md)). The app and every other script run without it.
 
 **Redrawing the animations**
 1. Base map and theme-1 plans: `uv run python scripts/export_heat_story.py` and `uv run python scripts/export_heat_network_v2.py`

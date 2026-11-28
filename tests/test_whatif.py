@@ -17,10 +17,10 @@ CURRENT = {"it_load_mw": 10.0, "recovery": 0.6, "cop": 4.0, "kerosene_yen_l": 11
            "renewable_power": True, "assumed_sites": True, "k_pipes": 3}
 
 
-def ok_transport(content: str):
+def ok_transport(content: str, model: str):
     def send(url, payload, headers):
         body = json.loads(payload)
-        assert body["model"] == "carbonforge-flash" and body["messages"]
+        assert body["model"] == model and body["messages"]
         assert "Authorization" in headers
         return 200, json.dumps({"choices": [{"message": {"content": content}}]}).encode()
     return send
@@ -32,8 +32,11 @@ def fake_chat(content: str):
     return chat
 
 
-def test_chat_posts_and_returns_content():
-    out = llm.chat([{"role": "user", "content": "hi"}], transport=ok_transport('{"a": 1}'))
+def test_chat_posts_and_returns_content(monkeypatch):
+    for k in ("LLM_API_KEY", "LLM_BASE_URL", "CF_API_KEY", "ORCAROUTER_API_KEY"):
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("LLM_MODEL", "a-model")
+    out = llm.chat([{"role": "user", "content": "hi"}], transport=ok_transport('{"a": 1}', "a-model"))
     assert out == '{"a": 1}'
 
 
@@ -228,7 +231,7 @@ def test_new_dc_summary_compares_with_and_without():
 
 # ------------------------------------------------------------------- OrcaRouter mode + guardrail
 ORCA_ENV = ("ORCAROUTER_API_KEY", "ORCAROUTER_BASE_URL", "LLM_MODELS", "LLM_MODEL", "CF_API_KEY",
-            "CARBONFORGE_BASE_URL")
+            "CARBONFORGE_BASE_URL", "LLM_API_KEY", "LLM_BASE_URL")
 
 
 @pytest.fixture
@@ -474,3 +477,84 @@ def test_a_new_data_center_needs_a_finite_size():
     answer["new_data_center"] = {"mw": 1e9, "place": "手稲"}
     assert whatif.parse_patch("x", CURRENT, llm_chat=fake_chat(json.dumps(answer)))["new_dc"] == {"mw": 100.0, "place": "手稲"}
 
+
+
+
+# ------------------------------------------------------------------- any OpenAI-compatible service
+GENERIC = {"LLM_API_KEY": "generic-sekrit", "LLM_BASE_URL": "https://llm.example.org/v1/", "LLM_MODEL": "some-model"}
+
+
+@pytest.fixture
+def generic(monkeypatch):
+    for k in ORCA_ENV:
+        monkeypatch.delenv(k, raising=False)
+    for k, v in GENERIC.items():
+        monkeypatch.setenv(k, v)
+    return monkeypatch
+
+
+def test_any_openai_compatible_service_is_called_directly(generic):
+    seen = []
+
+    def send(url, payload, headers):
+        seen.append((url, headers["Authorization"], json.loads(payload)))
+        return reply()
+
+    assert llm.settings()["has_key"] and not llm.settings()["router"]
+    out = llm.chat_ex([{"role": "user", "content": "hi"}], transport=send)
+    assert out == {"text": "ok", "model": "some-model", "via": "direct"}
+    assert seen[0][0] == "https://llm.example.org/v1/chat/completions"
+    assert seen[0][1] == "Bearer generic-sekrit" and seen[0][2]["model"] == "some-model"
+
+
+@pytest.mark.parametrize("missing", ["LLM_BASE_URL", "LLM_MODEL"])
+def test_the_generic_settings_need_all_three(generic, missing):
+    generic.delenv(missing)
+    s = llm.settings()
+    assert not s["has_key"] and s["missing"] == [missing]
+    with pytest.raises(llm.LLMError) as e:
+        llm.chat_ex([{"role": "user", "content": "hi"}])
+    assert "LLM_API_KEY" in str(e.value) and "generic-sekrit" not in str(e.value)
+
+
+def test_nothing_set_means_no_panel_and_no_service_named(monkeypatch):
+    for k in ORCA_ENV:
+        monkeypatch.delenv(k, raising=False)
+    s = llm.settings()
+    assert not s["has_key"] and s["missing"] == ["LLM_API_KEY", "LLM_BASE_URL", "LLM_MODEL"]
+    assert s["base_url"] == "" and s["model"] == ""          # no service is assumed
+
+
+def test_the_generic_key_wins_over_the_event_key(generic):
+    generic.setenv("CF_API_KEY", "cf-sekrit")
+    seen = []
+
+    def send(url, payload, headers):
+        seen.append((url, headers["Authorization"]))
+        return reply()
+
+    llm.chat_ex([{"role": "user", "content": "hi"}], transport=send)
+    assert seen == [("https://llm.example.org/v1/chat/completions", "Bearer generic-sekrit")]
+
+
+def test_the_event_key_alone_still_works(monkeypatch):
+    """The settings used during the hackathon: CF_API_KEY, with the event's endpoint and model."""
+    for k in ORCA_ENV:
+        monkeypatch.delenv(k, raising=False)
+    monkeypatch.setenv("CF_API_KEY", "cf")
+    s = llm.settings()
+    assert s["has_key"] and (s["base_url"], s["model"]) == (llm.EVENT_BASE, llm.EVENT_MODEL)
+
+
+def test_a_router_falls_back_to_the_generic_service(generic):
+    generic.setenv("ORCAROUTER_API_KEY", "orca-sekrit")
+    calls = []
+
+    def send(url, payload, headers):
+        calls.append((url, headers["Authorization"]))
+        return (503, b"{}", {}) if "orcarouter" in url else reply("direct answer")
+
+    out = llm.chat_ex([{"role": "user", "content": "hi"}], transport=send)
+    assert out == {"text": "direct answer", "model": "some-model", "via": "direct"}
+    assert calls[1] == ("https://llm.example.org/v1/chat/completions", "Bearer generic-sekrit")
+    assert llm.chain() == ["some-model"]                   # without LLM_MODELS the chain is the direct model

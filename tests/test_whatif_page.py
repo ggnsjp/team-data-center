@@ -23,7 +23,7 @@ pytestmark = pytest.mark.skipif(bool(missing_map_data()), reason="run the Ishika
 @pytest.fixture(autouse=True)
 def own_plan_cache(monkeypatch, tmp_path):
     monkeypatch.setenv(v1.PLAN_CACHE_ENV, str(tmp_path / "plans"))
-    for name in ("ORCAROUTER_API_KEY", "LLM_MODELS", "LLM_MODEL", "CARBONFORGE_BASE_URL"):
+    for name in ("ORCAROUTER_API_KEY", "LLM_MODELS", "LLM_MODEL", "CARBONFORGE_BASE_URL", "LLM_API_KEY", "LLM_BASE_URL"):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv("CF_API_KEY", "a-key-for-the-stand-in")
     st.cache_resource.clear()
