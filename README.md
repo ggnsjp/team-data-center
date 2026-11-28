@@ -374,6 +374,7 @@ flowchart LR
 uv sync
 uv run python scripts/fetch_data.py --area ishikari    # map data from OpenStreetMap into data/cache (not committed)
 uv run python scripts/export_heat_story.py             # base map and data for the animated map page
+uv run python scripts/export_gx_zone.py                # the GX overlay page: power plants, data centers and pre-filed plots
 uv run python scripts/export_proposals.py              # ranked partners and proposals per data center (a few minutes)
 uv run python scripts/export_siting.py                 # theme 3: heat value of a new data center at every candidate site (15 minutes)
 uv run python -m dcopt.matching.records 2024 2025      # theme 4: the area's 30-minute records into data/cache (not committed)
