@@ -376,6 +376,7 @@ flowchart LR
 uv sync
 uv run python scripts/fetch_data.py --area ishikari    # OpenStreetMapの地図データを data/cache に取得（コミットしない）
 uv run python scripts/export_heat_story.py             # 地図ページ用の下地とデータ
+uv run python scripts/export_gx_zone.py                # GXオーバーレイのページ：発電所、データセンター、電力の申込済みの用地
 uv run python scripts/export_proposals.py              # データセンターごとの相手の順位と提案書（数分）
 uv run python scripts/export_siting.py                 # テーマ3：候補地ごとの、新しいデータセンターの排熱の価値（15分）
 uv run python -m dcopt.matching.records 2024 2025      # テーマ4：エリアの30分ごとの需給実績を data/cache に取得（コミットしない）
