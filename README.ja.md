@@ -102,9 +102,13 @@
 
 井戸、資源の調査、地中熱交換器の費用は入れていません。都市全体に届ける太い導管（運ぶ熱あたりの費用はずっと安くなります）も評価していません。そのため、どの熱源が安いかまでは答えていません。どこでも一番よい熱源もありません。表、出典、限界は [docs/ground-heat.ja.md](docs/ground-heat.ja.md) にあります。実行：`uv run python scripts/ground_heat.py --lang ja`
 
+### 事業として見ると：冬の暖房費を下げる
+
+事業として見ると、計画の目的は、灯油を燃やしている建物の冬の暖房費を下げることです。今ある施設だけ（13件、導管6.0 km）なら、導管網に要る熱の価格は最低でも1 MWhあたり7,352円で、置き換える灯油1 Lあたり60.6円にあたります。施設が払っている灯油の価格が約125円/Lを超えると、計画は採算がとれます。店頭価格の156.8円/Lなら年3,260万円の利益、115円/Lなら年1,000万円の損です。仮定の陸上養殖や道路融雪のように、ヒートポンプなしでループの熱を使う需要家が加わると、導管網の価格が全員について1 MWhあたり6,331円まで下がり、採算がとれる灯油価格は約85円/Lまで下がります。ですから、最初に確かめるべきは、大口の施設が払っている灯油の価格と、こうした需要家を港湾地域に呼べるかどうかです。施設の種類ごとの窓、需要の3つの段階、事業計画にまだ要るものは [docs/heat-business.ja.md](docs/heat-business.ja.md) にあります。実行：`uv run python scripts/export_heat_business.py`（数分かかります）のあと `uv run python scripts/heat_business.py --lang ja`
+
 ### CO₂：計画は補助なしで採算がとれ、炭素価格より補助のほうが計画を大きく動かす
 
-上の確率計画（13か所、7.8km）は、各施設のヒートポンプが北海道電力の標準メニューの電気（0.526 kg/kWh [54]）で動く場合、**年に約3,900トンのCO₂** を減らします。2030年度の国の水準（0.25 kg/kWh [55]）なら4,300トン、再エネ電力なら4,600トンです。灯油の排出量は1Lあたり2.50 kgです [53]。この計画は、減らしながら利益が出ます（1トンあたり約24,000円の得）。炭素価格がなくても成り立ちます。
+上の確率計画（13か所、7.8km）は、各施設のヒートポンプが北海道電力の標準メニューの電気（0.526 kg/kWh [54]）で動く場合、**年に約3,900トンのCO₂** を減らします。2030年度の国の水準（0.25 kg/kWh [55]）なら4,300トン、再エネ電力なら4,600トンです。灯油の排出量は1Lあたり2.50 kgです [53]。これは置き換える灯油の排出から、ヒートポンプの電気の排出を引いたものです。飼料やポンプなど、需要家のほかの排出は数えていないので、つないでも需要家の排出がゼロになるわけではありません。この計画は、減らしながら利益が出ます（1トンあたり約24,000円の得）。炭素価格がなくても成り立ちます。
 
 次に、2つのシナリオで計画を最適化し直しました。減らしたCO₂に価格を付ける場合と、設備費を補助する場合です。
 
@@ -174,7 +178,7 @@
 - **モデルの粗さ。** 熱の収支は月単位で、熱損失は一律の割合です。距離に応じた損失はこれから入れます。
 - **熱の質。** 60℃を超える蒸気やプロセス熱、蓄熱槽、ポンプ動力は、モデルに入っていません（[docs/exergy.ja.md](docs/exergy.ja.md)）。
 
-数理モデルの完全な解説（すべての係数と数値例つき、英語）は [docs/formulations/heat-model.md](docs/formulations/heat-model.md) に、結果は [docs/formulations/heat.md](docs/formulations/heat.md) にあります。エクセルギーから見た説明は [docs/exergy.ja.md](docs/exergy.ja.md) です。地熱・地中熱との比較は [docs/ground-heat.ja.md](docs/ground-heat.ja.md) です。
+数理モデルの完全な解説（すべての係数と数値例つき、英語）は [docs/formulations/heat-model.md](docs/formulations/heat-model.md) に、結果は [docs/formulations/heat.md](docs/formulations/heat.md) にあります。エクセルギーから見た説明は [docs/exergy.ja.md](docs/exergy.ja.md) です。地熱・地中熱との比較は [docs/ground-heat.ja.md](docs/ground-heat.ja.md) です。施設の種類ごとに払える熱の価格を示した事業の見方は [docs/heat-business.ja.md](docs/heat-business.ja.md) です。
 
 ## これまでの結果（テーマ2）
 
@@ -433,7 +437,7 @@ uv run pytest                                          # テスト（地図デ�
 ## 構成
 
 ```
-src/dcopt/heat      テーマ1：モデルv1（v1.py）、v2（network.py）、提案書（proposal.py）、気象年（weather.py）、ライブ・シミュレーションの設定値（whatif.py）、導管の熱損失（loss.py）、計画のグラフ（plangraph.py）、エクセルギー（exergy.py）、地熱・地中熱との比較（ground.py）
+src/dcopt/heat      テーマ1：モデルv1（v1.py）、v2（network.py）、提案書（proposal.py）、気象年（weather.py）、ライブ・シミュレーションの設定値（whatif.py）、導管の熱損失（loss.py）、計画のグラフ（plangraph.py）、エクセルギー（exergy.py）、地熱・地中熱との比較（ground.py）、事業の見方（business.py）
 src/dcopt/grid      テーマ2：系統データ（cases.py）、緩和と交流の問題に共通の持ち上げモデル（lifted.py）、緩和（relax.py）、交流の運転点（ac.py）、上限と下限（hosting.py）
 src/dcopt/siting    テーマ3：候補地（candidates.py）、排熱の価値（heat_value.py）、系統までの距離（gridmap.py）、立地のモデル（model.py）
 src/dcopt/matching  テーマ4：需給実績（records.py）、数え方（score.py）、実績をなぞる再計算（system.py）、いちばん安い組み合わせ（portfolio.py）
