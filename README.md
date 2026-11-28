@@ -146,13 +146,14 @@ Run: `uv run python experiments/weather_years/run.py ambient both --bound` (add 
 
 ### What the result rests on
 
-The published plan (93.8 M yen a year, 13 sites, 7.8 km) was computed again with each input moved, one at a time, to the end of the range found in published sources. The sources and the reading of each input are in [docs/input-evidence.md](docs/input-evidence.md); the runs are `experiments/input_sensitivity` and `experiments/heat_loss_check`.
+The published plan (93.8 M yen a year, 13 sites, 7.8 km) was computed again with each input moved, one at a time, to the end of the range found in published sources. The sources and the reading of each input are in [docs/input-evidence.md](docs/input-evidence.md); the runs are `experiments/input_sensitivity`, `experiments/heat_loss_check` and `experiments/temperature_bands`.
 
 | Input | In the model | Changed to | Net benefit (M yen a year) |
 |---|---|---|---|
 | Assumed sites: fish farm, road heating, new greenhouse sites | included | all left out | 11.4 |
 | Heat demand of the fish farm (an assumed site) | 5,000 MWh a year | 1,000 MWh a year, the scale documented in Hokkaido | 27.9 to 32.4 |
 | All yearly heat demands | as assumed | 0.7 times / 1.3 times | 28.4 to 51.5 / 144.8 |
+| Heat above 60 °C at hospitals, hotels and factories | all of it served at 60 °C | left out: hospitals 37 % / 49 % (steam), hotels 26 %, factories 39 % | 81.7 to 88.4 / 79.7 to 88.2 |
 | Pipe cost | 2019 quotes | fiscal 2025 prices (1.22 times) | 72.7 to 76.6 |
 | Discount rate | 3 % | 4 % / 1 % | 78.3 to 79.0 / about 122 |
 | Heat from a litre of kerosene | 8.2 kWh | 8.7 kWh / 7.6 kWh | 80.7 / 115.0 |
@@ -162,6 +163,7 @@ The published plan (93.8 M yen a year, 13 sites, 7.8 km) was computed again with
 
 - **Half of the heat goes to two assumed sites.** The fish farm takes 33 % of the heat the plan delivers and one road-heating area 16 %. Neither exists today. Without the assumed sites, the best plan found on the facilities that exist is worth 11.4 M yen a year (13 sites, 6.0 km).
 - **Low-temperature users carry the value.** The fish farm and the road heating need 22 to 25 °C and take the heat of the 30 °C loop as it is. Existing buildings need 45 to 60 °C, so each of them needs a heat pump and its electricity.
+- **Hospitals and hotels also need heat above 60 °C.** In published measurements 37 to 49 % of a hospital's heat is steam, and in US data about a quarter of a hotel's is cooking (sources in [docs/input-evidence.md](docs/input-evidence.md)). Left out of what the network serves, the hospital no longer connects and one hotel does. On today's facilities alone the 13-site network then loses 0.7 to 2.7 M yen a year with its pipes kept; the best plan found is two pools and 1.5 km of pipe, 7.2 M yen a year.
 - **Costs are in 2019 prices.** Construction costs rose about 22 % between fiscal 2019 and fiscal 2025; with pipes at today's prices the plan is worth about a fifth less, and a plan made again shrinks to 10 sites and 4.3 km.
 - **The heat loss matters little here,** because waste heat is in surplus. Computed from published loss coefficients and Sapporo's ground temperature, the plan's own pipes lose 2.7 to 4.5 % of the heat delivered, against the flat 2 % in the model.
 

@@ -21,6 +21,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[3]
 PAGES = {"en": ROOT / "docs" / "input-evidence.md", "ja": ROOT / "docs" / "input-evidence.ja.md"}
 CHECKED = "2026-11-26"
+CHECKED_LAST = "2026-11-28"   # the entry on heat above 60 C
 
 # how the model's value sits against the published ones: (Japanese, English)
 VERDICT = {
@@ -72,6 +73,15 @@ S_SHIKAOI = ("北海道鹿追町 (2023). 再生可能エネルギーを活用し
              "https://www.env.go.jp/seisaku/list/ondanka_saisei/lowcarbon-h2-sc/events/PDF/230711_3_4.pdf")
 S_LEGIONELLA = ("厚生労働省告示第264号. レジオネラ症を予防するために必要な措置に関する技術上の指針",
                 "https://www.mhlw.go.jp/content/10900000/001492168.pdf")
+S_HOSPITAL_HEAT = ("黒田英男・河村貢・浅谷貴樹・馳平心 (2009). 近年の総合病院におけるエネルギー消費実態調査. 空気調和・衛生工学会大会 "
+                   "学術講演論文集 2009.2, 1159-1162",
+                   "https://doi.org/10.18948/shasetaikai.2009.2.0_1159")
+S_CBECS = ("U.S. Energy Information Administration (2022). 2018 Commercial Buildings Energy Consumption Survey, table E1: "
+           "major fuels consumption by end use",
+           "https://www.eia.gov/consumption/commercial/data/2018/ce/pdf/e1.pdf")
+S_JRC_HEAT = ("Pardo, N., Vatopoulos, K., Krook-Riekkola, A., Moya, J.A., Perez, A. (2012). Heat and cooling demand and "
+              "market perspective. JRC Report EUR 25381 EN, table 3.2.a",
+              "https://publications.jrc.ec.europa.eu/repository/bitstream/JRC70962/ldna25381enn.pdf")
 S_OCCTO = ("電力広域的運営推進機関 (2026). 送変電設備の標準的な単価の見直しについて（第11回 計画評価及び検証小委員会 資料1）",
            "https://www.occto.or.jp/assets/iinkai/kouikikeitouseibi_hyouka/11/hyouka_11_01_01.pdf")
 S_WAHLROOS = ("Wahlroos, M., Pärssinen, M., Manner, J., Syri, S. (2017). Utilizing data center waste heat in district heating. "
@@ -200,6 +210,26 @@ ITEMS: list[Item] = [
          "inside",
          ("", ""),
          (S_LEGIONELLA,)),
+    Item(1, (),
+         ("60 ℃を超える熱の割合（病院・ホテル・工場）", "Share of heat above 60 C (hospitals, hotels, factories)"),
+         ("0 %：年間の熱需要のすべてを60 ℃の温水で賄えるとしている", "0 %: the whole yearly heat demand is taken as servable with water at 60 C"),
+         ("病院：蒸気が熱の49 %（関東・北陸・関西の総合病院5件の実測、2007〜08年。暖房303、給湯91、蒸気383 MJ/m²年。給湯を文献値の335にすると37 %。"
+          "蒸気には加湿も含む）。ホテル：厨房が暖房・給湯・厨房の26 %（米国の宿泊施設、2018年。洗濯の蒸気は分かれていない）。"
+          "食品工場：100〜400 ℃の熱が有効熱の39 %（EU-27、2009年）。北海道のデータは見つからない",
+          "hospitals: steam is 49 % of the heat (five general hospitals in Kanto, Hokuriku and Kansai, measured 2007-08: "
+          "space heating 303, hot water 91, steam 383 MJ/m2 a year; 37 % with the paper's reference value of 335 for hot "
+          "water; the steam includes humidification). Hotels: cooking is 26 % of space heating, water heating and cooking "
+          "(US lodging, 2018; laundry steam is not separated). Food factories: heat at 100-400 C is 39 % of the useful "
+          "heat (EU-27, 2009). No Hokkaido data found"),
+         "low",
+         ("病院37〜49 %、ホテル26 %、工場39 %を外すと、公表中の計画は導管をそのままで79.7〜81.7、計画し直すと88.2〜88.4"
+          "（病院はつながらず、ホテルは1件。百万円/年）。今ある施設だけの計画は、導管をそのままで−0.7〜−2.7、計画し直すと"
+          "プール2件・1.5 kmの7.2",
+          "without 37-49 % for hospitals, 26 % for hotels and 39 % for factories, the published plan is worth 79.7-81.7 "
+          "with its pipes kept and 88.2-88.4 made again (the hospital no longer connects, one hotel does; M yen a year). "
+          "The plan on today's facilities alone loses 0.7-2.7 with its pipes kept; made again, it is two pools and 1.5 km, "
+          "7.2"),
+         (S_HOSPITAL_HEAT, S_CBECS, S_JRC_HEAT)),
     Item(1, ("supply_snow",),
          ("道路融雪に必要な温度", "Temperature needed for snow melting"),
          ("25 ℃", "25 C"),
@@ -480,14 +510,14 @@ def render(lang: str) -> str:
     head = {
         "ja": ["# 入力の根拠：公表値との比較", "",
                f"モデルの入力のうち「仮定」としているものについて、公表されている値の範囲と、モデルの値がその中のどこにあるか、"
-               f"値を範囲の端まで動かすと結果がどれだけ動くかをまとめます。出典は {CHECKED} に原資料を開いて確認しました。"
+               f"値を範囲の端まで動かすと結果がどれだけ動くかをまとめます。出典は {CHECKED}〜{CHECKED_LAST} に原資料を開いて確認しました。"
                "すべての値の一覧は [data-sources.md](data-sources.md)（英語）にあります。", "",
                "このページは `src/dcopt/common/evidence.py` から作っています（`uv run python -m dcopt.common.evidence --write`）。"
                "[English](input-evidence.md)", ""],
         "en": ["# Evidence for the inputs: the model's values against published ones", "",
                f"For the inputs marked as assumptions: the range found in published sources, where the model's value sits "
                f"in it, and how far the results move when the value moves to the end of the range. Every source was opened "
-               f"and checked on {CHECKED}. The list of all values is in [data-sources.md](data-sources.md).", "",
+               f"and checked between {CHECKED} and {CHECKED_LAST}. The list of all values is in [data-sources.md](data-sources.md).", "",
                "This page is written from `src/dcopt/common/evidence.py` (`uv run python -m dcopt.common.evidence --write`). "
                "[日本語](input-evidence.ja.md)", ""],
     }[lang]
