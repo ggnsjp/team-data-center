@@ -9,7 +9,7 @@ from dcopt.common import llm
 from dcopt.heat import whatif
 
 ENV = ("ORCAROUTER_API_KEY", "ORCAROUTER_BASE_URL", "LLM_MODELS", "LLM_MODEL", "CF_API_KEY",
-       "CARBONFORGE_BASE_URL", "LLM_TIMEOUT_S")
+       "CARBONFORGE_BASE_URL", "LLM_TIMEOUT_S", "LLM_API_KEY", "LLM_BASE_URL")
 
 
 class Clock:
