@@ -102,9 +102,13 @@ A question that is often asked is whether heat from the ground would not serve b
 
 Wells, exploration and ground loops are not costed, and a line large enough for a whole city, which costs far less per unit of heat, is not assessed. So this does not say which source is cheaper, and no source is better everywhere. The tables, the sources and the limits: [docs/ground-heat.md](docs/ground-heat.md). Run: `uv run python scripts/ground_heat.py`.
 
+### As a business: lower the winter heating bills
+
+Seen as a business, the aim of the plan is to lower the winter heating bills of buildings that burn kerosene. On today's facilities alone (13 buildings, 6.0 km of pipe), the network needs at least 7,352 yen per MWh of heat, the same as 60.6 yen per litre of kerosene replaced, and the plan breaks even when the facilities pay about 125 yen per litre for kerosene: it earns 32.6 M yen a year at the retail price of 156.8 yen/L and loses 10.0 M yen at 115 yen/L. Users that take the loop's heat without a heat pump, such as the assumed fish farm and road heating, lower the network's price for everyone, to 6,331 yen per MWh, and bring the break-even down to about 85 yen per litre. So the first things to find out are the price that large users pay for kerosene and whether such users can come to the port area. The window for each kind of facility, three steps of demand and what a business plan still needs: [docs/heat-business.md](docs/heat-business.md). Run: `uv run python scripts/export_heat_business.py` (a few minutes), then `uv run python scripts/heat_business.py`.
+
 ### CO₂: the plan pays for itself, and a subsidy moves it more than a carbon price
 
-The stochastic plan above (13 sites, 7.8 km) avoids about **3,900 t of CO₂ a year** when the users' heat pumps run on Hokkaido Electric's standard power (0.526 kg/kWh [54]). It avoids 4,300 t at the national level for FY2030 (0.25 kg/kWh [55]) and 4,600 t on renewable power; kerosene emits 2.50 kg per litre [53]. The plan earns money while it cuts, about 24,000 yen per tonne, so it needs no carbon price.
+The stochastic plan above (13 sites, 7.8 km) avoids about **3,900 t of CO₂ a year** when the users' heat pumps run on Hokkaido Electric's standard power (0.526 kg/kWh [54]). It avoids 4,300 t at the national level for FY2030 (0.25 kg/kWh [55]) and 4,600 t on renewable power; kerosene emits 2.50 kg per litre [53]. These are the emissions of the kerosene replaced, less those of the heat pumps' electricity; a user's other emissions, such as those of a fish farm's feed or pumps, are not counted, so connecting does not make a user zero-emission. The plan earns money while it cuts, about 24,000 yen per tonne, so it needs no carbon price.
 
 We then re-optimized the plan under two scenarios: a price on the CO₂ avoided, and a subsidy on the investment.
 
@@ -174,7 +178,7 @@ A range "a to b" spans the published pipes kept and the plan made again under th
 - **Model scope.** The model balances energy month by month, and heat losses are a flat percentage. Distance-dependent losses are next.
 - **Heat quality.** The model does not represent steam or process heat above 60 °C, thermal storage or pumping power ([docs/exergy.md](docs/exergy.md)).
 
-Details: the full mathematical model, with every coefficient and worked numbers, is in [docs/formulations/heat-model.md](docs/formulations/heat-model.md); results are in [docs/formulations/heat.md](docs/formulations/heat.md); the exergy view is in [docs/exergy.md](docs/exergy.md); the comparison with geothermal heat and ground heat is in [docs/ground-heat.md](docs/ground-heat.md).
+Details: the full mathematical model, with every coefficient and worked numbers, is in [docs/formulations/heat-model.md](docs/formulations/heat-model.md); results are in [docs/formulations/heat.md](docs/formulations/heat.md); the exergy view is in [docs/exergy.md](docs/exergy.md); the comparison with geothermal heat and ground heat is in [docs/ground-heat.md](docs/ground-heat.md); the business view, with the price of heat each kind of facility can pay, is in [docs/heat-business.md](docs/heat-business.md).
 
 ## Results so far (theme 2)
 
@@ -461,7 +465,7 @@ Add `--lang ja` for the Japanese versions; they need a Japanese font such as Not
 ## Repository layout
 
 ```
-src/dcopt/heat      theme 1: model v1 (v1.py), v2 (network.py), proposals (proposal.py), weather years (weather.py), live what-if knobs (whatif.py), pipe heat loss (loss.py), the plan as a graph (plangraph.py), exergy view (exergy.py), heat from the ground (ground.py)
+src/dcopt/heat      theme 1: model v1 (v1.py), v2 (network.py), proposals (proposal.py), weather years (weather.py), live what-if knobs (whatif.py), pipe heat loss (loss.py), the plan as a graph (plangraph.py), exergy view (exergy.py), heat from the ground (ground.py), the business view (business.py)
 src/dcopt/grid      theme 2: networks (cases.py), the lifted model the relaxations and the AC problem share (lifted.py), relaxations (relax.py), AC points (ac.py), brackets (hosting.py)
 src/dcopt/siting    theme 3: candidate sites (candidates.py), heat value (heat_value.py), grid distances (gridmap.py), location model (model.py)
 src/dcopt/matching  theme 4: area records (records.py), counting (score.py), replay of the records (system.py), cheapest portfolio (portfolio.py)
