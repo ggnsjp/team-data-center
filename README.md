@@ -1,6 +1,6 @@
 # Team Data Center
 
-**Optimization for data centers in Ishikari, Hokkaido.** Where should their waste heat go? How much new load can the power grid host? Where should the next data center be built? How much of their electricity is renewable, slot by slot?
+**Optimization for data centers in Ishikari, Hokkaido.** Where should their waste heat go to lower the winter heating bills of the buildings around them? How much new load can the power grid host? Where should the next data center be built? How much of their electricity is renewable, slot by slot?
 
 [日本語版 / Japanese](README.ja.md)
 
@@ -24,7 +24,7 @@ We took the idea starter **"Warm Ishikari"**: a matchmaker and calculator for da
 
 | | Question | Method | Status |
 |---|---|---|---|
-| 1. Waste-heat networks | Which users connect to which data center, along which streets, with which pipes? | Network-design MILP with monthly heat balances; stochastic and robust versions [23–26, 31–36] | Models v1 and v2, app and animated map |
+| 1. Waste-heat networks | Which users connect to which data center, along which streets, with which pipes, and at what price for heat do the users and the network both gain? | Network-design MILP with monthly heat balances; stochastic and robust versions [23–26, 31–36] | Models v1 and v2, app and animated map |
 | 2. Grid hosting capacity | How much data-center and heat-pump load can each grid location take? | AC optimal power flow with convex (SDP/SOCP) relaxations: certified upper bounds plus feasible points [37–47, 59–64] | Method and app page; checked on benchmark systems |
 | 3. Siting | Where should the next data center go? | Facility location using the results of themes 1 and 2 [48–52] | First screen: heat value by site, distance to the grid, app page |
 | 4. Renewable matching | How much of a data center's electricity is renewable in the 30 minutes it is used, and what changes on the grid? | Counting on the area's 30-minute supply and demand records; a linear program for the cheapest contract and battery [66–71] | First version: two fiscal years of records, app page |
@@ -34,6 +34,10 @@ We took the idea starter **"Warm Ishikari"**: a matchmaker and calculator for da
 > **All numbers are model estimates** from public data and stated assumptions, not measured values or quotations. Several sites, demands and data-center positions are assumptions, and about half of the heat in the headline plan goes to two assumed sites (see [What the result rests on](#what-the-result-rests-on), [Caveats](#caveats) and [docs/data-sources.md](docs/data-sources.md)).
 
 All figures are annual net benefits in million yen, averaged over four scenarios: IT load low or high, crossed with kerosene at 115 or 156.8 yen/L. The net benefit is the value of the kerosene replaced, minus heat-pump electricity, minus the annualized cost of pipes and heat pumps. Pipe costs follow [15], heat-pump costs [16], kerosene prices [11], and monthly demand follows JMA climate normals [12]. There are 50 candidate sites: 40 from OpenStreetMap facility tags, plus 10 named public buildings, hotels and a factory. Demand per building type is an assumption.
+
+### The aim: lower the winter heating bills
+
+The aim of the heat network is to lower the winter heating bills of buildings that burn kerosene. **On today's facilities alone** (13 buildings, 6.0 km of pipe) the best plan the model found is worth 11.4 M yen a year. Its network needs at least 7,352 yen per MWh of heat, the same as 60.6 yen per litre of kerosene replaced, and the plan breaks even when the facilities pay about 125 yen per litre for kerosene: it earns 32.6 M yen a year at the retail price of 156.8 yen/L and loses 10.0 M yen at 115 yen/L. **The published plan, 93.8 M yen a year,** adds a fish farm and road heating that do not exist today. Such users take the loop's heat without a heat pump, lower the network's price for everyone, to 6,331 yen per MWh, and bring the break-even down to about 85 yen per litre. So the first things to find out are the price that large users pay for kerosene and whether such users can come to the port area. The window for each kind of facility, three steps of demand and what a business plan still needs: [docs/heat-business.md](docs/heat-business.md). Run: `uv run python scripts/export_heat_business.py` (a few minutes), then `uv run python scripts/heat_business.py`.
 
 ### A shared network beats pair-by-pair matching
 
@@ -101,10 +105,6 @@ What exergy is, the definitions, a worked example, the limits and the references
 A question that is often asked is whether heat from the ground would not serve better than waste heat. Hot geothermal water is better heat, since it needs no heat pump, but it has to be piped from where the geology has it, and how far heat can be carried is a matter of cost [79]. With the model's own pipe costs, a line that carries hot water to the plan's 13 users costs 2,704 M yen per 10 km and loses, per 10 km, 17 % of the heat it delivers. At 7.0 km the line alone costs as much as the plan's whole network, and what hot water saves on heat pumps pays for 4.3 km of it. The nearest hot resource that a source names, in the mountains south-west of Sapporo, lies about 26 to 30 km from the data centers in a straight line; a survey for a geothermal power station there was suspended in 2014, after tests on its survey wells gave less steam than assumed [80]. Shallow ground heat is under every building and needs no network, but the ground is at about 10 °C in Hokkaido [81], so every use needs a heat pump: for the plan's deliveries, 2.4 times the electricity of the loop.
 
 Wells, exploration and ground loops are not costed, and a line large enough for a whole city, which costs far less per unit of heat, is not assessed. So this does not say which source is cheaper, and no source is better everywhere. The tables, the sources and the limits: [docs/ground-heat.md](docs/ground-heat.md). Run: `uv run python scripts/ground_heat.py`.
-
-### As a business: lower the winter heating bills
-
-Seen as a business, the aim of the plan is to lower the winter heating bills of buildings that burn kerosene. On today's facilities alone (13 buildings, 6.0 km of pipe), the network needs at least 7,352 yen per MWh of heat, the same as 60.6 yen per litre of kerosene replaced, and the plan breaks even when the facilities pay about 125 yen per litre for kerosene: it earns 32.6 M yen a year at the retail price of 156.8 yen/L and loses 10.0 M yen at 115 yen/L. Users that take the loop's heat without a heat pump, such as the assumed fish farm and road heating, lower the network's price for everyone, to 6,331 yen per MWh, and bring the break-even down to about 85 yen per litre. So the first things to find out are the price that large users pay for kerosene and whether such users can come to the port area. The window for each kind of facility, three steps of demand and what a business plan still needs: [docs/heat-business.md](docs/heat-business.md). Run: `uv run python scripts/export_heat_business.py` (a few minutes), then `uv run python scripts/heat_business.py`.
 
 ### CO₂: the plan pays for itself, and a subsidy moves it more than a carbon price
 
