@@ -96,6 +96,12 @@
 
 エクセルギーとは何か、定義、手計算の例、限界、参考文献は [docs/exergy.ja.md](docs/exergy.ja.md) にあります。実行：`uv run python scripts/exergy_balance.py`
 
+### 地熱や地中熱ではだめなのか
+
+「排熱より、地面の下の熱のほうがよいのではないか」という質問はよく出ます。高温の地熱は、ヒートポンプがいらないので、熱としては排熱より上です。ただし、資源のある場所から導管で運ばなければならず、どこまで運べるかは費用で決まります [79]。モデルの導管の単価で計算すると、計画の13件に熱い湯を届ける導管は10 kmあたり27.0億円かかり、10 kmごとに、届ける熱の17 %にあたる熱を失います。7.0 kmで、この導管だけで計画の導管網全体と同じ投資額になり、熱い湯でヒートポンプがいらなくなる分でまかなえるのは4.3 kmまでです。資料で名前を確認できた最も近い高温の資源は、札幌の南西の山あいにあり、データセンターから直線で約26〜30 kmです。そこでの地熱発電の調査は、調査井の噴出試験で想定した蒸気量が得られず、2014年に中断しました [80]。地中熱はどの建物の下にもあり、導管網がいりません。ただし北海道の地中は約10℃なので [81]、どの用途にもヒートポンプが必要で、計画と同じ熱を届けるのに、ループの2.4倍の電気がいります。
+
+井戸、資源の調査、地中熱交換器の費用は入れていません。都市全体に届ける太い導管（運ぶ熱あたりの費用はずっと安くなります）も評価していません。そのため、どの熱源が安いかまでは答えていません。どこでも一番よい熱源もありません。表、出典、限界は [docs/ground-heat.ja.md](docs/ground-heat.ja.md) にあります。実行：`uv run python scripts/ground_heat.py --lang ja`
+
 ### CO₂：計画は補助なしで採算がとれ、炭素価格より補助のほうが計画を大きく動かす
 
 上の確率計画（13か所、7.8km）は、各施設のヒートポンプが北海道電力の標準メニューの電気（0.526 kg/kWh [54]）で動く場合、**年に約3,900トンのCO₂** を減らします。2030年度の国の水準（0.25 kg/kWh [55]）なら4,300トン、再エネ電力なら4,600トンです。灯油の排出量は1Lあたり2.50 kgです [53]。この計画は、減らしながら利益が出ます（1トンあたり約24,000円の得）。炭素価格がなくても成り立ちます。
@@ -168,7 +174,7 @@
 - **モデルの粗さ。** 熱の収支は月単位で、熱損失は一律の割合です。距離に応じた損失はこれから入れます。
 - **熱の質。** 60℃を超える蒸気やプロセス熱、蓄熱槽、ポンプ動力は、モデルに入っていません（[docs/exergy.ja.md](docs/exergy.ja.md)）。
 
-数理モデルの完全な解説（すべての係数と数値例つき、英語）は [docs/formulations/heat-model.md](docs/formulations/heat-model.md) に、結果は [docs/formulations/heat.md](docs/formulations/heat.md) にあります。エクセルギーから見た説明は [docs/exergy.ja.md](docs/exergy.ja.md) です。
+数理モデルの完全な解説（すべての係数と数値例つき、英語）は [docs/formulations/heat-model.md](docs/formulations/heat-model.md) に、結果は [docs/formulations/heat.md](docs/formulations/heat.md) にあります。エクセルギーから見た説明は [docs/exergy.ja.md](docs/exergy.ja.md) です。地熱・地中熱との比較は [docs/ground-heat.ja.md](docs/ground-heat.ja.md) です。
 
 ## これまでの結果（テーマ2）
 
@@ -427,7 +433,7 @@ uv run pytest                                          # テスト（地図デ�
 ## 構成
 
 ```
-src/dcopt/heat      テーマ1：モデルv1（v1.py）、v2（network.py）、提案書（proposal.py）、気象年（weather.py）、ライブ・シミュレーションの設定値（whatif.py）、導管の熱損失（loss.py）、計画のグラフ（plangraph.py）、エクセルギー（exergy.py）
+src/dcopt/heat      テーマ1：モデルv1（v1.py）、v2（network.py）、提案書（proposal.py）、気象年（weather.py）、ライブ・シミュレーションの設定値（whatif.py）、導管の熱損失（loss.py）、計画のグラフ（plangraph.py）、エクセルギー（exergy.py）、地熱・地中熱との比較（ground.py）
 src/dcopt/grid      テーマ2：系統データ（cases.py）、緩和と交流の問題に共通の持ち上げモデル（lifted.py）、緩和（relax.py）、交流の運転点（ac.py）、上限と下限（hosting.py）
 src/dcopt/siting    テーマ3：候補地（candidates.py）、排熱の価値（heat_value.py）、系統までの距離（gridmap.py）、立地のモデル（model.py）
 src/dcopt/matching  テーマ4：需給実績（records.py）、数え方（score.py）、実績をなぞる再計算（system.py）、いちばん安い組み合わせ（portfolio.py）
@@ -484,7 +490,7 @@ tests/              合成データでの単体テストとアプリのテスト
 
 ## 参考文献
 
-事実とパラメータの出典 [1–22]、関連文献：排熱の導管網とデータセンター排熱の利用 [23–30]、ロバスト最適化 [31–36]、系統の受け入れ余地 [37–47]、立地と柔軟な負荷 [48–52]、CO₂の排出係数と政策の出典 [53–58]、テーマ2の手法とソルバー [59–64]、系統接続の費用 [65]、再エネの一致：需給実績と公表されている抑制量 [66, 67]、電力調達に関する研究 [68, 69]、費用 [70, 71]、エクセルギーと熱の質 [72–78]。
+事実とパラメータの出典 [1–22]、関連文献：排熱の導管網とデータセンター排熱の利用 [23–30]、ロバスト最適化 [31–36]、系統の受け入れ余地 [37–47]、立地と柔軟な負荷 [48–52]、CO₂の排出係数と政策の出典 [53–58]、テーマ2の手法とソルバー [59–64]、系統接続の費用 [65]、再エネの一致：需給実績と公表されている抑制量 [66, 67]、電力調達に関する研究 [68, 69]、費用 [70, 71]、エクセルギーと熱の質 [72–78]、地熱と地中熱 [79–81]。
 
 1. Hack × Hokkaido Build Week 2026, AI build week in Sapporo, 23–27 November 2026. https://www.hackhokkaido.com/ (accessed 2026-11-24).
 2. Broadband Tower (2025-11-28). Press release on Ishikari Renewable Energy Data Center No. 1 (in Japanese). https://www.bbtower.co.jp/ir/pr/docs/20251128_ishikari_release.pdf
@@ -564,6 +570,9 @@ tests/              合成データでの単体テストとアプリのテスト
 76. Gong, M., Werner, S. (2015). Exergy analysis of network temperature levels in Swedish and Danish district heating systems. *Renewable Energy*, 84, 106-113. https://doi.org/10.1016/j.renene.2015.06.001
 77. Lund, H., Werner, S., Wiltshire, R., Svendsen, S., Thorsen, J.E., Hvelplund, F., Mathiesen, B.V. (2014). 4th Generation District Heating (4GDH): Integrating smart thermal grids into future sustainable energy systems. *Energy*, 68, 1-11. https://doi.org/10.1016/j.energy.2014.02.089
 78. 久保亮五 編 (1998). 大学演習 熱学・統計力学（修訂版）. 裳華房（第2章でカルノーサイクルの効率と最大仕事を扱う）. https://www.shokabo.co.jp/mybooks/ISBN978-4-7853-8032-8.htm 熱力学の部分の英語版：Kubo, R., in cooperation with Ichimura, H., Usui, T., Hashitsume, N. (1968). *Thermodynamics: An Advanced Course with Problems and Solutions*. North-Holland.
+79. Kavvadias, K.C., Quoilin, S. (2018). Exploiting waste heat potential by long distance heat transmission: Design considerations and techno-economic assessment. *Applied Energy*, 216, 452-465. https://doi.org/10.1016/j.apenergy.2018.02.080
+80. 環境省. 「平成27年度地熱発電と温泉地の共生事例調査委託業務」ヒアリングメモ（札幌市）（2015年12月22日の聞き取り。豊羽地域の地熱調査について）. https://www.env.go.jp/nature/onsen/pdf/2-5_p_36.pdf
+81. 環境省. 地中熱とは？（地温：北海道で10℃）. https://www.env.go.jp/water/jiban/post_117.html （2026-11-28閲覧）
 
 ## メンバー
 
