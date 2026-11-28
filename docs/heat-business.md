@@ -12,6 +12,7 @@ This page is for a town, the operators of the data centers and the managers of f
 - **So the first thing to find out is the price that large users pay for kerosene.** No official series exists; the nearest product, heavy oil A delivered by large lorry in Hokkaido, cost 136.8 yen per litre with tax in September 2026 ([input-evidence.md](input-evidence.md)).
 - **Users that take the loop's heat without a heat pump change the picture.** The fish farm and the road heating of the published plan, both assumed sites, gain at any kerosene price above 52 yen per litre, and they lower the network's price for everyone, to 6,331 yen per MWh. With them the plan breaks even at about 85 yen per litre; with the road heating and a fish farm of the scale documented in Hokkaido, at about 118 (section 3). Whether such users can be brought to the port area is the question for the demand outlook.
 - **Facilities with heat pumps gain least.** Their own heat pump costs them 5,757 to 9,944 yen per MWh in electricity and annuity before they pay for any heat.
+- **The hospital and the hotels need some heat above 60 °C** that the network cannot give: in published data 37 to 49 % of a hospital's heat is steam and about a quarter of a hotel's is cooking ([input-evidence.md](input-evidence.md)). This page counts all of it as servable. Without that share, the 13-building network on today's facilities no longer pays (it loses 0.7 to 2.7 M yen a year with its pipes kept); the best plan found connects two pools near a data center with 1.5 km of pipe, 7.2 M yen a year, and breaks even at about 99 yen per litre of kerosene (`experiments/temperature_bands`).
 
 ## 1. How the window is built
 
@@ -92,6 +93,7 @@ The window says that a price exists. It does not say who takes the investment an
 - **Kinds, not facilities.** Each facility's demand is an estimate by type (a hospital 1,500 MWh a year, a hotel 1,000, a pool 800, a public building 400, a school 250); real bills will differ.
 - **Expected deliveries.** The windows use each user's expected heat over the scenarios.
 - **The plans are not certified optimal.** The searches end 52 % (today's facilities), 37 % (the middle step) and 17 % (the published plan) short of their upper bounds.
+- **Heat above 60 °C is counted as servable.** The answer in short says what changes without it.
 - **The heat pumps are the users'.** If the network owned them, the same costs would sit on the network's side of the window.
 
 ## 8. Reproduce
